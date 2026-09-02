@@ -232,13 +232,11 @@ export default function Home() {
 
   useEffect(() => { loadData(); }, []);
 
-  // FUNÇÃO GLOBAL DE NAVEGAÇÃO
   const navigateToMatch = (matchId: string) => {
     setSelectedTeam(null);
     setSelectedPlayer(null);
     setActiveTab('matches');
     setExpandedMatchId(matchId);
-    // Smooth scroll para garantir que o utilizador vê o topo da lista ou o jogo aberto
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -601,6 +599,8 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               {filteredTeams.map((team) => {
                 const teamPlayers = players.filter(p => (p.club || '').toLowerCase() === (team.name || '').toLowerCase());
+                const teamMatchesCount = matches.filter(m => (m.matchName || '').toLowerCase().includes((team.name || '').toLowerCase())).length;
+
                 return (
                   <div key={team.id} onClick={() => setSelectedTeam(team)} className="bg-[#151c2c] border border-slate-800 rounded-xl p-4 md:p-5 flex items-center justify-between hover:border-slate-700 transition cursor-pointer shadow-sm">
                     <div className="flex items-center gap-4 min-w-0">
@@ -619,7 +619,7 @@ export default function Home() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1.5 flex-shrink-0 pl-2">
-                       <span className="text-xs bg-slate-800 px-2 py-1 rounded-md text-emerald-400 font-bold">{team.totalWatchedMatches} Jogos</span>
+                       <span className="text-xs bg-slate-800 px-2 py-1 rounded-md text-emerald-400 font-bold">{teamMatchesCount} Jogos</span>
                        <span className="text-[10px] text-slate-400 font-medium">{teamPlayers.length} Atletas</span>
                     </div>
                   </div>
