@@ -21,7 +21,6 @@ const POSITIONS_OPTIONS = [
 
 const METRIC_LEVELS = ['Low', 'Medium', 'High'];
 
-// COMPONENTE DROPDOWN AVANÇADO
 function CustomSelect({
   options, value, onChange, placeholder = 'Selecionar...', searchable = false, className = '',
 }: {
@@ -44,7 +43,7 @@ function CustomSelect({
 
   const selectedOption = options.find((o) => o.value === value);
   const filteredOptions = searchable
-    ? options.filter((o) => o.label.toLowerCase().includes(searchTerm.toLowerCase()))
+    ? options.filter((o) => (o.label || '').toLowerCase().includes((searchTerm || '').toLowerCase()))
     : options;
 
   return (
@@ -52,7 +51,7 @@ function CustomSelect({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-left text-slate-200 focus:outline-none focus:border-blue-500 flex justify-between items-center text-xs sm:text-sm transition"
+        className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 md:p-3.5 text-left text-slate-200 focus:outline-none focus:border-blue-500 flex justify-between items-center text-xs sm:text-sm transition"
       >
         <div className="flex items-center gap-2 overflow-hidden">
           {selectedOption?.image && <img src={selectedOption.image} alt="" className="w-5 h-5 object-contain rounded-full bg-slate-900" />}
@@ -81,7 +80,7 @@ function CustomSelect({
               <button
                 key={opt.value} type="button"
                 onClick={() => { onChange(opt.value); setIsOpen(false); setSearchTerm(''); }}
-                className={`w-full text-left px-3 py-2.5 rounded-lg transition flex items-center gap-2.5 ${opt.value === value ? 'bg-blue-600/20 text-blue-400 font-medium border border-blue-500/30' : 'text-slate-300 hover:bg-slate-800/80 hover:text-white border border-transparent'}`}
+                className={`w-full text-left px-3 py-3 md:py-2.5 rounded-lg transition flex items-center gap-2.5 ${opt.value === value ? 'bg-blue-600/20 text-blue-400 font-medium border border-blue-500/30' : 'text-slate-300 hover:bg-slate-800/80 hover:text-white border border-transparent'}`}
               >
                 {opt.image ? <img src={opt.image} alt="" className="w-6 h-6 object-contain rounded-md bg-slate-900 p-0.5 border border-slate-700" /> : opt.icon ? <span className="text-slate-400">{opt.icon}</span> : <span className="w-1.5 h-1.5 rounded-full bg-slate-700 flex-shrink-0" />}
                 <span className="truncate">{opt.label}</span>
@@ -94,7 +93,6 @@ function CustomSelect({
   );
 }
 
-// DROPDOWN DE MULTI-SELEÇÃO DE SCOUTS
 function CustomMultiSelect({
   options, selectedIds, onChange, placeholder = 'Selecionar Scouts...', className = ''
 }: {
@@ -132,7 +130,7 @@ function CustomMultiSelect({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-left text-slate-200 focus:outline-none focus:border-blue-500 flex justify-between items-center text-xs sm:text-sm transition min-h-[46px]"
+        className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 md:p-3.5 text-left text-slate-200 focus:outline-none focus:border-blue-500 flex justify-between items-center text-xs sm:text-sm transition min-h-[46px]"
       >
         <span className={selectedLabels.length > 0 ? 'text-slate-200 font-medium truncate' : 'text-slate-500'}>
           {selectedLabels.length > 0 ? selectedLabels.join(', ') : placeholder}
@@ -148,10 +146,10 @@ function CustomMultiSelect({
               <button
                 key={opt.value} type="button"
                 onClick={() => toggleOption(opt.value)}
-                className={`w-full text-left px-3 py-2.5 rounded-lg transition flex items-center justify-between ${isSelected ? 'bg-blue-600/20 text-blue-400 font-bold border border-blue-500/30' : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'}`}
+                className={`w-full text-left px-3 py-3 md:py-2.5 rounded-lg transition flex items-center justify-between ${isSelected ? 'bg-blue-600/20 text-blue-400 font-bold border border-blue-500/30' : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'}`}
               >
                 <div className="flex items-center gap-2 overflow-hidden">
-                  {opt.image ? <img src={opt.image} alt="" className="w-5 h-5 object-contain rounded-full bg-slate-900" /> : <Shield size={14} className="text-slate-500"/>}
+                  {opt.image ? <img src={opt.image} alt="" className="w-5 h-5 object-contain rounded-full bg-slate-900" /> : <Shield className="w-3.5 h-3.5 text-slate-500"/>}
                   <span className="truncate">{opt.label}</span>
                 </div>
                 {isSelected && <CheckCircle2 size={14} className="text-blue-400 flex-shrink-0" />}
@@ -204,7 +202,7 @@ export default function Home() {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const lecaLogoUrl ="/logo.png";
+  const lecaLogoUrl = "/logo.png";
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -250,7 +248,7 @@ export default function Home() {
   };
 
   const openNewPlayerModalForMatch = (matchName: string) => {
-    const matchTeams = teams.filter((t) => matchName.toLowerCase().includes(t.name.toLowerCase()));
+    const matchTeams = teams.filter((t) => (matchName || '').toLowerCase().includes((t.name || '').toLowerCase()));
     setAvailableMatchTeams(matchTeams.length > 0 ? matchTeams : teams);
     setNewPlayerData({ name: '', clubId: matchTeams[0]?.id || '', position: '' });
     setIsNewPlayerOpen(true);
@@ -322,7 +320,7 @@ export default function Home() {
     const timeline: any[] = [];
     matches.forEach(m => {
       if (m.highlightedPlayers) {
-        const found = m.highlightedPlayers.find((p: any) => p.id === playerId || p.name.toLowerCase() === playerName.toLowerCase());
+        const found = m.highlightedPlayers.find((p: any) => p.id === playerId || (p.name || '').toLowerCase() === (playerName || '').toLowerCase());
         if (found && found.note && found.note !== 'Sem notas registadas.') {
           timeline.push({ matchName: m.matchName, gameDate: m.gameDate, scout: m.scout, note: found.note });
         }
@@ -331,7 +329,6 @@ export default function Home() {
     return timeline.sort((a, b) => new Date(b.gameDate).getTime() - new Date(a.gameDate).getTime());
   };
 
-  // OBTER ÚLTIMAS AVALIAÇÕES INDIVIDUAIS PARA O DASHBOARD
   const getRecentHighlights = () => {
     const list: any[] = [];
     matches.forEach(m => {
@@ -361,7 +358,7 @@ export default function Home() {
       
       {toastMessage && (
         <div className="fixed top-4 right-4 md:top-6 md:right-6 z-[100] bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 duration-300 font-medium text-xs md:text-sm max-w-[90vw] md:max-w-md border border-emerald-500">
-          <CheckCircle2 size={18} className="flex-shrink-0" />
+          <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
           <span className="truncate">{toastMessage}</span>
         </div>
       )}
@@ -369,7 +366,18 @@ export default function Home() {
       {/* HEADER WITH LEÇA FC LOGO */}
       <header className="sticky top-0 z-40 bg-[#151c2c]/95 backdrop-blur-md border-b border-slate-800 px-5 py-4 md:p-6 md:m-6 md:rounded-xl md:static flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-3.5">
-          <img src={lecaLogoUrl} alt="Leça FC SAD" className="w-10 h-10 md:w-12 md:h-12 object-contain p-1 bg-slate-900/80 rounded-xl border border-slate-700/60 shadow" />
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 rounded-xl border border-slate-700/60 flex items-center justify-center p-1 shadow flex-shrink-0 group">
+            <img 
+              src={lecaLogoUrl} 
+              alt="Leça FC SAD" 
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement?.classList.add('bg-blue-600/20');
+              }}
+            />
+            <Shield className="w-6 h-6 text-blue-400 hidden group-has-[img[style*='display: none']]:block" />
+          </div>
           <div>
             <span className="hidden md:block text-[10px] md:text-xs font-semibold tracking-wider text-slate-400 uppercase mb-0.5">Departamento de Scouting</span>
             <h1 className="text-xl md:text-2xl font-bold text-white tracking-wide">LEÇA FC SAD</h1>
@@ -377,7 +385,7 @@ export default function Home() {
         </div>
         
         <button className="md:hidden p-2 -mr-2 text-slate-300 hover:text-white" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-          {isMobileMenuOpen ? <X size={26} /> : <Menu size={26} />}
+          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
 
         <div className="hidden md:flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-full text-xs font-medium">
@@ -388,22 +396,22 @@ export default function Home() {
 
       {/* MOBILE MENU */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 top-[69px] z-30 bg-[#0d131f] animate-in slide-in-from-top-2 md:hidden overflow-y-auto">
-          {renderMobileMenuButton('dashboard', <LayoutDashboard size={20}/>, 'Início / Painel')}
-          {renderMobileMenuButton('players', <Users size={20}/>, 'Base de Jogadores', players.length)}
-          {renderMobileMenuButton('teams', <Building2 size={20}/>, 'Equipas', teams.length)}
-          {renderMobileMenuButton('matches', <Trophy size={20}/>, 'Match Center', matches.length)}
-          {renderMobileMenuButton('scouts', <Shield size={20}/>, 'Equipa de Scouts', scouts.length)}
+        <div className="fixed inset-0 top-[76px] z-30 bg-[#0d131f] animate-in slide-in-from-top-2 md:hidden overflow-y-auto">
+          {renderMobileMenuButton('dashboard', <LayoutDashboard className="w-5 h-5"/>, 'Início / Painel')}
+          {renderMobileMenuButton('players', <Users className="w-5 h-5"/>, 'Base de Jogadores', players.length)}
+          {renderMobileMenuButton('teams', <Building2 className="w-5 h-5"/>, 'Equipas', teams.length)}
+          {renderMobileMenuButton('matches', <Trophy className="w-5 h-5"/>, 'Match Center', matches.length)}
+          {renderMobileMenuButton('scouts', <Shield className="w-5 h-5"/>, 'Equipa de Scouts', scouts.length)}
         </div>
       )}
 
       {/* DESKTOP TABS */}
       <div className="hidden md:flex max-w-6xl mx-auto mb-6 flex-wrap gap-3 px-6 md:px-0">
-        <button onClick={() => setActiveTab('dashboard')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><LayoutDashboard size={16} /> Início</button>
-        <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Users size={16} /> Base de Jogadores ({players.length})</button>
-        <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Building2 size={16} /> Equipas ({teams.length})</button>
-        <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Trophy size={16} /> Match Center ({matches.length})</button>
-        <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Shield size={16} /> Equipa de Scouts ({scouts.length})</button>
+        <button onClick={() => setActiveTab('dashboard')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><LayoutDashboard className="w-4 h-4" /> Início</button>
+        <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Users className="w-4 h-4" /> Base de Jogadores ({players.length})</button>
+        <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Building2 className="w-4 h-4" /> Equipas ({teams.length})</button>
+        <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Trophy className="w-4 h-4" /> Match Center ({matches.length})</button>
+        <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Shield className="w-4 h-4" /> Equipa de Scouts ({scouts.length})</button>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 md:px-0 mt-4 md:mt-0">
@@ -447,10 +455,10 @@ export default function Home() {
               </div>
               <div className="flex w-full sm:w-auto gap-3">
                 <button onClick={() => setIsRegisterOpen(true)} className="flex-1 sm:flex-none px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white text-xs md:text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
-                  <Plus size={16} /> Agendar Jogo
+                  <Plus className="w-4 h-4" /> Agendar Jogo
                 </button>
                 <button onClick={() => { setActiveTab('players'); }} className="flex-1 sm:flex-none px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs md:text-sm font-bold rounded-xl flex items-center justify-center gap-2 border border-slate-700">
-                  <Search size={16} /> Pesquisar Atleta
+                  <Search className="w-4 h-4" /> Pesquisar Atleta
                 </button>
               </div>
             </div>
@@ -459,10 +467,10 @@ export default function Home() {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-sm md:text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <Star size={16} className="text-blue-400" /> Últimas Observações Submetidas
+                  <Star className="w-4 h-4 text-blue-400" /> Últimas Observações Submetidas
                 </h3>
                 <button onClick={() => setActiveTab('matches')} className="text-xs text-blue-400 font-bold hover:underline flex items-center gap-1">
-                  Ver Todos os Jogos <ArrowRight size={12} />
+                  Ver Todos os Jogos <ArrowRight className="w-3 h-3" />
                 </button>
               </div>
 
@@ -503,7 +511,7 @@ export default function Home() {
         {activeTab === 'players' && (
           <div className="animate-in fade-in duration-300">
             <div className="relative mb-5 md:mb-6">
-              <Search className="absolute left-4 top-4 md:top-3.5 text-slate-500" size={18} />
+              <Search className="absolute left-4 top-4 md:top-3.5 text-slate-500 w-4 h-4 md:w-5 md:h-5" />
               <input type="text" placeholder="Pesquisar atleta, clube, posição..." value={search} onChange={(e) => { setSearch(e.target.value); setVisibleCount(20); }} className="w-full bg-[#151c2c] border border-slate-800 rounded-xl py-4 md:py-3.5 pl-12 pr-4 text-sm md:text-base text-slate-200 focus:outline-none focus:border-blue-500 shadow-sm" />
             </div>
 
@@ -538,7 +546,7 @@ export default function Home() {
                   
                   <div className="flex justify-between items-center mt-auto pt-3 border-t border-slate-800/60">
                      <div className="flex items-center gap-2 text-xs md:text-sm text-slate-300">
-                        {player.clubLogo ? <img src={player.clubLogo} alt={player.club} className="w-4 h-4 md:w-5 md:h-5 object-contain" /> : <Shield size={16} className="text-slate-500" />}
+                        {player.clubLogo ? <img src={player.clubLogo} alt={player.club} className="w-4 h-4 md:w-5 md:h-5 object-contain" /> : <Shield className="w-4 h-4 text-slate-500" />}
                         <span className="truncate max-w-[140px] font-medium">{player.club}</span>
                      </div>
                      <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded-md font-bold uppercase tracking-wide">{player.status}</span>
@@ -562,7 +570,7 @@ export default function Home() {
           <div className="animate-in fade-in duration-300">
             <div className="flex flex-col md:flex-row gap-3 md:gap-4 mb-6">
               <div className="relative flex-1">
-                <Search className="absolute left-4 top-4 md:top-3.5 text-slate-500" size={18} />
+                <Search className="absolute left-4 top-4 md:top-3.5 text-slate-500 w-4 h-4 md:w-5 md:h-5" />
                 <input type="text" placeholder="Pesquisar equipa..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-[#151c2c] border border-slate-800 rounded-xl py-4 md:py-3.5 pl-12 pr-4 text-sm md:text-base text-slate-200 focus:outline-none focus:border-blue-500" />
               </div>
               <div className="flex flex-col sm:flex-row gap-3 z-20">
@@ -573,14 +581,14 @@ export default function Home() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               {filteredTeams.map((team) => {
-                const teamPlayers = players.filter(p => p.club.toLowerCase() === team.name.toLowerCase());
+                const teamPlayers = players.filter(p => (p.club || '').toLowerCase() === (team.name || '').toLowerCase());
                 return (
                   <div key={team.id} onClick={() => setSelectedTeam(team)} className="bg-[#151c2c] border border-slate-800 rounded-xl p-4 md:p-5 flex items-center justify-between hover:border-slate-700 transition cursor-pointer shadow-sm">
                     <div className="flex items-center gap-4 min-w-0">
                       {team.logo ? (
                         <img src={team.logo} alt={team.name} className="w-12 h-12 md:w-14 md:h-14 object-contain p-1.5 bg-slate-900 rounded-lg border border-slate-800 flex-shrink-0" />
                       ) : (
-                        <div className="w-12 h-12 md:w-14 md:h-14 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold flex-shrink-0"><Building2 size={24} /></div>
+                        <div className="w-12 h-12 md:w-14 md:h-14 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold flex-shrink-0"><Building2 className="w-6 h-6" /></div>
                       )}
                       <div className="min-w-0">
                         <h3 className="font-bold text-white text-base truncate">{team.name}</h3>
@@ -604,7 +612,7 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5 md:mb-6">
               <p className="text-xs md:text-sm text-slate-400 hidden sm:block">Motor de observação de equipas e atletas.</p>
               <button onClick={() => setIsRegisterOpen(true)} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-4 md:py-3 rounded-xl text-sm md:text-base font-bold transition shadow-lg shadow-blue-900/20">
-                <Plus size={18} /> Agendar Jogo
+                <Plus className="w-5 h-5" /> Agendar Jogo
               </button>
             </div>
 
@@ -617,11 +625,11 @@ export default function Home() {
                   <div key={match.id} className="bg-[#151c2c] border border-slate-800 rounded-xl overflow-hidden transition shadow-sm">
                     <div onClick={() => toggleMatch(match.id)} className="p-4 md:p-5 flex items-center justify-between cursor-pointer hover:bg-slate-800/40">
                       <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                        <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 flex-shrink-0"><Trophy size={20} /></div>
+                        <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 flex-shrink-0"><Trophy className="w-5 h-5" /></div>
                         <div className="min-w-0">
                           <h3 className="font-bold text-white text-sm md:text-base truncate leading-tight mb-1 md:mb-0">{match.matchName}</h3>
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] md:text-xs text-slate-400 mt-1">
-                            <span className="flex items-center gap-1"><Calendar size={12} /> {match.gameDate}</span>
+                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {match.gameDate}</span>
                             <span className="text-slate-600">•</span>
                             <span className="text-blue-400 font-semibold truncate max-w-[120px] md:max-w-none">{match.competition}</span>
                             <span className="text-slate-600">•</span>
@@ -634,7 +642,7 @@ export default function Home() {
                           <span className="block text-sm font-bold text-emerald-400">{match.playersCount}</span>
                           <span className="text-[9px] text-slate-500 uppercase tracking-wider font-bold">Atletas</span>
                         </div>
-                        <div className="text-slate-400 bg-slate-800/50 p-2 md:p-1.5 rounded-lg">{isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}</div>
+                        <div className="text-slate-400 bg-slate-800/50 p-2 md:p-1.5 rounded-lg">{isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}</div>
                       </div>
                     </div>
 
@@ -644,11 +652,11 @@ export default function Home() {
                         {/* MATCH HEADER & METRICS */}
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#151c2c] md:bg-[#0d131f] p-4 rounded-xl border border-slate-800 text-xs md:text-sm gap-4">
                           <div className="space-y-2 md:space-y-1.5 w-full md:w-auto">
-                            <div className="flex items-center gap-2 text-slate-300"><Shield size={14} className="text-slate-500"/> <strong>Táticas:</strong> {match.homeTactic} / {match.awayTactic}</div>
-                            <div className="flex items-center gap-2 text-slate-300"><UserCheck size={14} className="text-slate-500"/> <strong>Scout:</strong> <span className="text-blue-400 font-medium">{match.scout}</span></div>
+                            <div className="flex items-center gap-2 text-slate-300"><Shield className="w-4 h-4 text-slate-500"/> <strong>Táticas:</strong> {match.homeTactic} / {match.awayTactic}</div>
+                            <div className="flex items-center gap-2 text-slate-300"><UserCheck className="w-4 h-4 text-slate-500"/> <strong>Scout:</strong> <span className="text-blue-400 font-medium">{match.scout}</span></div>
                           </div>
                           <button onClick={() => startEditMatchContext(match)} className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-3 md:py-2 bg-blue-600/20 border border-blue-500/30 text-blue-400 rounded-xl md:rounded-lg font-bold hover:bg-blue-600/30 transition">
-                            <Edit3 size={14} /> {isEditingContext ? 'Fechar' : 'Editar Táticas'}
+                            <Edit3 className="w-4 h-4" /> {isEditingContext ? 'Fechar' : 'Editar Táticas'}
                           </button>
                         </div>
 
@@ -675,7 +683,7 @@ export default function Home() {
                             <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 mt-2 border-t border-slate-800">
                               <button type="button" onClick={() => setExpandedMatchEdit(null)} className="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl md:rounded-lg">Cancelar</button>
                               <button type="button" disabled={submittingReport} onClick={() => handleReportSubmit(match.id)} className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl md:rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
-                                {submittingReport ? <Loader2 size={16} className="animate-spin" /> : 'Guardar Alterações'}
+                                {submittingReport ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar Alterações'}
                               </button>
                             </div>
                           </div>
@@ -689,7 +697,7 @@ export default function Home() {
                               onClick={() => { setIsAddHighlightOpen({ matchId: match.id, matchName: match.matchName }); setNewHighlightData({ playerId: '', notes: '' }); }}
                               className="w-full sm:w-auto px-4 py-3 md:py-2 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 text-xs md:text-sm font-bold rounded-xl md:rounded-lg transition flex justify-center items-center gap-2"
                             >
-                              <Plus size={16} /> Adicionar Atleta
+                              <Plus className="w-4 h-4" /> Adicionar Atleta
                             </button>
                           </div>
 
@@ -728,14 +736,14 @@ export default function Home() {
                                           onClick={(e) => { e.stopPropagation(); setEditingHighlight({ matchId: match.id, matchName: match.matchName, player: fullP, highlightId: p.highlightId || null, notes: p.note && p.note !== 'Sem notas registadas.' ? p.note : '' }); }}
                                           className="p-2 md:px-2.5 md:py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition border border-slate-700 flex items-center justify-center"
                                         >
-                                          <Edit3 size={14} className="w-4 h-4 md:mr-1.5" /> <span className="hidden md:block">Editar</span>
+                                          <Edit3 className="w-4 h-4 md:mr-1.5" /> <span className="hidden md:block">Editar</span>
                                         </button>
                                         {!isUnidentified && (
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); setSelectedPlayer(fullP); setProfileTab('timeline'); }}
                                             className="p-2 md:px-2.5 md:py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-xs font-medium rounded-lg transition flex items-center justify-center"
                                           >
-                                            <Search size={14} className="w-4 h-4 md:mr-1.5" /> <span className="hidden md:block">Perfil</span>
+                                            <Search className="w-4 h-4 md:mr-1.5" /> <span className="hidden md:block">Perfil</span>
                                           </button>
                                         )}
                                       </div>
@@ -750,7 +758,7 @@ export default function Home() {
                             </div>
                           ) : (
                             <div className="text-xs md:text-sm text-slate-500 bg-[#151c2c] p-8 rounded-xl border border-slate-800 border-dashed text-center flex flex-col items-center gap-2">
-                              <UserCheck size={32} className="text-slate-600 mb-2" />
+                              <UserCheck className="w-8 h-8 text-slate-600 mb-2" />
                               Não existem avaliações individuais registadas neste jogo.
                             </div>
                           )}
@@ -759,19 +767,19 @@ export default function Home() {
                         {/* MÉTRICAS VISUAIS */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
                           <div className="bg-[#151c2c] p-3 md:p-4 rounded-xl border border-slate-800/60">
-                             <span className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 uppercase tracking-wider font-bold mb-1"><Zap size={14}/> Ritmo</span>
+                             <span className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 uppercase tracking-wider font-bold mb-1"><Zap className="w-3.5 h-3.5"/> Ritmo</span>
                              <span className="text-sm md:text-base font-bold text-white">{match.tempo}</span>
                           </div>
                           <div className="bg-[#151c2c] p-3 md:p-4 rounded-xl border border-slate-800/60">
-                             <span className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 uppercase tracking-wider font-bold mb-1"><Activity size={14}/> Intensidade</span>
+                             <span className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 uppercase tracking-wider font-bold mb-1"><Activity className="w-3.5 h-3.5"/> Intensidade</span>
                              <span className="text-sm md:text-base font-bold text-white">{match.intensity}</span>
                           </div>
                           <div className="bg-[#151c2c] p-3 md:p-4 rounded-xl border border-slate-800/60">
-                             <span className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 uppercase tracking-wider font-bold mb-1"><Crosshair size={14}/> Técnica</span>
+                             <span className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 uppercase tracking-wider font-bold mb-1"><Crosshair className="w-3.5 h-3.5"/> Técnica</span>
                              <span className="text-sm md:text-base font-bold text-white">{match.technical}</span>
                           </div>
                           <div className="bg-[#151c2c] p-3 md:p-4 rounded-xl border border-slate-800/60">
-                             <span className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 uppercase tracking-wider font-bold mb-1"><BrainCircuit size={14}/> Pressão</span>
+                             <span className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 uppercase tracking-wider font-bold mb-1"><BrainCircuit className="w-3.5 h-3.5"/> Pressão</span>
                              <span className="text-sm md:text-base font-bold text-white">{match.pressure}</span>
                           </div>
                         </div>
@@ -806,7 +814,7 @@ export default function Home() {
 
                 <div className="bg-[#0d131f] p-3 rounded-lg border border-slate-800/80 mb-4 flex-1">
                   <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider block mb-2 flex items-center gap-1">
-                    <Globe size={10} className="text-slate-400" /> Mercados (Brevemente)
+                    <Globe className="w-3 h-3 text-slate-400" /> Mercados (Brevemente)
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     <span className="text-[10px] text-slate-500 italic">Definições em desenvolvimento.</span>
@@ -834,7 +842,7 @@ export default function Home() {
 
       </div>
 
-      {/* --------------------- MODALS CENTRADOS (NOVO DESIGN) --------------------- */}
+      {/* --------------------- MODALS CENTRADOS --------------------- */}
 
       {/* MODAL EDITAR HIGHLIGHT INDIVIDUAL */}
       {editingHighlight && (
@@ -855,7 +863,7 @@ export default function Home() {
                 </div>
               </div>
               <button onClick={() => setEditingHighlight(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition flex-shrink-0">
-                <X size={18} />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -872,7 +880,7 @@ export default function Home() {
               <div className="flex justify-end gap-3 pt-2 border-t border-slate-800 mt-4">
                 <button type="button" onClick={() => setEditingHighlight(null)} className="flex-1 md:flex-none px-4 py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl">Cancelar</button>
                 <button type="submit" disabled={savingHighlight} className="flex-1 md:flex-none px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
-                  {savingHighlight ? <Loader2 size={16} className="animate-spin" /> : 'Guardar Observação'}
+                  {savingHighlight ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar Observação'}
                 </button>
               </div>
             </form>
@@ -889,7 +897,7 @@ export default function Home() {
                 <h3 className="font-bold text-white text-base md:text-sm">Adicionar Atleta</h3>
                 <p className="text-[10px] md:text-xs text-slate-400 mt-0.5 truncate max-w-[250px]">{isAddHighlightOpen.matchName}</p>
               </div>
-              <button onClick={() => setIsAddHighlightOpen(null)} className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-full"><X size={16} /></button>
+              <button onClick={() => setIsAddHighlightOpen(null)} className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-full"><X className="w-4 h-4" /></button>
             </div>
 
             <form onSubmit={handleAddHighlightSubmit} className="space-y-4 text-sm md:text-xs">
@@ -897,7 +905,7 @@ export default function Home() {
                 <div className="flex justify-between items-center mb-1.5">
                   <label className="text-slate-400 font-bold">Procurar na Base de Dados</label>
                   <button type="button" onClick={() => openNewPlayerModalForMatch(isAddHighlightOpen.matchName)} className="text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/20 flex items-center gap-1 font-bold text-[10px] md:text-xs">
-                    <UserPlus size={12} /> Novo Atleta
+                    <UserPlus className="w-3 h-3" /> Novo Atleta
                   </button>
                 </div>
                 <CustomSelect
@@ -931,13 +939,13 @@ export default function Home() {
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-xl rounded-2xl shadow-2xl p-5 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-5 border-b border-slate-800 pb-4">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-blue-600/20 border border-blue-500/30 text-blue-400 rounded-xl"><Trophy size={20} /></div>
+                <div className="p-2.5 bg-blue-600/20 border border-blue-500/30 text-blue-400 rounded-xl"><Trophy className="w-5 h-5" /></div>
                 <div>
                   <h2 className="text-base md:text-lg font-bold text-white">Agendar Novo Jogo</h2>
                   <p className="text-[10px] md:text-xs text-slate-400 mt-0.5">Criar partida na agenda</p>
                 </div>
               </div>
-              <button onClick={() => setIsRegisterOpen(false)} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={18} /></button>
+              <button onClick={() => setIsRegisterOpen(false)} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
 
             <form onSubmit={handlePreGameSubmit} className="space-y-4 text-xs md:text-sm">
@@ -981,7 +989,7 @@ export default function Home() {
               <div className="flex gap-3 pt-4 border-t border-slate-800 mt-6">
                 <button type="button" onClick={() => setIsRegisterOpen(false)} className="flex-1 px-4 py-3 bg-slate-800 text-slate-300 font-bold rounded-xl">Cancelar</button>
                 <button type="submit" disabled={submittingPre} className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
-                  {submittingPre ? <Loader2 size={16} className="animate-spin" /> : 'Agendar Jogo'}
+                  {submittingPre ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Agendar Jogo'}
                 </button>
               </div>
             </form>
@@ -995,9 +1003,9 @@ export default function Home() {
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-md rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <h3 className="font-bold text-white text-base md:text-sm flex items-center gap-2">
-                <UserPlus size={18} className="text-emerald-400" /> Criar Atleta
+                <UserPlus className="w-4 h-4 text-emerald-400" /> Criar Atleta
               </h3>
-              <button onClick={() => setIsNewPlayerOpen(false)} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X size={16} /></button>
+              <button onClick={() => setIsNewPlayerOpen(false)} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
             </div>
 
             <form onSubmit={handleCreateNewPlayer} className="space-y-4 text-xs md:text-sm">
@@ -1011,12 +1019,12 @@ export default function Home() {
               </div>
               <div>
                 <label className="block text-slate-400 mb-1.5 font-bold">Posição Principal</label>
-                <CustomSelect options={POSITIONS_OPTIONS.map(pos => ({ value: pos, label: pos }))} value={newPlayerData.position} onChange={val => setNewPlayerData({ ...newPlayerData, position: pos })} placeholder="Selecionar..." searchable={true} />
+                <CustomSelect options={POSITIONS_OPTIONS.map(pos => ({ value: pos, label: pos }))} value={newPlayerData.position} onChange={val => setNewPlayerData({ ...newPlayerData, position: val })} placeholder="Selecionar..." searchable={true} />
               </div>
               <div className="flex gap-3 pt-4 border-t border-slate-800 mt-4">
                 <button type="button" onClick={() => setIsNewPlayerOpen(false)} className="flex-1 py-3 bg-slate-800 text-slate-300 font-bold rounded-xl">Voltar</button>
                 <button type="submit" disabled={creatingPlayer} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-900/20">
-                  {creatingPlayer ? <Loader2 size={16} className="animate-spin" /> : 'Guardar Atleta'}
+                  {creatingPlayer ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar Atleta'}
                 </button>
               </div>
             </form>
@@ -1030,7 +1038,7 @@ export default function Home() {
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-4xl h-[90vh] flex flex-col rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
             
             <div className="bg-[#151c2c] border-b border-slate-800 p-5 md:p-8 flex-shrink-0 relative">
-              <button onClick={() => setSelectedPlayer(null)} className="absolute top-4 right-4 md:top-6 md:right-6 p-2 md:p-2.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition z-10"><X size={20} /></button>
+              <button onClick={() => setSelectedPlayer(null)} className="absolute top-4 right-4 md:top-6 md:right-6 p-2 md:p-2.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition z-10"><X className="w-5 h-5" /></button>
               
               <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6 mt-2 md:mt-0">
                 {selectedPlayer.photo ? (
@@ -1050,7 +1058,7 @@ export default function Home() {
                       <span className="truncate max-w-[120px] md:max-w-none">{selectedPlayer.club}</span>
                     </div>
                     <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 md:py-1.5 rounded-lg font-bold uppercase tracking-wide flex items-center gap-1.5">
-                      <Activity size={14} /> {selectedPlayer.status}
+                      <Activity className="w-3.5 h-3.5" /> {selectedPlayer.status}
                     </span>
                   </div>
                 </div>
@@ -1065,7 +1073,7 @@ export default function Home() {
                 </div>
                 <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left">
                   <span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Nacionalidade</span>
-                  <span className="text-white text-base md:text-lg font-black flex items-center justify-center md:justify-start gap-1.5 truncate w-full"><Flag size={14} className="text-slate-400 flex-shrink-0"/> <span className="truncate">{selectedPlayer.nationality || '--'}</span></span>
+                  <span className="text-white text-base md:text-lg font-black flex items-center justify-center md:justify-start gap-1.5 truncate w-full"><Flag className="w-3.5 h-3.5 text-slate-400 flex-shrink-0"/> <span className="truncate">{selectedPlayer.nationality || '--'}</span></span>
                 </div>
                 <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left">
                   <span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Pé / Altura</span>
@@ -1079,10 +1087,10 @@ export default function Home() {
 
               <div className="flex gap-4 md:gap-8 border-b border-slate-800 text-xs md:text-sm font-bold mb-6 overflow-x-auto no-scrollbar pb-1">
                 <button onClick={() => setProfileTab('timeline')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'timeline' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}>
-                  <FileText size={16} /> Relatórios & Timeline
+                  <FileText className="w-4 h-4" /> Relatórios & Timeline
                 </button>
                 <button onClick={() => setProfileTab('algo')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'algo' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}>
-                  <BarChart3 size={16} /> Looker Studio (Algoritmo)
+                  <BarChart3 className="w-4 h-4" /> Looker Studio (Algoritmo)
                 </button>
               </div>
 
@@ -1098,11 +1106,11 @@ export default function Home() {
                               <div>
                                 <h4 className="font-bold text-white text-sm md:text-base leading-tight">{report.matchName}</h4>
                                 <div className="flex items-center gap-2 text-[10px] md:text-xs text-slate-400 mt-1">
-                                  <span className="flex items-center gap-1"><Calendar size={12}/> {report.gameDate}</span>
+                                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {report.gameDate}</span>
                                 </div>
                               </div>
                               <div className="bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50 flex items-center gap-1.5 text-[10px] md:text-xs font-medium text-slate-300 self-start sm:self-auto">
-                                <UserCheck size={12} className="text-blue-400"/> Scout: {report.scout}
+                                <UserCheck className="w-3 h-3 text-blue-400"/> Scout: {report.scout}
                               </div>
                             </div>
                             <div className="text-xs md:text-sm text-slate-300 leading-relaxed font-sans whitespace-pre-wrap">
@@ -1114,7 +1122,7 @@ export default function Home() {
                     </div>
                   ) : (
                     <div className="text-center py-12 bg-[#151c2c] rounded-2xl border border-slate-800 border-dashed">
-                      <FileText size={32} className="mx-auto text-slate-600 mb-3" />
+                      <FileText className="w-8 h-8 mx-auto text-slate-600 mb-3" />
                       <p className="text-sm text-slate-400 font-medium">Ainda não existem relatórios de jogo para este atleta.</p>
                       <p className="text-xs text-slate-500 mt-1">As observações individuais feitas no Match Center aparecerão aqui.</p>
                     </div>
@@ -1124,7 +1132,7 @@ export default function Home() {
 
               {profileTab === 'algo' && (
                 <div className="flex flex-col items-center justify-center py-20 bg-blue-900/5 rounded-2xl border border-blue-900/20 text-center px-4">
-                  <BarChart3 size={48} className="text-blue-500/50 mb-4" />
+                  <BarChart3 className="w-12 h-12 text-blue-500/50 mb-4" />
                   <h3 className="text-lg font-bold text-blue-400 mb-2">Integração Looker Studio</h3>
                   <p className="text-sm text-slate-400 max-w-md">Em breve, a avaliação do algoritmo e os gráficos de rating gerados pelo vosso sistema em Excel estarão incorporados nesta vista.</p>
                 </div>
@@ -1145,7 +1153,7 @@ export default function Home() {
                   <img src={selectedTeam.logo} alt={selectedTeam.name} className="w-16 h-16 object-contain p-1.5 bg-slate-900 rounded-xl border border-slate-800" />
                 ) : (
                   <div className="w-16 h-16 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold">
-                    <Building2 size={28} />
+                    <Building2 className="w-7 h-7" />
                   </div>
                 )}
                 <div>
@@ -1154,7 +1162,7 @@ export default function Home() {
                 </div>
               </div>
               <button onClick={() => setSelectedTeam(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition">
-                <X size={20} />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -1172,7 +1180,7 @@ export default function Home() {
             <div>
               <h3 className="text-sm font-bold text-white mb-3">Atletas de Interesse Pertencentes ao Clube</h3>
               <div className="space-y-2">
-                {players.filter(p => p.club.toLowerCase() === selectedTeam.name.toLowerCase()).map(p => (
+                {players.filter(p => (p.club || '').toLowerCase() === (selectedTeam.name || '').toLowerCase()).map(p => (
                   <div key={p.id} className="bg-[#0d131f] p-3 rounded-lg border border-slate-800 flex items-center justify-between">
                     <div>
                       <span className="text-white text-sm font-medium">{p.name}</span>
