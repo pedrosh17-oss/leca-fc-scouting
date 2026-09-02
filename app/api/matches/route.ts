@@ -98,20 +98,20 @@ export async function GET() {
       playerByIdMap[r.id] = pObj;
     });
 
-    // Mapeamento direto de registos na tabela Highlights
     const highlightsByMatch: Record<string, any[]> = {};
     (dataHighlights.records || []).forEach((hRec: any) => {
       const hf = hRec.fields || {};
       const matchIds = Array.isArray(hf['Match']) ? hf['Match'] : [];
       const playerIds = Array.isArray(hf['Player']) ? hf['Player'] : [];
       const noteText = hf['Escreve aqui'] || '';
+      const playerNameFallback = hf['New Player'] || (typeof hf['Player'] === 'string' ? hf['Player'] : null);
 
       matchIds.forEach((mId: string) => {
         if (!highlightsByMatch[mId]) highlightsByMatch[mId] = [];
         highlightsByMatch[mId].push({
           highlightId: hRec.id,
           playerId: playerIds[0] || null,
-          playerName: hf['New Player'] || null,
+          playerName: playerNameFallback,
           note: noteText
         });
       });
@@ -138,50 +138,53 @@ export async function GET() {
 
       const highlightsText = f['Highlights Report'] || f['Notes'] || '';
       const parsedHighlights = parseHighlightsReport(highlightsText);
-
       const playerList: any[] = [];
       const rawPlayers = f['Players from Highlights'];
       const matchDirectHighlights = highlightsByMatch[r.id] || [];
 
+      // 1. Injeta os highlights diretos (da tabela Highlights) primeiro
+      matchDirectHighlights.forEach((dh) => {
+        let pObj = null;
+        if (dh.playerId) pObj = playerByIdMap[dh.playerId];
+        else if (dh.playerName) pObj = playerByNameMap[dh.playerName.toLowerCase()];
+        
+        // Se o atleta não existir na BD, criamos um placeholder para o ecrã não o perder
+        const finalP = pObj || { 
+          id: dh.playerId || dh.playerName || 'unidentified', 
+          name: dh.playerName || 'Atleta Não Identificado', 
+          position: 'N/D', 
+          club: 'N/D' 
+        };
+
+        playerList.push({
+          ...finalP,
+          note: dh.note,
+          highlightId: dh.highlightId
+        });
+      });
+
+      // 2. Se houver strings em 'Players from Highlights' que não vieram pela tabela, adiciona-os também
       if (Array.isArray(rawPlayers)) {
         rawPlayers.forEach((item: string) => {
-          let pObj = playerByIdMap[item] || (typeof item === 'string' ? playerByNameMap[item.trim().toLowerCase()] : null);
-          if (!pObj && typeof item === 'string' && !item.startsWith('rec')) {
-            pObj = { id: item, name: item, position: 'N/D', club: 'N/D' };
-          }
-          if (pObj) {
-            const directH = matchDirectHighlights.find(dh => dh.playerId === pObj.id || (dh.playerName && dh.playerName.toLowerCase() === pObj.name.toLowerCase()));
-            const foundNote = parsedHighlights.find(ph => ph.name.toLowerCase() === pObj.name.toLowerCase());
-            playerList.push({ 
-              ...pObj, 
-              note: directH ? directH.note : (foundNote ? foundNote.text : 'Sem notas registadas.'),
-              highlightId: directH ? directH.highlightId : null
-            });
+          if (!item.startsWith('rec')) {
+            const cleanName = item.trim();
+            const exists = playerList.find(p => p.name.toLowerCase() === cleanName.toLowerCase());
+            if (!exists) {
+              const pObj = playerByNameMap[cleanName.toLowerCase()] || { id: cleanName, name: cleanName, position: 'N/D', club: 'N/D' };
+              const foundNote = parsedHighlights.find(ph => ph.name.toLowerCase() === cleanName.toLowerCase());
+              playerList.push({ ...pObj, note: foundNote ? foundNote.text : 'Sem notas registadas.', highlightId: null });
+            }
           }
         });
       } else if (typeof rawPlayers === 'string') {
         rawPlayers.split(',').forEach((nameStr) => {
           const cleanName = nameStr.trim();
-          let pObj = playerByNameMap[cleanName.toLowerCase()] || { id: cleanName, name: cleanName, position: 'N/D', club: 'N/D' };
-          const directH = matchDirectHighlights.find(dh => dh.playerId === pObj.id || (dh.playerName && dh.playerName.toLowerCase() === cleanName.toLowerCase()));
-          const foundNote = parsedHighlights.find(ph => ph.name.toLowerCase() === cleanName.toLowerCase());
-          playerList.push({ 
-            ...pObj, 
-            note: directH ? directH.note : (foundNote ? foundNote.text : 'Sem notas registadas.'),
-            highlightId: directH ? directH.highlightId : null
-          });
-        });
-      }
-
-      if (playerList.length === 0 && matchDirectHighlights.length > 0) {
-        matchDirectHighlights.forEach((dh) => {
-          const pObj = dh.playerId ? playerByIdMap[dh.playerId] : (dh.playerName ? playerByNameMap[dh.playerName.toLowerCase()] : null);
-          const finalP = pObj || { id: dh.playerId || dh.playerName, name: dh.playerName || 'Atleta', position: 'N/D', club: 'N/D' };
-          playerList.push({
-            ...finalP,
-            note: dh.note,
-            highlightId: dh.highlightId
-          });
+          const exists = playerList.find(p => p.name.toLowerCase() === cleanName.toLowerCase());
+          if (!exists) {
+            const pObj = playerByNameMap[cleanName.toLowerCase()] || { id: cleanName, name: cleanName, position: 'N/D', club: 'N/D' };
+            const foundNote = parsedHighlights.find(ph => ph.name.toLowerCase() === cleanName.toLowerCase());
+            playerList.push({ ...pObj, note: foundNote ? foundNote.text : 'Sem notas registadas.', highlightId: null });
+          }
         });
       }
 
@@ -246,7 +249,6 @@ export async function POST(req: Request) {
   }
 }
 
-// ATUALIZAÇÃO APENAS DAS MÉTRICAS COLETIVAS DA PARTIDA
 export async function PATCH(req: Request) {
   if (!BASE_ID || !TOKEN) return NextResponse.json({ error: 'Faltam credenciais' }, { status: 500 });
 

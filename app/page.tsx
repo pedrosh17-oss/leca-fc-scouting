@@ -20,7 +20,6 @@ const POSITIONS_OPTIONS = [
 
 const METRIC_LEVELS = ['Low', 'Medium', 'High'];
 
-// COMPONENTE DROPDOWN PERSONALIZADO COM O DESIGN DA APP
 function CustomSelect({
   options,
   value,
@@ -157,7 +156,7 @@ export default function Home() {
     notes: '',
   });
 
-  // MODAL DE EDIÇÃO INDIVIDUAL DE HIGHLIGHT DE UM JOGADOR
+  // MODAL DE EDIÇÃO INDIVIDUAL DE HIGHLIGHT
   const [editingHighlight, setEditingHighlight] = useState<{
     matchId: string;
     matchName: string;
@@ -167,7 +166,7 @@ export default function Home() {
   } | null>(null);
   const [savingHighlight, setSavingHighlight] = useState(false);
 
-  // MODAL ADICIONAR NOVO HIGHLIGHT A UM JOGO
+  // MODAL ADICIONAR NOVO HIGHLIGHT
   const [isAddHighlightOpen, setIsAddHighlightOpen] = useState<{ matchId: string; matchName: string } | null>(null);
   const [newHighlightData, setNewHighlightData] = useState({ playerId: '', notes: '' });
 
@@ -225,7 +224,6 @@ export default function Home() {
     setExpandedMatchEdit(editingMatchId === match.id ? null : match.id);
   };
 
-  // APENAS AS EQUIPAS DO JOGO NO MODAL DE NOVO ATLETA
   const openNewPlayerModalForMatch = (matchName: string) => {
     const matchTeams = teams.filter((t) => matchName.toLowerCase().includes(t.name.toLowerCase()));
     setAvailableMatchTeams(matchTeams.length > 0 ? matchTeams : teams);
@@ -233,34 +231,26 @@ export default function Home() {
     setIsNewPlayerOpen(true);
   };
 
-  // SUBMETER APENAS DADOS COLETIVOS DO JOGO
   const handleReportSubmit = async (matchId: string) => {
     setSubmittingReport(true);
-
     try {
       const res = await fetch('/api/matches', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ matchId, ...reportData }),
       });
-
-      const resData = await res.json();
-
       if (res.ok) {
         setExpandedMatchEdit(null);
         await loadData();
-        showToast("Dados do jogo atualizados!");
-      } else {
-        alert(`Erro Airtable: ${resData.error || 'Falha ao atualizar jogo.'}`);
+        showToast("Dados coletivos atualizados!");
       }
     } catch (err) {
-      console.error("Erro ao submeter relatório do jogo", err);
+      console.error(err);
     } finally {
       setSubmittingReport(false);
     }
   };
 
-  // SUBMETER HIGHLIGHT INDIVIDUAL DE UM JOGADOR
   const handleSaveSingleHighlight = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingHighlight) return;
@@ -272,29 +262,24 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           matchId: editingHighlight.matchId,
-          playerId: editingHighlight.player.id,
+          playerId: editingHighlight.player.id !== editingHighlight.player.name ? editingHighlight.player.id : null,
           highlightId: editingHighlight.highlightId,
           notes: editingHighlight.notes,
         }),
       });
 
-      const data = await res.json();
-
       if (res.ok) {
         setEditingHighlight(null);
         await loadData();
-        showToast(`Highlight de ${editingHighlight.player.name} guardado!`);
-      } else {
-        alert(`Erro ao guardar highlight: ${data.error}`);
+        showToast(`Highlight atualizado com sucesso!`);
       }
     } catch (err) {
-      console.error("Erro ao guardar highlight", err);
+      console.error(err);
     } finally {
       setSavingHighlight(false);
     }
   };
 
-  // CRIAR NOVO HIGHLIGHT DE JOGADOR
   const handleAddHighlightSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAddHighlightOpen) return;
@@ -317,11 +302,10 @@ export default function Home() {
         showToast("Novo destaque adicionado ao jogo!");
       }
     } catch (err) {
-      console.error("Erro ao criar highlight", err);
+      console.error(err);
     }
   };
 
-  // SUBMETER PRÉ-JOGO
   const handlePreGameSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittingPre(true);
@@ -333,27 +317,19 @@ export default function Home() {
         body: JSON.stringify(preGameData),
       });
 
-      const resData = await res.json();
-
       if (res.ok) {
         setIsRegisterOpen(false);
-        setPreGameData({
-          homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0],
-          competitionId: '', scoutId: '', type: '🏟️ Live',
-        });
+        setPreGameData({ homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutId: '', type: '🏟️ Live' });
         await loadData();
         showToast("Jogo agendado com sucesso!");
-      } else {
-        alert(`Erro Airtable: ${resData.error || 'Falha ao agendar jogo.'}`);
       }
     } catch (err) {
-      console.error("Erro ao agendar jogo", err);
+      console.error(err);
     } finally {
       setSubmittingPre(false);
     }
   };
 
-  // CRIAR NOVO JOGADOR
   const handleCreateNewPlayer = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreatingPlayer(true);
@@ -366,22 +342,16 @@ export default function Home() {
       });
 
       const data = await res.json();
-
       if (res.ok) {
         await loadData();
-        if (editingHighlight) {
-          setEditingHighlight({ ...editingHighlight, player: { id: data.player.id, name: data.player.name } });
-        } else if (isAddHighlightOpen) {
-          setNewHighlightData({ ...newHighlightData, playerId: data.player.id });
-        }
+        if (editingHighlight) setEditingHighlight({ ...editingHighlight, player: { id: data.player.id, name: data.player.name } });
+        else if (isAddHighlightOpen) setNewHighlightData({ ...newHighlightData, playerId: data.player.id });
         setIsNewPlayerOpen(false);
         setNewPlayerData({ name: '', clubId: '', position: '' });
         showToast(`Atleta "${data.player.name}" criado com sucesso!`);
-      } else {
-        alert(`Erro Airtable Players: ${data.error || 'Falha ao criar atleta.'}`);
       }
     } catch (err) {
-      console.error("Erro ao criar jogador", err);
+      console.error(err);
     } finally {
       setCreatingPlayer(false);
     }
@@ -389,9 +359,7 @@ export default function Home() {
 
   const filteredPlayers = players.filter(p => {
     const query = search.toLowerCase();
-    return (p.name || '').toLowerCase().includes(query) || 
-           (p.club || '').toLowerCase().includes(query) || 
-           (p.position || '').toLowerCase().includes(query);
+    return (p.name || '').toLowerCase().includes(query) || (p.club || '').toLowerCase().includes(query) || (p.position || '').toLowerCase().includes(query);
   });
   
   const displayedPlayers = search ? filteredPlayers : filteredPlayers.slice(0, visibleCount);
@@ -408,7 +376,6 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#0d131f] text-slate-100 p-6 font-sans relative">
       
-      {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-6 right-6 z-[100] bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 duration-300 font-medium text-xs">
           <CheckCircle2 size={18} />
@@ -416,7 +383,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Header */}
       <header className="max-w-6xl mx-auto flex justify-between items-center mb-8 bg-[#151c2c] p-6 rounded-xl border border-slate-800">
         <div>
           <span className="text-xs font-semibold tracking-wider text-slate-400 uppercase">Departamento de Scouting & Prospecção</span>
@@ -428,7 +394,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Tabs */}
       <div className="max-w-6xl mx-auto mb-6 flex flex-wrap gap-3">
         <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Users size={16} /> Base de Jogadores ({players.length})</button>
         <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Building2 size={16} /> Equipas ({teams.length})</button>
@@ -639,7 +604,7 @@ export default function Home() {
                                   options={TACTICS_OPTIONS.map(t => ({ value: t, label: t }))}
                                   value={reportData.homeTactic}
                                   onChange={val => setReportData({ ...reportData, homeTactic: val })}
-                                  placeholder="Selecionar Tática Casa..."
+                                  placeholder="Selecionar Tática..."
                                 />
                               </div>
                               <div>
@@ -648,7 +613,7 @@ export default function Home() {
                                   options={TACTICS_OPTIONS.map(t => ({ value: t, label: t }))}
                                   value={reportData.awayTactic}
                                   onChange={val => setReportData({ ...reportData, awayTactic: val })}
-                                  placeholder="Selecionar Tática Visitante..."
+                                  placeholder="Selecionar Tática..."
                                 />
                               </div>
                             </div>
@@ -712,15 +677,13 @@ export default function Home() {
                               }}
                               className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-xs font-medium rounded-lg transition flex items-center gap-1"
                             >
-                              <Plus size={14} /> + Adicionar Destaque a este Jogo
+                              <Plus size={14} /> + Adicionar Destaque
                             </button>
                           </div>
 
                           {match.highlightedPlayers && match.highlightedPlayers.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {match.highlightedPlayers.map((p: any, idx: number) => {
-                                const fullP = players.find(player => (player.name || '').trim().toLowerCase() === (p.name || '').trim().toLowerCase()) || p;
-
                                 return (
                                   <div 
                                     key={p.id || idx}
@@ -728,17 +691,17 @@ export default function Home() {
                                   >
                                     <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
                                       <div className="flex items-center gap-3">
-                                        {fullP.photo ? (
-                                          <img src={fullP.photo} alt={fullP.name} className="w-10 h-10 rounded-full object-cover border border-slate-700 shadow" />
+                                        {p.photo ? (
+                                          <img src={p.photo} alt={p.name} className="w-10 h-10 rounded-full object-cover border border-slate-700 shadow" />
                                         ) : (
                                           <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm">
-                                            {(fullP.name || 'J').charAt(0)}
+                                            {(p.name || 'J').charAt(0)}
                                           </div>
                                         )}
                                         <div>
-                                          <h5 className="font-semibold text-white text-sm">{fullP.name}</h5>
+                                          <h5 className="font-semibold text-white text-sm">{p.name}</h5>
                                           <p className="text-xs text-slate-400 mt-0.5">
-                                            <span className="text-blue-400 font-medium">{fullP.position && fullP.position !== 'N/D' ? fullP.position : 'Atleta'}</span> • {fullP.club && fullP.club !== 'N/D' ? fullP.club : 'Clube N/D'}
+                                            <span className="text-blue-400 font-medium">{p.position && p.position !== 'N/D' ? p.position : 'Atleta'}</span> • {p.club && p.club !== 'N/D' ? p.club : 'Clube N/D'}
                                           </p>
                                         </div>
                                       </div>
@@ -750,26 +713,27 @@ export default function Home() {
                                             setEditingHighlight({
                                               matchId: match.id,
                                               matchName: match.matchName,
-                                              player: fullP,
+                                              player: p,
                                               highlightId: p.highlightId || null,
                                               notes: p.note && p.note !== 'Sem notas registadas.' ? p.note : ''
                                             });
                                           }}
                                           className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-xs font-medium rounded-lg transition flex items-center gap-1"
                                         >
-                                          <Edit3 size={12} /> Editar Highlight
+                                          <Edit3 size={12} /> Editar
                                         </button>
-
-                                        <button 
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedPlayer(fullP);
-                                            setProfileTab('timeline');
-                                          }}
-                                          className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition border border-slate-700 flex items-center gap-1"
-                                        >
-                                          Ver Perfil <ExternalLink size={12} />
-                                        </button>
+                                        {p.id && !p.id.includes('unidentified') && (
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSelectedPlayer(p);
+                                              setProfileTab('timeline');
+                                            }}
+                                            className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition border border-slate-700 flex items-center gap-1"
+                                          >
+                                            Ver Perfil <ExternalLink size={12} />
+                                          </button>
+                                        )}
                                       </div>
                                     </div>
 
