@@ -44,29 +44,39 @@ function parseDateToTimestamp(dateStr: string): number {
   return isNaN(d) ? 0 : d;
 }
 
+// FUNÇÃO PARA CONTORNAR O LIMITE DE 100 REGISTOS DO AIRTABLE
+async function fetchAllRecords(table: string, headers: any) {
+  let allRecords: any[] = [];
+  let offset: string | undefined = undefined;
+  do {
+    const url = `https://api.airtable.com/v0/${BASE_ID}/${table}?pageSize=100${offset ? `&offset=${offset}` : ''}`;
+    const res = await fetch(url, { headers, cache: 'no-store' });
+    if (!res.ok) return []; 
+    const data = await res.json();
+    allRecords = allRecords.concat(data.records || []);
+    offset = data.offset;
+  } while (offset);
+  return allRecords;
+}
+
 export async function GET() {
   if (!BASE_ID || !TOKEN) return NextResponse.json({ error: 'Faltam credenciais' }, { status: 500 });
 
   try {
     const headers = { Authorization: `Bearer ${TOKEN}` };
 
-    const [resMatches, resComps, resScouts, resPlayers, resHighlights] = await Promise.all([
-      fetch(`https://api.airtable.com/v0/${BASE_ID}/Matches?pageSize=100`, { headers, cache: 'no-store' }),
-      fetch(`https://api.airtable.com/v0/${BASE_ID}/Competition?pageSize=100`, { headers, cache: 'no-store' }),
-      fetch(`https://api.airtable.com/v0/${BASE_ID}/Scouts?pageSize=100`, { headers, cache: 'no-store' }),
-      fetch(`https://api.airtable.com/v0/${BASE_ID}/Players?pageSize=100`, { headers, cache: 'no-store' }),
-      fetch(`https://api.airtable.com/v0/${BASE_ID}/Highlights?pageSize=100`, { headers, cache: 'no-store' }).catch(() => null)
+    // CARREGA TODOS OS REGISTOS (SEM LIMITE DE 100)
+    const [recsMatches, recsComps, recsScouts, recsPlayers, recsHighlights] = await Promise.all([
+      fetchAllRecords('Matches', headers),
+      fetchAllRecords('Competition', headers),
+      fetchAllRecords('Scouts', headers),
+      fetchAllRecords('Players', headers),
+      fetchAllRecords('Highlights', headers)
     ]);
-
-    const dataMatches = await resMatches.json();
-    const dataComps = await resComps.json();
-    const dataScouts = await resScouts.json();
-    const dataPlayers = await resPlayers.json();
-    const dataHighlights = resHighlights ? await resHighlights.json() : { records: [] };
 
     const compMap: Record<string, string> = {};
     const competitionsList: Array<{ id: string; name: string }> = [];
-    (dataComps.records || []).forEach((r: any) => {
+    recsComps.forEach((r: any) => {
       if (r.id && r.fields['Competition Name']) {
         compMap[r.id] = r.fields['Competition Name'];
         competitionsList.push({ id: r.id, name: r.fields['Competition Name'] });
@@ -74,13 +84,13 @@ export async function GET() {
     });
 
     const scoutMap: Record<string, string> = {};
-    (dataScouts.records || []).forEach((r: any) => {
+    recsScouts.forEach((r: any) => {
       if (r.id && r.fields['Scout Name']) scoutMap[r.id] = r.fields['Scout Name'];
     });
 
     const playerByNameMap: Record<string, any> = {};
     const playerByIdMap: Record<string, any> = {};
-    (dataPlayers.records || []).forEach((r: any) => {
+    recsPlayers.forEach((r: any) => {
       const f = r.fields || {};
       const photoUrl = Array.isArray(f['Photo']) && f['Photo'][0]?.url ? f['Photo'][0].url : null;
       const clubLogoUrl = Array.isArray(f['Club Logo']) && f['Club Logo'][0]?.url ? f['Club Logo'][0].url : null;
@@ -99,7 +109,7 @@ export async function GET() {
     });
 
     const highlightsByMatch: Record<string, any[]> = {};
-    (dataHighlights.records || []).forEach((hRec: any) => {
+    recsHighlights.forEach((hRec: any) => {
       const hf = hRec.fields || {};
       const matchIds = Array.isArray(hf['Match']) ? hf['Match'] : [];
       const playerIds = Array.isArray(hf['Player']) ? hf['Player'] : [];
@@ -117,7 +127,7 @@ export async function GET() {
       });
     });
 
-    let matches = (dataMatches.records || []).map((r: any) => {
+    let matches = recsMatches.map((r: any) => {
       const f = r.fields || {};
 
       let compName = 'Competição N/D';
@@ -142,13 +152,11 @@ export async function GET() {
       const rawPlayers = f['Players from Highlights'];
       const matchDirectHighlights = highlightsByMatch[r.id] || [];
 
-      // 1. Injeta os highlights diretos (da tabela Highlights) primeiro
       matchDirectHighlights.forEach((dh) => {
         let pObj = null;
         if (dh.playerId) pObj = playerByIdMap[dh.playerId];
         else if (dh.playerName) pObj = playerByNameMap[dh.playerName.toLowerCase()];
         
-        // Se o atleta não existir na BD, criamos um placeholder para o ecrã não o perder
         const finalP = pObj || { 
           id: dh.playerId || dh.playerName || 'unidentified', 
           name: dh.playerName || 'Atleta Não Identificado', 
@@ -163,7 +171,6 @@ export async function GET() {
         });
       });
 
-      // 2. Se houver strings em 'Players from Highlights' que não vieram pela tabela, adiciona-os também
       if (Array.isArray(rawPlayers)) {
         rawPlayers.forEach((item: string) => {
           if (!item.startsWith('rec')) {
@@ -238,10 +245,7 @@ export async function POST(req: Request) {
     });
 
     const resData = await res.json();
-
-    if (!res.ok) {
-      return NextResponse.json({ error: resData.error?.message || 'Erro ao criar registo no Airtable' }, { status: 422 });
-    }
+    if (!res.ok) return NextResponse.json({ error: resData.error?.message || 'Erro Airtable' }, { status: 422 });
 
     return NextResponse.json({ success: true, record: resData });
   } catch (err: any) {
@@ -272,10 +276,7 @@ export async function PATCH(req: Request) {
     });
 
     const resMatchData = await resMatch.json();
-
-    if (!resMatch.ok) {
-      return NextResponse.json({ error: resMatchData.error?.message || 'Erro no Airtable' }, { status: 422 });
-    }
+    if (!resMatch.ok) return NextResponse.json({ error: resMatchData.error?.message || 'Erro Airtable' }, { status: 422 });
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
