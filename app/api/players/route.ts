@@ -11,8 +11,18 @@ function safeText(val: any, fallback: string = 'N/D'): string {
     const clean = val.filter((item) => typeof item === 'string' && !item.startsWith('rec'));
     return clean.length > 0 ? clean.join(', ') : fallback;
   }
+  if (typeof val === 'object' && val.name) return val.name;
   const str = String(val);
   return str.startsWith('rec') ? fallback : str;
+}
+
+function formatFoot(val: any): string {
+  if (!val) return 'N/D';
+  const str = String(val).trim();
+  if (str === 'D') return 'Direito (D)';
+  if (str === 'E') return 'Esquerdo (E)';
+  if (str === 'A') return 'Ambidestro';
+  return str;
 }
 
 export async function GET() {
@@ -21,46 +31,63 @@ export async function GET() {
   }
 
   try {
-    const headers = { Authorization: `Bearer ${TOKEN}` };
+    let allRecords: any[] = [];
+    let offset: string | undefined = undefined;
 
-    // Tradução paralela das chaves de competição
-    const [resTeams, resComps] = await Promise.all([
-      fetch(`https://api.airtable.com/v0/${BASE_ID}/Teams?pageSize=100`, { headers, cache: 'no-store' }),
-      fetch(`https://api.airtable.com/v0/${BASE_ID}/Competition?pageSize=100`, { headers, cache: 'no-store' })
-    ]);
+    do {
+      const url = `https://api.airtable.com/v0/${BASE_ID}/Players?pageSize=100${
+        offset ? `&offset=${offset}` : ''
+      }`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${TOKEN}` },
+        cache: 'no-store',
+      });
 
-    const dataTeams = await resTeams.json();
-    const dataComps = await resComps.json();
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const compMap: Record<string, string> = {};
-    (dataComps.records || []).forEach((r: any) => {
-      if (r.id && r.fields['Competition Name']) compMap[r.id] = r.fields['Competition Name'];
-    });
+      const data = await res.json();
+      allRecords = allRecords.concat(data.records || []);
+      offset = data.offset;
+    } while (offset);
 
-    const teams = (dataTeams.records || []).map((r: any) => {
+    const players = allRecords.map((r: any) => {
       const f = r.fields || {};
-      const logoUrl = Array.isArray(f['Logo']) && f['Logo'][0]?.url ? f['Logo'][0].url : null;
+      const photoUrl = Array.isArray(f['Photo']) && f['Photo'][0]?.url ? f['Photo'][0].url : null;
+      
+      const clubLogoUrl = Array.isArray(f['Club Logo']) && f['Club Logo'][0]?.url 
+        ? f['Club Logo'][0].url 
+        : Array.isArray(f['Team Logo']) && f['Team Logo'][0]?.url 
+        ? f['Team Logo'][0].url 
+        : null;
 
-      let compName = 'Competição N/D';
-      if (Array.isArray(f['Competition'])) {
-        const resolved = f['Competition'].map((id: string) => compMap[id] || id).filter((val: string) => !val.startsWith('rec'));
-        if (resolved.length > 0) compName = resolved.join(', ');
-      } else if (f['Competition']) {
-        compName = compMap[f['Competition']] || safeText(f['Competition'], 'Competição N/D');
-      }
+      const rawClub = f['Team name'] || f['Current Team'];
+      let clubName = safeText(rawClub, 'Sem Clube');
+
+      const rawHeight = f[' Height'] || f['Height'] || f['Altura'];
+      const rawFoot = f['Foot'] || f['Preferred Foot'] || f['Pé'] || f['Pé Preferencial'];
+
+      const mentionsCount = Array.isArray(f['Matches']) 
+        ? f['Matches'].length 
+        : (Array.isArray(f['Highlights']) ? f['Highlights'].length : 0);
 
       return {
         id: r.id,
-        name: safeText(f['Team Name'], 'Equipa Sem Nome'),
-        logo: logoUrl,
-        country: safeText(f['Country'], 'Portugal'),
-        competition: compName,
-        totalWatchedMatches: f['Total watched matches'] ?? 0,
-        status: safeText(f['Status'], '⚪ Unobserved'),
+        name: safeText(f['Player Name'], 'Sem Nome'),
+        photo: photoUrl,
+        position: safeText(f['Position'], 'N/D'),
+        nationality: safeText(f['Nationality'], 'N/A'),
+        age: safeText(f['Age'], 'N/D'),
+        height: safeText(rawHeight, 'N/D'),
+        foot: formatFoot(rawFoot),
+        club: clubName,
+        clubLogo: clubLogoUrl,
+        status: safeText(f['Status'], '⚪ No Activity'),
+        report: safeText(f['Report '] || f['Final Report'], 'Sem observações registadas.'),
+        mentions: mentionsCount,
       };
     });
 
-    return NextResponse.json({ total: teams.length, teams });
+    return NextResponse.json({ total: players.length, players });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

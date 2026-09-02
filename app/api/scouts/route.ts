@@ -5,6 +5,27 @@ export const dynamic = 'force-dynamic';
 const BASE_ID = process.env.AIRTABLE_BASE_ID;
 const TOKEN = process.env.AIRTABLE_PAT;
 
+function countUniquePlayers(val: any): number {
+  if (!val) return 0;
+  if (Array.isArray(val)) {
+    const allNames = new Set<string>();
+    val.forEach((item) => {
+      if (typeof item === 'string') {
+        item.split(',').forEach((n) => {
+          const clean = n.trim();
+          if (clean) allNames.add(clean.toLowerCase());
+        });
+      }
+    });
+    return allNames.size;
+  }
+  if (typeof val === 'string') {
+    const names = val.split(',').map((n) => n.trim()).filter(Boolean);
+    return new Set(names.map((n) => n.toLowerCase())).size;
+  }
+  return 0;
+}
+
 export async function GET() {
   if (!BASE_ID || !TOKEN) {
     return NextResponse.json({ error: 'Faltam credenciais' }, { status: 500 });
@@ -24,14 +45,9 @@ export async function GET() {
     const scouts = (data.records || []).map((r: any) => {
       const f = r.fields || {};
       const photoUrl = Array.isArray(f['Profile Photo']) && f['Profile Photo'][0]?.url ? f['Profile Photo'][0].url : null;
-      const playersHighlighted = Array.isArray(f['Players (Highlights)']) ? f['Players (Highlights)'].length : 0;
-
-      const rawComps = f['Competition Rollup (from Matches)'] || f['Competições'] || '';
-      const compsArray = Array.isArray(rawComps) 
-        ? rawComps.map(c => String(c))
-        : typeof rawComps === 'string' && rawComps 
-        ? rawComps.split(',').map(s => s.trim()) 
-        : [];
+      
+      // Extrai e conta os nomes reais e únicos de cada jogador analisado
+      const reportedCount = countUniquePlayers(f['Players (Highlights)']);
 
       return {
         id: r.id,
@@ -40,8 +56,9 @@ export async function GET() {
         liveMatches: f['Live Matches'] || 0,
         streamMatches: f['Stream Matches'] || 0,
         totalMatches: f['Total Matches'] || 0,
-        playersCount: playersHighlighted,
-        competitions: compsArray.length > 0 ? compsArray : ['Sem mercado atribuído'],
+        playersCount: reportedCount,
+        // Mantém neutro até definirmos a atribuição via login de Admin
+        competitions: ['Pendente de Atribuição (Admin)'],
       };
     });
 
