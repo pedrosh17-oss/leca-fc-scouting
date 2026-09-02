@@ -23,7 +23,9 @@ export async function GET() {
     const isDev = process.env.NODE_ENV === 'development';
 
     do {
-      const url = `https://api.airtable.com/v0/${BASE_ID}/Players?pageSize=100${offset ? `&offset=${offset}` : ''}`;
+      const url = `https://api.airtable.com/v0/${BASE_ID}/Players?pageSize=100${
+        offset ? `&offset=${offset}` : ''
+      }`;
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${TOKEN}` },
         cache: 'no-store',
@@ -34,14 +36,26 @@ export async function GET() {
       const data = await res.json();
       allRecords = allRecords.concat(data.records || []);
       offset = data.offset;
-      if (isDev) break; 
+      if (isDev) break;
     } while (offset);
 
     const players = allRecords.map((r: any) => {
       const f = r.fields || {};
       const photoUrl = Array.isArray(f['Photo']) && f['Photo'][0]?.url ? f['Photo'][0].url : null;
+      
+      // Suporte para Logo do Clube do Airtable (seja campo de anexo ou lookup)
+      const clubLogoUrl = Array.isArray(f['Club Logo']) && f['Club Logo'][0]?.url 
+        ? f['Club Logo'][0].url 
+        : Array.isArray(f['Team Logo']) && f['Team Logo'][0]?.url 
+        ? f['Team Logo'][0].url 
+        : null;
 
-      // Conta o número de vezes que foi falado (baseado nos links para jogos ou highlights)
+      const rawClub = f['Team name'] || f['Current Team'];
+      let clubName = safeText(rawClub, 'Sem Clube');
+      if (typeof clubName === 'string' && clubName.includes('rec') && clubName.length === 17) {
+        clubName = 'Clube Associado';
+      }
+
       const mentionsCount = Array.isArray(f['Matches']) ? f['Matches'].length : (Array.isArray(f['Highlights']) ? f['Highlights'].length : 0);
 
       return {
@@ -51,9 +65,10 @@ export async function GET() {
         position: safeText(f['Position'], 'N/D'),
         nationality: safeText(f['Nationality'], 'N/A'),
         age: safeText(f['Age'], 'N/D'),
-        height: safeText(f['Height'] || f['Altura'], 'N/D'), // Preparado para quando criares a coluna
-        foot: safeText(f['Preferred Foot'] || f['Pé'], 'N/D'), // Preparado para quando criares a coluna
-        club: safeText(f['Team name'] || f['Current Team'], 'Sem Clube'), // Puxa do teu novo Lookup!
+        height: safeText(f['Height'] || f['Altura'], 'N/D'),
+        foot: safeText(f['Preferred Foot'] || f['Pé'] || f['Pé Preferencial'], 'N/D'),
+        club: clubName,
+        clubLogo: clubLogoUrl,
         status: safeText(f['Status'], '⚪ No Activity'),
         report: safeText(f['Report '] || f['Final Report'], 'Sem observações registadas.'),
         mentions: mentionsCount,
