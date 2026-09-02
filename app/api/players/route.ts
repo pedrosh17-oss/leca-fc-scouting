@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+// Lê a variável de ambiente privada (sem expor ao cliente/browser)
 const BASE_ID = process.env.AIRTABLE_BASE_ID;
 const TOKEN = process.env.AIRTABLE_PAT;
 
@@ -13,7 +14,7 @@ function safeText(val: any, fallback: string = 'N/D'): string {
 export async function GET() {
   if (!BASE_ID || !TOKEN) {
     return NextResponse.json(
-      { error: 'Faltam credenciais no .env.local' },
+      { error: 'Faltam credenciais de acesso' },
       { status: 500 }
     );
   }
@@ -22,7 +23,7 @@ export async function GET() {
     let allRecords: any[] = [];
     let offset: string | undefined = undefined;
 
-    // Loop que varre as páginas do Airtable até trazer os 700+ atletas
+    // Loop de paginação para obter todos os registos
     do {
       const url = `https://api.airtable.com/v0/${BASE_ID}/Players?pageSize=100${
         offset ? `&offset=${offset}` : ''
@@ -32,7 +33,7 @@ export async function GET() {
         cache: 'no-store',
       });
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
       const data = await res.json();
       allRecords = allRecords.concat(data.records || []);
@@ -48,12 +49,12 @@ export async function GET() {
 
       return {
         id: r.id,
-        name: safeText(f['Player Name'], 'Sem Nome'),
+        name: safeText(f['Player Name'] || f['Nome do Jogador'], 'Sem Nome'),
         photo: photoUrl,
-        position: safeText(f['Position'], 'N/D'),
+        position: safeText(f['Position'] || f['Posição Principal'], 'N/D'),
         nationality: safeText(f['Nationality'], 'N/A'),
         age: safeText(f['Age'], 'N/D'),
-        club: safeText(f['Current Team'], 'Sem Clube'),
+        club: safeText(f['Current Team'] || f['Clube'], 'Sem Clube'),
         status: safeText(f['Status'], '⚪ No Activity'),
         report: safeText(
           f['Report '] || f['Final Report'],

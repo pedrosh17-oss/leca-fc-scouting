@@ -25,9 +25,9 @@ export default function Home() {
         const dataM = await resM.json();
         const dataS = await resS.json();
 
-        if (dataP.players) setPlayers(dataP.players);
-        if (dataM.matches) setMatches(dataM.matches);
-        if (dataS.scouts) setScouts(dataS.scouts);
+        if (dataP && Array.isArray(dataP.players)) setPlayers(dataP.players);
+        if (dataM && Array.isArray(dataM.matches)) setMatches(dataM.matches);
+        if (dataS && Array.isArray(dataS.scouts)) setScouts(dataS.scouts);
       } catch (err) {
         console.error("Erro ao carregar dados", err);
       } finally {
@@ -42,9 +42,9 @@ export default function Home() {
   };
 
   const filteredPlayers = players.filter(p => {
-    const name = p.fields['Nome do Jogador'] || '';
-    const club = p.fields['Clube'] || '';
-    const pos = p.fields['Posição Principal'] || '';
+    const name = p?.name || p?.fields?.['Nome do Jogador'] || '';
+    const club = p?.club || p?.fields?.['Clube'] || '';
+    const pos = p?.position || p?.fields?.['Posição Principal'] || '';
     const query = search.toLowerCase();
     return name.toLowerCase().includes(query) || club.toLowerCase().includes(query) || pos.toLowerCase().includes(query);
   });
@@ -106,33 +106,36 @@ export default function Home() {
               />
             </div>
 
-            <div className="grid gap-3">
-              {filteredPlayers.map((player) => {
-                const name = player.fields['Nome do Jogador'] || 'Sem Nome';
-                const pos = player.fields['Posição Principal'] || 'N/D';
-                const clubRaw = player.fields['Clube'];
-                const club = Array.isArray(clubRaw) ? 'Clube Associado' : (clubRaw && !clubRaw.startsWith('rec') ? clubRaw : 'Sem Clube');
+            {loading ? (
+              <div className="text-center py-12 text-slate-500 text-sm">A carregar atletas do Airtable...</div>
+            ) : (
+              <div className="grid gap-3">
+                {filteredPlayers.map((player) => {
+                  const name = player?.name || player?.fields?.['Nome do Jogador'] || 'Sem Nome';
+                  const pos = player?.position || player?.fields?.['Posição Principal'] || 'N/D';
+                  const club = player?.club || player?.fields?.['Clube'] || 'Sem Clube';
 
-                return (
-                  <div key={player.id} className="bg-[#151c2c] border border-slate-800/80 rounded-xl p-4 flex items-center justify-between hover:border-slate-700 transition">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm">
-                        {name.charAt(0)}
+                  return (
+                    <div key={player.id || Math.random()} className="bg-[#151c2c] border border-slate-800/80 rounded-xl p-4 flex items-center justify-between hover:border-slate-700 transition">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm">
+                          {name.charAt(0)}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-white text-base">{name}</h3>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            <span className="text-blue-400 font-medium">{pos}</span> • {club}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-white text-base">{name}</h3>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          <span className="text-blue-400 font-medium">{pos}</span> • {club}
-                        </p>
-                      </div>
+                      <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg transition border border-slate-700">
+                        Ver Perfil
+                      </button>
                     </div>
-                    <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg transition border border-slate-700">
-                      Ver Perfil
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -148,13 +151,13 @@ export default function Home() {
 
             <div className="grid gap-4">
               {matches.map((match) => {
-                const title = match.fields['Jogo'] || 'Jogo sem Título';
-                const date = match.fields['Data'] || '';
-                const notes = match.fields['Highlights'] || match.fields['Notas'] || 'Sem observações registadas.';
+                const title = match?.fields?.['Jogo'] || match?.title || 'Jogo sem Título';
+                const date = match?.fields?.['Data'] || match?.date || '';
+                const notes = match?.fields?.['Highlights'] || match?.fields?.['Notas'] || match?.notes || 'Sem observações registadas.';
                 const isExpanded = expandedMatchId === match.id;
 
                 return (
-                  <div key={match.id} className="bg-[#151c2c] border border-slate-800 rounded-xl overflow-hidden transition">
+                  <div key={match.id || Math.random()} className="bg-[#151c2c] border border-slate-800 rounded-xl overflow-hidden transition">
                     <div 
                       onClick={() => toggleMatch(match.id)}
                       className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-800/40 transition"
@@ -175,7 +178,6 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* Conteúdo expandido */}
                     {isExpanded && (
                       <div className="p-5 border-t border-slate-800 bg-[#111723]">
                         <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Destaques / Relatório do Jogo</h4>
@@ -195,13 +197,13 @@ export default function Home() {
         {activeTab === 'scouts' && (
           <div className="grid gap-3">
             {scouts.map((scout) => (
-              <div key={scout.id} className="bg-[#151c2c] border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+              <div key={scout.id || Math.random()} className="bg-[#151c2c] border border-slate-800 rounded-xl p-4 flex items-center gap-4">
                 <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400">
                   <UserCheck size={20} />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white">{scout.fields['Nome'] || 'Scout'}</h3>
-                  <p className="text-xs text-slate-400">{scout.fields['Email'] || 'Sem email'}</p>
+                  <h3 className="font-semibold text-white">{scout?.fields?.['Nome'] || scout?.name || 'Scout'}</h3>
+                  <p className="text-xs text-slate-400">{scout?.fields?.['Email'] || scout?.email || 'Sem email'}</p>
                 </div>
               </div>
             ))}
