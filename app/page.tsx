@@ -21,17 +21,21 @@ const POSITIONS_OPTIONS = [
 
 const METRIC_LEVELS = ['Low', 'Medium', 'High'];
 
-// A PASSWORD GLOBAL DO DEPARTAMENTO
+// PASSWORD GLOBAL DO DEPARTAMENTO
 const DEPT_PASSWORD = 'LECA'; 
 
-// --- RBAC ROLES (Option A: Hardcoded mappings) ---
 type Role = 'ADMIN' | 'DIRECTOR' | 'EXECUTIVE' | 'SCOUT';
 
 function getRoleForUser(name: string): Role {
   const lowerName = name.toLowerCase();
   if (lowerName.includes('pedro oliveira')) return 'ADMIN';
   if (lowerName.includes('miguel salvador')) return 'DIRECTOR';
-  if (lowerName.includes('josé luís') || lowerName.includes('jose luis') || lowerName.includes('andré da silva') || lowerName.includes('andre da silva')) return 'EXECUTIVE';
+  if (
+    lowerName.includes('josé luís') || 
+    lowerName.includes('jose luis') || 
+    lowerName.includes('andré da silva') || 
+    lowerName.includes('andre da silva')
+  ) return 'EXECUTIVE';
   return 'SCOUT';
 }
 
@@ -251,7 +255,6 @@ export default function Home() {
       
       if (dataS.scouts) {
         setScouts(dataS.scouts);
-        // Initialize Auth from local storage if scouts are loaded
         const savedAuthId = localStorage.getItem('leca_scout_auth');
         if (savedAuthId) {
           const user = dataS.scouts.find((s: any) => s.id === savedAuthId);
@@ -299,18 +302,18 @@ export default function Home() {
     localStorage.removeItem('leca_scout_auth');
   };
 
-  const canEdit = userRole === 'ADMIN' || userRole === 'DIRECTOR' || userRole === 'SCOUT';
+  // REGRAS DE PERMISSÕES RBAC
+  const canCreateMatches = userRole === 'ADMIN' || userRole === 'SCOUT';
+  const canEditMatches = userRole === 'ADMIN' || userRole === 'SCOUT';
   const canSeeMarket = userRole === 'ADMIN' || userRole === 'DIRECTOR' || userRole === 'EXECUTIVE';
   const canEditMarket = userRole === 'ADMIN' || userRole === 'DIRECTOR';
 
-  // NAVEGAR PARA O MATCH CENTER COM SCROLL INTELIGENTE
   const navigateToMatch = (matchId: string) => {
     setSelectedTeam(null);
     setSelectedPlayer(null);
     setActiveTab('matches');
     setExpandedMatchId(matchId);
     
-    // Aguarda o React renderizar a aba Matches e desliza a página até ao jogo exato
     setTimeout(() => {
       const element = document.getElementById(`match-${matchId}`);
       if (element) {
@@ -454,7 +457,6 @@ export default function Home() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#0d131f] flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
-        {/* Elemento de fundo para dar estilo */}
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none"></div>
         
         <div className="w-full max-w-md bg-[#151c2c]/80 backdrop-blur-md border border-slate-800 p-8 rounded-3xl shadow-2xl flex flex-col items-center animate-in fade-in zoom-in-95 duration-500 z-10">
@@ -463,10 +465,7 @@ export default function Home() {
               src={lecaLogoUrl} 
               alt="Leça FC" 
               className="w-full h-full object-contain"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.parentElement?.classList.add('bg-blue-600/20');
-              }}
+              onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.classList.add('bg-blue-600/20'); }}
             />
             <Shield className="w-10 h-10 text-blue-400 absolute hidden group-has-[img[style*='display: none']]:block" />
           </div>
@@ -553,7 +552,6 @@ export default function Home() {
               {players.length} Atletas na DB
             </div>
             
-            {/* NOVO: BOTÃO DE LOGOUT COM NOME DO UTILIZADOR */}
             <div className="flex items-center gap-2 pl-3 border-l border-slate-700">
               <div className="flex flex-col items-end">
                 <span className="text-xs font-medium text-slate-300 leading-tight">{authScoutName}</span>
@@ -636,8 +634,8 @@ export default function Home() {
               </div>
             </div>
 
-            {/* QUICK ACTIONS */}
-            {canEdit && (
+            {/* QUICK ACTIONS - VISÍVEL APENAS SE TIVER PERMISSÃO DE CRIAR JOGOS */}
+            {canCreateMatches && (
               <div className="bg-[#151c2c] p-4 md:p-6 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div>
                   <h3 className="font-bold text-white text-base md:text-lg">Atalhos do Departamento</h3>
@@ -817,7 +815,7 @@ export default function Home() {
           <div className="animate-in fade-in duration-300">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5 md:mb-6">
               <p className="text-xs md:text-sm text-slate-400 hidden sm:block">Motor de observação de equipas e atletas.</p>
-              {canEdit && (
+              {canCreateMatches && (
                 <button onClick={() => { setPreGameData({ ...preGameData, scoutIds: authScoutId ? [authScoutId] : [] }); setIsRegisterOpen(true); }} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-4 md:py-3 rounded-xl text-sm md:text-base font-bold transition shadow-lg shadow-blue-900/20">
                   <Plus className="w-5 h-5" /> Agendar Jogo
                 </button>
@@ -863,7 +861,7 @@ export default function Home() {
                             <div className="flex items-center gap-2 text-slate-300"><Shield className="w-4 h-4 text-slate-500"/> <strong>Táticas:</strong> {match.homeTactic} / {match.awayTactic}</div>
                             <div className="flex items-center gap-2 text-slate-300"><UserCheck className="w-4 h-4 text-slate-500"/> <strong>Scout:</strong> <span className="text-blue-400 font-medium">{match.scout}</span></div>
                           </div>
-                          {canEdit && (
+                          {canEditMatches && (
                             <button onClick={() => startEditMatchContext(match)} className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-3 md:py-2 bg-blue-600/20 border border-blue-500/30 text-blue-400 rounded-xl md:rounded-lg font-bold hover:bg-blue-600/30 transition">
                               <Edit3 className="w-4 h-4" /> {isEditingContext ? 'Fechar' : 'Editar Táticas'}
                             </button>
@@ -871,7 +869,7 @@ export default function Home() {
                         </div>
 
                         {/* MATCH CONTEXT EDITOR */}
-                        {isEditingContext && canEdit && (
+                        {isEditingContext && canEditMatches && (
                           <div className="bg-[#151c2c] md:bg-[#0d131f] p-4 md:p-5 rounded-xl border border-blue-500/30 space-y-4 text-xs md:text-sm shadow-inner animate-in fade-in slide-in-from-top-2">
                             <h4 className="font-bold text-blue-400 uppercase tracking-wider mb-2">Editor de Métricas do Jogo</h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -903,7 +901,7 @@ export default function Home() {
                         <div>
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                             <h4 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider">Avaliações Individuais (Highlights)</h4>
-                            {canEdit && (
+                            {canEditMatches && (
                               <button 
                                 onClick={() => { setIsAddHighlightOpen({ matchId: match.id, matchName: match.matchName }); setNewHighlightData({ playerId: '', notes: '' }); }}
                                 className="w-full sm:w-auto px-4 py-3 md:py-2 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 text-xs md:text-sm font-bold rounded-xl md:rounded-lg transition flex justify-center items-center gap-2"
@@ -944,7 +942,7 @@ export default function Home() {
                                       </div>
                                       
                                       <div className="flex items-center gap-1.5 flex-shrink-0 pl-2">
-                                        {canEdit && (
+                                        {canEditMatches && (
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); setEditingHighlight({ matchId: match.id, matchName: match.matchName, player: fullP, highlightId: p.highlightId || null, notes: p.note && p.note !== 'Sem notas registadas.' ? p.note : '' }); }}
                                             className="p-2 md:px-2.5 md:py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition border border-slate-700 flex items-center justify-center"
@@ -1147,7 +1145,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL PRÉ-JOGO (COM MULTI-SELEÇÃO DE SCOUTS E AUTO-PREENCHIMENTO) */}
+      {/* MODAL PRÉ-JOGO */}
       {isRegisterOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-xl rounded-2xl shadow-2xl p-5 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
@@ -1249,21 +1247,34 @@ export default function Home() {
         </div>
       )}
 
-      {/* PERFIL DETALHADO DO JOGADOR (INCLUI NOVA ABA DE MERCADO) */}
+      {/* PERFIL DETALHADO DO JOGADOR */}
       {selectedPlayer && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-4xl h-[90vh] flex flex-col rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
             
             <div className="bg-[#151c2c] border-b border-slate-800 p-5 md:p-8 flex-shrink-0 relative">
               <button onClick={() => setSelectedPlayer(null)} className="absolute top-4 right-4 md:top-6 md:right-6 p-2 md:p-2.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition z-10"><X className="w-5 h-5" /></button>
+              
               <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6 mt-2 md:mt-0">
-                {selectedPlayer.photo ? <img src={selectedPlayer.photo} alt={selectedPlayer.name} className="w-20 h-20 md:w-28 md:h-28 rounded-2xl object-cover border-4 border-[#0d131f] shadow-xl bg-[#0d131f]" /> : <div className="w-20 h-20 md:w-28 md:h-28 rounded-2xl bg-[#0d131f] border-4 border-slate-800 flex items-center justify-center text-slate-400 font-bold text-3xl shadow-xl">{(selectedPlayer.name || 'J').charAt(0)}</div>}
+                {selectedPlayer.photo ? (
+                  <img src={selectedPlayer.photo} alt={selectedPlayer.name} className="w-20 h-20 md:w-28 md:h-28 rounded-2xl object-cover border-4 border-[#0d131f] shadow-xl bg-[#0d131f]" />
+                ) : (
+                  <div className="w-20 h-20 md:w-28 md:h-28 rounded-2xl bg-[#0d131f] border-4 border-slate-800 flex items-center justify-center text-slate-400 font-bold text-3xl shadow-xl">
+                    {(selectedPlayer.name || 'J').charAt(0)}
+                  </div>
+                )}
+                
                 <div className="text-center md:text-left flex-1">
                   <h2 className="text-xl md:text-3xl font-black text-white mb-2 tracking-tight">{selectedPlayer.name}</h2>
                   <div className="flex flex-wrap justify-center md:justify-start items-center gap-2 md:gap-3 text-xs md:text-sm">
                     <span className="bg-blue-600 text-white px-3 py-1 md:py-1.5 rounded-lg font-bold shadow-md shadow-blue-900/20">{selectedPlayer.position}</span>
-                    <div className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 md:py-1.5 rounded-lg border border-slate-700 text-slate-200 font-medium">{selectedPlayer.clubLogo ? <img src={selectedPlayer.clubLogo} alt={selectedPlayer.club} className="w-4 h-4 md:w-5 md:h-5 object-contain" /> : <Shield className="w-4 h-4 text-blue-400" />}<span className="truncate max-w-[120px] md:max-w-none">{selectedPlayer.club}</span></div>
-                    <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 md:py-1.5 rounded-lg font-bold uppercase tracking-wide flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> {selectedPlayer.status}</span>
+                    <div className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 md:py-1.5 rounded-lg border border-slate-700 text-slate-200 font-medium">
+                      {selectedPlayer.clubLogo ? <img src={selectedPlayer.clubLogo} alt={selectedPlayer.club} className="w-4 h-4 md:w-5 md:h-5 object-contain" /> : <Shield className="w-4 h-4 text-blue-400" />}
+                      <span className="truncate max-w-[120px] md:max-w-none">{selectedPlayer.club}</span>
+                    </div>
+                    <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 md:py-1.5 rounded-lg font-bold uppercase tracking-wide flex items-center gap-1.5">
+                      <Activity className="w-3.5 h-3.5" /> {selectedPlayer.status}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1271,16 +1282,36 @@ export default function Home() {
 
             <div className="flex-1 overflow-y-auto bg-[#0d131f] p-4 md:p-8">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
-                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left"><span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Idade</span><span className="text-white text-lg font-black">{selectedPlayer.age !== 'N/D' ? `${selectedPlayer.age} anos` : '--'}</span></div>
-                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left"><span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Nacionalidade</span><span className="text-white text-base md:text-lg font-black flex items-center justify-center md:justify-start gap-1.5 truncate w-full"><Flag className="w-3.5 h-3.5 text-slate-400 flex-shrink-0"/> <span className="truncate">{selectedPlayer.nationality || '--'}</span></span></div>
-                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left"><span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Pé / Altura</span><span className="text-white text-lg font-black">{selectedPlayer.foot || '-'} • {selectedPlayer.height || '-'}</span></div>
-                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left bg-blue-900/10 border-blue-900/30"><span className="text-blue-500/70 text-[10px] uppercase font-bold tracking-widest block mb-1">Jogos Vistos</span><span className="text-blue-400 text-2xl font-black">{getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length}</span></div>
+                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left">
+                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Idade</span>
+                  <span className="text-white text-lg font-black">{selectedPlayer.age !== 'N/D' ? `${selectedPlayer.age} anos` : '--'}</span>
+                </div>
+                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left">
+                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Nacionalidade</span>
+                  <span className="text-white text-base md:text-lg font-black flex items-center justify-center md:justify-start gap-1.5 truncate w-full"><Flag className="w-3.5 h-3.5 text-slate-400 flex-shrink-0"/> <span className="truncate">{selectedPlayer.nationality || '--'}</span></span>
+                </div>
+                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left">
+                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Pé / Altura</span>
+                  <span className="text-white text-lg font-black">{selectedPlayer.foot || '-'} • {selectedPlayer.height || '-'}</span>
+                </div>
+                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left bg-blue-900/10 border-blue-900/30">
+                  <span className="text-blue-500/70 text-[10px] uppercase font-bold tracking-widest block mb-1">Jogos Vistos</span>
+                  <span className="text-blue-400 text-2xl font-black">{getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length}</span>
+                </div>
               </div>
 
               <div className="flex gap-4 md:gap-8 border-b border-slate-800 text-xs md:text-sm font-bold mb-6 overflow-x-auto no-scrollbar pb-1">
-                <button onClick={() => setProfileTab('timeline')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'timeline' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}><FileText className="w-4 h-4" /> Relatórios & Timeline</button>
-                <button onClick={() => setProfileTab('algo')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'algo' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}><BarChart3 className="w-4 h-4" /> Looker Studio (Algoritmo)</button>
-                {canSeeMarket && <button onClick={() => setProfileTab('market')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'market' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}><Briefcase className="w-4 h-4" /> Mercado & Decisão</button>}
+                <button onClick={() => setProfileTab('timeline')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'timeline' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}>
+                  <FileText className="w-4 h-4" /> Relatórios & Timeline
+                </button>
+                <button onClick={() => setProfileTab('algo')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'algo' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}>
+                  <BarChart3 className="w-4 h-4" /> Looker Studio (Algoritmo)
+                </button>
+                {canSeeMarket && (
+                  <button onClick={() => setProfileTab('market')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'market' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}>
+                    <Briefcase className="w-4 h-4" /> Mercado & Decisão
+                  </button>
+                )}
               </div>
 
               {profileTab === 'timeline' && (
@@ -1292,25 +1323,47 @@ export default function Home() {
                           <div className="absolute w-4 h-4 bg-blue-500 rounded-full left-[-9px] top-1 border-4 border-[#0d131f] shadow-sm"></div>
                           <div className="bg-[#151c2c] p-4 md:p-5 rounded-2xl border border-slate-800 shadow-sm">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-slate-800/60 pb-3">
-                              <div><h4 className="font-bold text-white text-sm md:text-base leading-tight">{report.matchName}</h4><div className="flex items-center gap-2 text-[10px] md:text-xs text-slate-400 mt-1"><span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {report.gameDate}</span></div></div>
+                              <div>
+                                <h4 className="font-bold text-white text-sm md:text-base leading-tight">{report.matchName}</h4>
+                                <div className="flex items-center gap-2 text-[10px] md:text-xs text-slate-400 mt-1">
+                                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {report.gameDate}</span>
+                                </div>
+                              </div>
                               <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                                <div className="bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50 flex items-center gap-1.5 text-[10px] md:text-xs font-medium text-slate-300"><UserCheck className="w-3 h-3 text-blue-400"/> Scout: {report.scout}</div>
-                                <button onClick={() => navigateToMatch(report.matchId)} className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5">Ir para Jogo <ExternalLink className="w-3 h-3" /></button>
+                                <div className="bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50 flex items-center gap-1.5 text-[10px] md:text-xs font-medium text-slate-300">
+                                  <UserCheck className="w-3 h-3 text-blue-400"/> Scout: {report.scout}
+                                </div>
+                                <button 
+                                  onClick={() => navigateToMatch(report.matchId)}
+                                  className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5"
+                                >
+                                  Ir para Jogo <ExternalLink className="w-3 h-3" />
+                                </button>
                               </div>
                             </div>
-                            <div className="text-xs md:text-sm text-slate-300 leading-relaxed font-sans whitespace-pre-wrap">{report.note}</div>
+                            <div className="text-xs md:text-sm text-slate-300 leading-relaxed font-sans whitespace-pre-wrap">
+                              {report.note}
+                            </div>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-12 bg-[#151c2c] rounded-2xl border border-slate-800 border-dashed"><FileText className="w-8 h-8 mx-auto text-slate-600 mb-3" /><p className="text-sm text-slate-400 font-medium">Ainda não existem relatórios de jogo para este atleta.</p><p className="text-xs text-slate-500 mt-1">As observações individuais feitas no Match Center aparecerão aqui.</p></div>
+                    <div className="text-center py-12 bg-[#151c2c] rounded-2xl border border-slate-800 border-dashed">
+                      <FileText className="w-8 h-8 mx-auto text-slate-600 mb-3" />
+                      <p className="text-sm text-slate-400 font-medium">Ainda não existem relatórios de jogo para este atleta.</p>
+                      <p className="text-xs text-slate-500 mt-1">As observações individuais feitas no Match Center aparecerão aqui.</p>
+                    </div>
                   )}
                 </div>
               )}
 
               {profileTab === 'algo' && (
-                <div className="flex flex-col items-center justify-center py-20 bg-blue-900/5 rounded-2xl border border-blue-900/20 text-center px-4"><BarChart3 className="w-12 h-12 text-blue-500/50 mb-4" /><h3 className="text-lg font-bold text-blue-400 mb-2">Integração Looker Studio</h3><p className="text-sm text-slate-400 max-w-md">Em breve, a avaliação do algoritmo e os gráficos de rating gerados pelo vosso sistema em Excel estarão incorporados nesta vista.</p></div>
+                <div className="flex flex-col items-center justify-center py-20 bg-blue-900/5 rounded-2xl border border-blue-900/20 text-center px-4">
+                  <BarChart3 className="w-12 h-12 text-blue-500/50 mb-4" />
+                  <h3 className="text-lg font-bold text-blue-400 mb-2">Integração Looker Studio</h3>
+                  <p className="text-sm text-slate-400 max-w-md">Em breve, a avaliação do algoritmo e os gráficos de rating gerados pelo vosso sistema em Excel estarão incorporados nesta vista.</p>
+                </div>
               )}
 
               {profileTab === 'market' && canSeeMarket && (
@@ -1319,22 +1372,40 @@ export default function Home() {
                   
                   <div className="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
                     <div>
-                      <h3 className="text-sm md:text-base font-bold text-white uppercase tracking-wider flex items-center gap-2"><Briefcase className="w-5 h-5 text-blue-400" /> Direção Desportiva</h3>
+                      <h3 className="text-sm md:text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                        <Briefcase className="w-5 h-5 text-blue-400" /> Direção Desportiva
+                      </h3>
                       <p className="text-xs text-slate-400 mt-1">Informações confidenciais e notas de viabilidade de mercado.</p>
                     </div>
-                    {!canEditMarket && <div className="bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-xs font-bold text-slate-400 flex items-center gap-1.5"><Lock className="w-3 h-3" /> Modo Leitura</div>}
+                    {!canEditMarket && (
+                      <div className="bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-xs font-bold text-slate-400 flex items-center gap-1.5">
+                        <Lock className="w-3 h-3" /> Modo Leitura
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-5 relative z-10">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Prioridade de Contratação</label><input type="text" disabled={!canEditMarket} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-white focus:outline-none focus:border-blue-500 disabled:opacity-70 text-sm font-medium" placeholder="Ex: Prioridade Máxima (Verão)" defaultValue="Em avaliação" /></div>
-                      <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Valor de Mercado / Salário Base</label><input type="text" disabled={!canEditMarket} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-emerald-400 focus:outline-none focus:border-blue-500 disabled:opacity-70 text-sm font-bold" placeholder="Ex: 50.000€" defaultValue="N/D" /></div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Prioridade de Contratação</label>
+                        <input type="text" disabled={!canEditMarket} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-white focus:outline-none focus:border-blue-500 disabled:opacity-70 text-sm font-medium" placeholder="Ex: Prioridade Máxima (Verão)" defaultValue="Em avaliação" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Valor de Mercado / Salário Base</label>
+                        <input type="text" disabled={!canEditMarket} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-emerald-400 focus:outline-none focus:border-blue-500 disabled:opacity-70 text-sm font-bold" placeholder="Ex: 50.000€" defaultValue="N/D" />
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Notas Confidenciais / Estado do Negócio</label>
                       <textarea rows={4} disabled={!canEditMarket} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-70 text-sm resize-none" placeholder="Ex: Contacto inicial estabelecido com o agente. Jogador prefere continuar no estrangeiro." defaultValue="Aguarda avaliação final do treinador antes de prosseguir com contacto formal." />
                     </div>
-                    {canEditMarket && <div className="flex justify-end pt-2"><button className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 text-sm">Guardar Alterações de Mercado</button></div>}
+                    {canEditMarket && (
+                      <div className="flex justify-end pt-2">
+                        <button className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 text-sm">
+                          Guardar Alterações de Mercado
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1355,18 +1426,36 @@ export default function Home() {
               
               <div className="flex justify-between items-start border-b border-slate-800/80 pb-4">
                 <div className="flex items-center gap-4">
-                  {selectedTeam.logo ? <img src={selectedTeam.logo} alt={selectedTeam.name} className="w-14 h-14 md:w-16 md:h-16 object-contain p-1.5 bg-slate-900 rounded-xl border border-slate-800 flex-shrink-0" /> : <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold flex-shrink-0"><Building2 className="w-7 h-7" /></div>}
+                  {selectedTeam.logo ? (
+                    <img src={selectedTeam.logo} alt={selectedTeam.name} className="w-14 h-14 md:w-16 md:h-16 object-contain p-1.5 bg-slate-900 rounded-xl border border-slate-800 flex-shrink-0" />
+                  ) : (
+                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold flex-shrink-0">
+                      <Building2 className="w-7 h-7" />
+                    </div>
+                  )}
                   <div>
                     <h2 className="text-xl md:text-2xl font-bold text-white">{selectedTeam.name}</h2>
-                    <p className="text-xs text-blue-400 font-medium mt-1">{selectedTeam.competition && selectedTeam.competition !== 'N/D' ? selectedTeam.competition : ''}{selectedTeam.competition && selectedTeam.competition !== 'N/D' && selectedTeam.country ? <span className="text-slate-500"> • </span> : ''}{selectedTeam.country && <span className="text-slate-400">{selectedTeam.country}</span>}</p>
+                    <p className="text-xs text-blue-400 font-medium mt-1">
+                      {selectedTeam.competition && selectedTeam.competition !== 'N/D' ? selectedTeam.competition : ''}
+                      {selectedTeam.competition && selectedTeam.competition !== 'N/D' && selectedTeam.country ? <span className="text-slate-500"> • </span> : ''}
+                      {selectedTeam.country && <span className="text-slate-400">{selectedTeam.country}</span>}
+                    </p>
                   </div>
                 </div>
-                <button onClick={() => setSelectedTeam(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition"><X className="w-5 h-5" /></button>
+                <button onClick={() => setSelectedTeam(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800"><span className="text-xs text-slate-500 block mb-1 font-semibold">Jogos Observados</span><span className="text-xl font-bold text-emerald-400">{teamMatches.length} Partidas</span></div>
-                <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800"><span className="text-xs text-slate-500 block mb-1 font-semibold">Estatuto de Observação</span><span className="text-xl font-bold text-blue-400">{selectedTeam.status || 'Monitored'}</span></div>
+                <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
+                  <span className="text-xs text-slate-500 block mb-1 font-semibold">Jogos Observados</span>
+                  <span className="text-xl font-bold text-emerald-400">{teamMatches.length} Partidas</span>
+                </div>
+                <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
+                  <span className="text-xs text-slate-500 block mb-1 font-semibold">Estatuto de Observação</span>
+                  <span className="text-xl font-bold text-blue-400">{selectedTeam.status || 'Monitored'}</span>
+                </div>
               </div>
 
               <div>
@@ -1376,15 +1465,35 @@ export default function Home() {
                     {teamPlayers.map(p => (
                       <div key={p.id} className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800 flex items-center justify-between hover:border-slate-700 transition">
                         <div className="flex items-center gap-3 min-w-0">
-                          {p.photo ? <img src={p.photo} alt={p.name} className="w-10 h-10 rounded-full object-cover border border-slate-700 bg-slate-800 flex-shrink-0" /> : <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-xs flex-shrink-0">{(p.name || 'J').charAt(0)}</div>}
-                          <div className="min-w-0"><h4 className="font-bold text-white text-sm truncate">{p.name}</h4><p className="text-xs text-blue-400 font-medium mt-0.5 truncate">{p.position}</p></div>
+                          {p.photo ? (
+                            <img src={p.photo} alt={p.name} className="w-10 h-10 rounded-full object-cover border border-slate-700 bg-slate-800 flex-shrink-0" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-xs flex-shrink-0">
+                              {(p.name || 'J').charAt(0)}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <h4 className="font-bold text-white text-sm truncate">{p.name}</h4>
+                            <p className="text-xs text-blue-400 font-medium mt-0.5 truncate">{p.position}</p>
+                          </div>
                         </div>
-                        <button onClick={() => { setSelectedTeam(null); setSelectedPlayer(p); setProfileTab('timeline'); }} className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-xs font-bold rounded-lg transition flex-shrink-0 ml-2">Ver Perfil</button>
+                        <button 
+                          onClick={() => {
+                            setSelectedTeam(null);
+                            setSelectedPlayer(p);
+                            setProfileTab('timeline');
+                          }}
+                          className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-xs font-bold rounded-lg transition flex-shrink-0 ml-2"
+                        >
+                          Ver Perfil
+                        </button>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-xs text-slate-500 bg-[#0d131f] p-4 rounded-xl border border-slate-800 text-center">Ainda não existem atletas desta equipa registados na base de dados.</div>
+                  <div className="text-xs text-slate-500 bg-[#0d131f] p-4 rounded-xl border border-slate-800 text-center">
+                    Ainda não existem atletas desta equipa registados na base de dados.
+                  </div>
                 )}
               </div>
 
@@ -1394,19 +1503,42 @@ export default function Home() {
                   <div className="space-y-2.5">
                     {teamMatches.map(m => (
                       <div key={m.id} className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div><h4 className="font-bold text-white text-sm">{m.matchName}</h4><div className="flex items-center gap-2 text-xs text-slate-400 mt-1"><span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {m.gameDate}</span><span>•</span><span className="text-blue-400 font-medium">{m.competition}</span><span>•</span><span className="bg-slate-800 px-1.5 py-0.5 rounded text-[10px] text-slate-300">{m.type}</span></div></div>
-                        <div className="flex items-center gap-2 mt-2 sm:mt-0"><div className="bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50 text-xs text-slate-300 font-medium flex items-center gap-1.5"><UserCheck className="w-3.5 h-3.5 text-blue-400"/> Scout: {m.scout}</div><button onClick={() => navigateToMatch(m.id)} className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5">Ir para Jogo <ExternalLink className="w-3 h-3" /></button></div>
+                        <div>
+                          <h4 className="font-bold text-white text-sm">{m.matchName}</h4>
+                          <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {m.gameDate}</span>
+                            <span>•</span>
+                            <span className="text-blue-400 font-medium">{m.competition}</span>
+                            <span>•</span>
+                            <span className="bg-slate-800 px-1.5 py-0.5 rounded text-[10px] text-slate-300">{m.type}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                          <div className="bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50 text-xs text-slate-300 font-medium flex items-center gap-1.5">
+                            <UserCheck className="w-3.5 h-3.5 text-blue-400"/> Scout: {m.scout}
+                          </div>
+                          <button 
+                            onClick={() => navigateToMatch(m.id)}
+                            className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5"
+                          >
+                            Ir para Jogo <ExternalLink className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-xs text-slate-500 bg-[#0d131f] p-4 rounded-xl border border-slate-800 text-center">Ainda não foram registados jogos observados desta equipa no Match Center.</div>
+                  <div className="text-xs text-slate-500 bg-[#0d131f] p-4 rounded-xl border border-slate-800 text-center">
+                    Ainda não foram registados jogos observados desta equipa no Match Center.
+                  </div>
                 )}
               </div>
+
             </div>
           </div>
         );
       })()}
+
     </main>
   );
 }
