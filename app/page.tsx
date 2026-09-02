@@ -5,7 +5,7 @@ import {
   Users, Trophy, Shield, Search, Plus, ChevronDown, ChevronUp, Calendar, 
   UserCheck, X, Activity, FileText, BarChart3, Briefcase, Flag, Building2,
   Zap, Crosshair, BrainCircuit, ExternalLink, Globe, Loader2, UserPlus, Trash2, Edit3, CheckCircle2,
-  Menu
+  Menu, LayoutDashboard, ArrowRight, Star
 } from 'lucide-react';
 
 const TACTICS_OPTIONS = [
@@ -21,6 +21,7 @@ const POSITIONS_OPTIONS = [
 
 const METRIC_LEVELS = ['Low', 'Medium', 'High'];
 
+// COMPONENTE DROPDOWN AVANÇADO
 function CustomSelect({
   options, value, onChange, placeholder = 'Selecionar...', searchable = false, className = '',
 }: {
@@ -51,7 +52,7 @@ function CustomSelect({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 md:p-3.5 text-left text-slate-200 focus:outline-none focus:border-blue-500 flex justify-between items-center text-xs sm:text-sm transition"
+        className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-left text-slate-200 focus:outline-none focus:border-blue-500 flex justify-between items-center text-xs sm:text-sm transition"
       >
         <div className="flex items-center gap-2 overflow-hidden">
           {selectedOption?.image && <img src={selectedOption.image} alt="" className="w-5 h-5 object-contain rounded-full bg-slate-900" />}
@@ -69,7 +70,7 @@ function CustomSelect({
             <div className="p-1 sticky top-0 bg-[#151c2c]/95 z-10 pb-2">
               <input
                 type="text" placeholder="Pesquisar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-[#0d131f] border border-slate-800 rounded-lg p-3 text-slate-200 text-xs sm:text-sm focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#0d131f] border border-slate-800 rounded-lg p-2.5 text-slate-200 text-xs sm:text-sm focus:outline-none focus:border-blue-500"
               />
             </div>
           )}
@@ -80,7 +81,7 @@ function CustomSelect({
               <button
                 key={opt.value} type="button"
                 onClick={() => { onChange(opt.value); setIsOpen(false); setSearchTerm(''); }}
-                className={`w-full text-left px-3 py-3 md:py-2.5 rounded-lg transition flex items-center gap-2.5 ${opt.value === value ? 'bg-blue-600/20 text-blue-400 font-medium border border-blue-500/30' : 'text-slate-300 hover:bg-slate-800/80 hover:text-white border border-transparent'}`}
+                className={`w-full text-left px-3 py-2.5 rounded-lg transition flex items-center gap-2.5 ${opt.value === value ? 'bg-blue-600/20 text-blue-400 font-medium border border-blue-500/30' : 'text-slate-300 hover:bg-slate-800/80 hover:text-white border border-transparent'}`}
               >
                 {opt.image ? <img src={opt.image} alt="" className="w-6 h-6 object-contain rounded-md bg-slate-900 p-0.5 border border-slate-700" /> : opt.icon ? <span className="text-slate-400">{opt.icon}</span> : <span className="w-1.5 h-1.5 rounded-full bg-slate-700 flex-shrink-0" />}
                 <span className="truncate">{opt.label}</span>
@@ -93,8 +94,78 @@ function CustomSelect({
   );
 }
 
+// DROPDOWN DE MULTI-SELEÇÃO DE SCOUTS
+function CustomMultiSelect({
+  options, selectedIds, onChange, placeholder = 'Selecionar Scouts...', className = ''
+}: {
+  options: Array<{ value: string; label: string; image?: string | null }>;
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const toggleOption = (id: string) => {
+    if (selectedIds.includes(id)) {
+      onChange(selectedIds.filter(item => item !== id));
+    } else {
+      onChange([...selectedIds, id]);
+    }
+  };
+
+  const selectedLabels = options.filter(o => selectedIds.includes(o.value)).map(o => o.label);
+
+  return (
+    <div className={`relative ${className}`} ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-left text-slate-200 focus:outline-none focus:border-blue-500 flex justify-between items-center text-xs sm:text-sm transition min-h-[46px]"
+      >
+        <span className={selectedLabels.length > 0 ? 'text-slate-200 font-medium truncate' : 'text-slate-500'}>
+          {selectedLabels.length > 0 ? selectedLabels.join(', ') : placeholder}
+        </span>
+        <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-[100] left-0 right-0 mt-1 bg-[#151c2c]/95 backdrop-blur-md border border-slate-700/80 rounded-xl shadow-2xl max-h-52 overflow-y-auto p-1.5 space-y-1 text-xs sm:text-sm">
+          {options.map((opt) => {
+            const isSelected = selectedIds.includes(opt.value);
+            return (
+              <button
+                key={opt.value} type="button"
+                onClick={() => toggleOption(opt.value)}
+                className={`w-full text-left px-3 py-2.5 rounded-lg transition flex items-center justify-between ${isSelected ? 'bg-blue-600/20 text-blue-400 font-bold border border-blue-500/30' : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'}`}
+              >
+                <div className="flex items-center gap-2 overflow-hidden">
+                  {opt.image ? <img src={opt.image} alt="" className="w-5 h-5 object-contain rounded-full bg-slate-900" /> : <Shield size={14} className="text-slate-500"/>}
+                  <span className="truncate">{opt.label}</span>
+                </div>
+                {isSelected && <CheckCircle2 size={14} className="text-blue-400 flex-shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'players' | 'teams' | 'matches' | 'scouts'>('players');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'players' | 'teams' | 'matches' | 'scouts'>('dashboard');
   const [players, setPlayers] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [matches, setMatches] = useState<any[]>([]);
@@ -115,7 +186,7 @@ export default function Home() {
   // FORMS
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [submittingPre, setSubmittingPre] = useState(false);
-  const [preGameData, setPreGameData] = useState({ homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutId: '', type: '' });
+  const [preGameData, setPreGameData] = useState({ homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutIds: [] as string[], type: '' });
 
   const [submittingReport, setSubmittingReport] = useState(false);
   const [reportData, setReportData] = useState({ homeTactic: '', awayTactic: '', tempo: '', intensity: '', technical: '', pressure: '', notes: '' });
@@ -131,8 +202,9 @@ export default function Home() {
   const [creatingPlayer, setCreatingPlayer] = useState(false);
   const [availableMatchTeams, setAvailableMatchTeams] = useState<Array<{ id: string; name: string; logo?: string | null }>>([]);
 
-  // MOBILE MENU STATE
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const lecaLogoUrl ="/logo.png";
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -212,7 +284,7 @@ export default function Home() {
     e.preventDefault(); setSubmittingPre(true);
     try {
       const res = await fetch('/api/matches', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(preGameData), });
-      if (res.ok) { setIsRegisterOpen(false); setPreGameData({ homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutId: '', type: '' }); await loadData(); showToast("Jogo agendado com sucesso!"); }
+      if (res.ok) { setIsRegisterOpen(false); setPreGameData({ homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutIds: [], type: '' }); await loadData(); showToast("Jogo agendado com sucesso!"); }
     } catch (err) { console.error(err); } finally { setSubmittingPre(false); }
   };
 
@@ -246,7 +318,6 @@ export default function Home() {
     return matchSearch && matchStatus && matchComp;
   });
 
-  // GERAÇÃO DINÂMICA DA TIMELINE DO JOGADOR
   const getPlayerTimeline = (playerId: string, playerName: string) => {
     const timeline: any[] = [];
     matches.forEach(m => {
@@ -258,6 +329,21 @@ export default function Home() {
       }
     });
     return timeline.sort((a, b) => new Date(b.gameDate).getTime() - new Date(a.gameDate).getTime());
+  };
+
+  // OBTER ÚLTIMAS AVALIAÇÕES INDIVIDUAIS PARA O DASHBOARD
+  const getRecentHighlights = () => {
+    const list: any[] = [];
+    matches.forEach(m => {
+      if (m.highlightedPlayers) {
+        m.highlightedPlayers.forEach((p: any) => {
+          if (p.note && p.note !== 'Sem notas registadas.') {
+            list.push({ ...p, matchName: m.matchName, gameDate: m.gameDate, scout: m.scout });
+          }
+        });
+      }
+    });
+    return list.slice(0, 4);
   };
 
   const renderMobileMenuButton = (id: typeof activeTab, icon: React.ReactNode, label: string, count?: number) => (
@@ -280,51 +366,139 @@ export default function Home() {
         </div>
       )}
 
-      {/* HEADER MOBILE & DESKTOP */}
+      {/* HEADER WITH LEÇA FC LOGO */}
       <header className="sticky top-0 z-40 bg-[#151c2c]/95 backdrop-blur-md border-b border-slate-800 px-5 py-4 md:p-6 md:m-6 md:rounded-xl md:static flex justify-between items-center shadow-sm">
-        <div>
-          <span className="hidden md:block text-[10px] md:text-xs font-semibold tracking-wider text-slate-400 uppercase mb-0.5">Departamento de Scouting</span>
-          <h1 className="text-xl md:text-2xl font-bold text-white tracking-wide">LEÇA FC SAD</h1>
+        <div className="flex items-center gap-3.5">
+          <img src={lecaLogoUrl} alt="Leça FC SAD" className="w-10 h-10 md:w-12 md:h-12 object-contain p-1 bg-slate-900/80 rounded-xl border border-slate-700/60 shadow" />
+          <div>
+            <span className="hidden md:block text-[10px] md:text-xs font-semibold tracking-wider text-slate-400 uppercase mb-0.5">Departamento de Scouting</span>
+            <h1 className="text-xl md:text-2xl font-bold text-white tracking-wide">LEÇA FC SAD</h1>
+          </div>
         </div>
         
-        {/* Mobile Hamburger */}
         <button className="md:hidden p-2 -mr-2 text-slate-300 hover:text-white" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
           {isMobileMenuOpen ? <X size={26} /> : <Menu size={26} />}
         </button>
 
-        {/* Desktop DB Status */}
         <div className="hidden md:flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-full text-xs font-medium">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           {players.length} Atletas na DB
         </div>
       </header>
 
-      {/* MOBILE MENU DROPDOWN */}
+      {/* MOBILE MENU */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 top-[69px] z-30 bg-[#0d131f] animate-in slide-in-from-top-2 md:hidden overflow-y-auto">
+          {renderMobileMenuButton('dashboard', <LayoutDashboard size={20}/>, 'Início / Painel')}
           {renderMobileMenuButton('players', <Users size={20}/>, 'Base de Jogadores', players.length)}
           {renderMobileMenuButton('teams', <Building2 size={20}/>, 'Equipas', teams.length)}
           {renderMobileMenuButton('matches', <Trophy size={20}/>, 'Match Center', matches.length)}
           {renderMobileMenuButton('scouts', <Shield size={20}/>, 'Equipa de Scouts', scouts.length)}
-          <div className="p-6">
-             <div className="flex items-center gap-2 justify-center bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-3 rounded-xl text-sm font-medium">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" /> Live Airtable Connection
-             </div>
-          </div>
         </div>
       )}
 
       {/* DESKTOP TABS */}
       <div className="hidden md:flex max-w-6xl mx-auto mb-6 flex-wrap gap-3 px-6 md:px-0">
+        <button onClick={() => setActiveTab('dashboard')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><LayoutDashboard size={16} /> Início</button>
         <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Users size={16} /> Base de Jogadores ({players.length})</button>
         <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Building2 size={16} /> Equipas ({teams.length})</button>
         <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Trophy size={16} /> Match Center ({matches.length})</button>
         <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Shield size={16} /> Equipa de Scouts ({scouts.length})</button>
       </div>
 
-      {/* MAIN CONTENT AREA */}
       <div className="max-w-6xl mx-auto px-4 md:px-0 mt-4 md:mt-0">
         
+        {/* TAB 0: DASHBOARD / INÍCIO */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            
+            {/* WELCOME BANNER & KPIS */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+              <div className="bg-[#151c2c] p-4 md:p-5 rounded-2xl border border-slate-800 shadow-sm flex flex-col justify-between">
+                <span className="text-slate-500 text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1">Base de Atletas</span>
+                <span className="text-2xl md:text-3xl font-black text-white">{players.length}</span>
+                <span className="text-[10px] text-emerald-400 font-bold mt-2 flex items-center gap-1"><Activity size={10}/> Atleta(s) Ativos</span>
+              </div>
+              
+              <div className="bg-[#151c2c] p-4 md:p-5 rounded-2xl border border-slate-800 shadow-sm flex flex-col justify-between">
+                <span className="text-slate-500 text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1">Jogos Vistos</span>
+                <span className="text-2xl md:text-3xl font-black text-blue-400">{matches.length}</span>
+                <span className="text-[10px] text-slate-400 font-medium mt-2">Mapeados na Época</span>
+              </div>
+
+              <div className="bg-[#151c2c] p-4 md:p-5 rounded-2xl border border-slate-800 shadow-sm flex flex-col justify-between">
+                <span className="text-slate-500 text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1">Equipas Mapeadas</span>
+                <span className="text-2xl md:text-3xl font-black text-white">{teams.length}</span>
+                <span className="text-[10px] text-slate-400 font-medium mt-2">Clubes em BD</span>
+              </div>
+
+              <div className="bg-[#151c2c] p-4 md:p-5 rounded-2xl border border-slate-800 shadow-sm flex flex-col justify-between">
+                <span className="text-slate-500 text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1">Equipa de Scouts</span>
+                <span className="text-2xl md:text-3xl font-black text-emerald-400">{scouts.length}</span>
+                <span className="text-[10px] text-slate-400 font-medium mt-2">Observadores</span>
+              </div>
+            </div>
+
+            {/* QUICK ACTIONS */}
+            <div className="bg-[#151c2c] p-4 md:p-6 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <h3 className="font-bold text-white text-base md:text-lg">Atalhos do Departamento</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Ações rápidas para acompanhamento das partidas e prospeção</p>
+              </div>
+              <div className="flex w-full sm:w-auto gap-3">
+                <button onClick={() => setIsRegisterOpen(true)} className="flex-1 sm:flex-none px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white text-xs md:text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
+                  <Plus size={16} /> Agendar Jogo
+                </button>
+                <button onClick={() => { setActiveTab('players'); }} className="flex-1 sm:flex-none px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs md:text-sm font-bold rounded-xl flex items-center justify-center gap-2 border border-slate-700">
+                  <Search size={16} /> Pesquisar Atleta
+                </button>
+              </div>
+            </div>
+
+            {/* RECENT HIGHLIGHTS FEED */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm md:text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <Star size={16} className="text-blue-400" /> Últimas Observações Submetidas
+                </h3>
+                <button onClick={() => setActiveTab('matches')} className="text-xs text-blue-400 font-bold hover:underline flex items-center gap-1">
+                  Ver Todos os Jogos <ArrowRight size={12} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {getRecentHighlights().map((p, idx) => (
+                  <div key={idx} className="bg-[#151c2c] border border-slate-800 p-4 rounded-2xl space-y-3 hover:border-slate-700 transition">
+                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                      <div className="flex items-center gap-3">
+                        {p.photo ? (
+                          <img src={p.photo} alt={p.name} className="w-10 h-10 rounded-full object-cover border border-slate-700 shadow" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm">
+                            {(p.name || 'J').charAt(0)}
+                          </div>
+                        )}
+                        <div>
+                          <h5 className="font-bold text-white text-sm">{p.name}</h5>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            <span className="text-blue-400 font-medium">{p.position}</span> • {p.club}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded font-semibold">{p.gameDate}</span>
+                    </div>
+
+                    <p className="text-xs text-slate-300 leading-relaxed bg-[#0d131f] p-3 rounded-xl border border-slate-800/60 line-clamp-3">
+                      {p.note}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        )}
+
         {/* TAB 1: PLAYERS */}
         {activeTab === 'players' && (
           <div className="animate-in fade-in duration-300">
@@ -660,12 +834,12 @@ export default function Home() {
 
       </div>
 
-      {/* --------------------- MODALS --------------------- */}
+      {/* --------------------- MODALS CENTRADOS (NOVO DESIGN) --------------------- */}
 
-      {/* MODAL FOCADO EM EDITAR O HIGHLIGHT DE UM JOGADOR */}
+      {/* MODAL EDITAR HIGHLIGHT INDIVIDUAL */}
       {editingHighlight && (
-        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/80 backdrop-blur-sm md:p-4">
-          <div className="bg-[#151c2c] border-t md:border border-slate-800 w-full max-w-lg rounded-t-2xl md:rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#151c2c] border border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex justify-between items-start border-b border-slate-800 pb-4">
               <div className="flex items-center gap-3 min-w-0">
                 {editingHighlight.player.photo ? (
@@ -695,9 +869,9 @@ export default function Home() {
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-2 border-t border-slate-800 mt-4 pt-4">
-                <button type="button" onClick={() => setEditingHighlight(null)} className="flex-1 md:flex-none px-4 py-3 md:py-2 bg-slate-800 text-slate-300 font-bold rounded-xl md:rounded-lg">Cancelar</button>
-                <button type="submit" disabled={savingHighlight} className="flex-1 md:flex-none px-5 py-3 md:py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl md:rounded-lg flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
+              <div className="flex justify-end gap-3 pt-2 border-t border-slate-800 mt-4">
+                <button type="button" onClick={() => setEditingHighlight(null)} className="flex-1 md:flex-none px-4 py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl">Cancelar</button>
+                <button type="submit" disabled={savingHighlight} className="flex-1 md:flex-none px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
                   {savingHighlight ? <Loader2 size={16} className="animate-spin" /> : 'Guardar Observação'}
                 </button>
               </div>
@@ -706,10 +880,10 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL ADICIONAR NOVO HIGHLIGHT */}
+      {/* MODAL ADICIONAR HIGHLIGHT */}
       {isAddHighlightOpen && (
-        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/80 backdrop-blur-sm md:p-4">
-          <div className="bg-[#151c2c] border-t md:border border-slate-800 w-full max-w-lg rounded-t-3xl md:rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#151c2c] border border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <div>
                 <h3 className="font-bold text-white text-base md:text-sm">Adicionar Atleta</h3>
@@ -743,21 +917,21 @@ export default function Home() {
               </div>
 
               <div className="flex gap-3 pt-4 border-t border-slate-800 mt-4">
-                <button type="button" onClick={() => setIsAddHighlightOpen(null)} className="flex-1 px-4 py-3.5 md:py-2 bg-slate-800 text-slate-300 font-bold rounded-xl md:rounded-lg">Cancelar</button>
-                <button type="submit" className="flex-1 px-5 py-3.5 md:py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl md:rounded-lg">Adicionar Destaque</button>
+                <button type="button" onClick={() => setIsAddHighlightOpen(null)} className="flex-1 px-4 py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl">Cancelar</button>
+                <button type="submit" className="flex-1 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl">Adicionar Destaque</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL PRÉ-JOGO (CRIAR JOGO) */}
+      {/* MODAL PRÉ-JOGO (COM MULTI-SELEÇÃO DE SCOUTS) */}
       {isRegisterOpen && (
-        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/80 backdrop-blur-sm md:p-4">
-          <div className="bg-[#151c2c] border-t md:border border-slate-800 w-full max-w-xl rounded-t-3xl md:rounded-2xl shadow-2xl p-5 md:p-6 animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#151c2c] border border-slate-800 w-full max-w-xl rounded-2xl shadow-2xl p-5 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-5 border-b border-slate-800 pb-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 md:p-2.5 bg-blue-600/20 border border-blue-500/30 text-blue-400 rounded-xl"><Trophy size={20} /></div>
+                <div className="p-2.5 bg-blue-600/20 border border-blue-500/30 text-blue-400 rounded-xl"><Trophy size={20} /></div>
                 <div>
                   <h2 className="text-base md:text-lg font-bold text-white">Agendar Novo Jogo</h2>
                   <p className="text-[10px] md:text-xs text-slate-400 mt-0.5">Criar partida na agenda</p>
@@ -778,19 +952,25 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="col-span-2 md:col-span-1">
-                  <label className="block text-slate-400 font-bold mb-1.5">Data</label>
-                  <input type="date" required value={preGameData.gameDate} onChange={e => setPreGameData({ ...preGameData, gameDate: e.target.value })} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-slate-200 focus:outline-none focus:border-blue-500" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1.5">Data do Jogo</label>
+                  <input type="date" required value={preGameData.gameDate} onChange={e => setPreGameData({ ...preGameData, gameDate: e.target.value })} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-blue-500" />
                 </div>
                 <div>
-                  <label className="block text-slate-400 font-bold mb-1.5">Tipo</label>
-                  <CustomSelect options={[{ value: '🏟️ Live', label: 'Live', icon: '🏟️' }, { value: '💻 Stream', label: 'Stream', icon: '💻' }]} value={preGameData.type} onChange={val => setPreGameData({ ...preGameData, type: val })} placeholder="-" />
+                  <label className="block text-slate-400 font-bold mb-1.5">Tipo de Observação</label>
+                  <CustomSelect options={[{ value: '🏟️ Live', label: 'Live', icon: '🏟️' }, { value: '💻 Stream', label: 'Stream', icon: '💻' }]} value={preGameData.type} onChange={val => setPreGameData({ ...preGameData, type: val })} placeholder="Selecionar..." />
                 </div>
-                <div className="col-span-2 md:col-span-1">
-                  <label className="block text-slate-400 font-bold mb-1.5">Scout</label>
-                  <CustomSelect options={scouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} value={preGameData.scoutId} onChange={val => setPreGameData({ ...preGameData, scoutId: val })} placeholder="Procurar..." searchable={true} />
-                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-bold mb-1.5">Scouts Observadores (Seleção Múltipla)</label>
+                <CustomMultiSelect 
+                  options={scouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
+                  selectedIds={preGameData.scoutIds} 
+                  onChange={ids => setPreGameData({ ...preGameData, scoutIds: ids })} 
+                  placeholder="Selecionar Scouts que acompanharam o jogo..." 
+                />
               </div>
 
               <div>
@@ -799,9 +979,9 @@ export default function Home() {
               </div>
 
               <div className="flex gap-3 pt-4 border-t border-slate-800 mt-6">
-                <button type="button" onClick={() => setIsRegisterOpen(false)} className="flex-1 px-4 py-3.5 bg-slate-800 text-slate-300 font-bold rounded-xl">Cancelar</button>
-                <button type="submit" disabled={submittingPre} className="flex-1 px-6 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
-                  {submittingPre ? <Loader2 size={16} className="animate-spin" /> : 'Agendar'}
+                <button type="button" onClick={() => setIsRegisterOpen(false)} className="flex-1 px-4 py-3 bg-slate-800 text-slate-300 font-bold rounded-xl">Cancelar</button>
+                <button type="submit" disabled={submittingPre} className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
+                  {submittingPre ? <Loader2 size={16} className="animate-spin" /> : 'Agendar Jogo'}
                 </button>
               </div>
             </form>
@@ -811,8 +991,8 @@ export default function Home() {
 
       {/* MINI-MODAL: CRIAR NOVO ATLETA */}
       {isNewPlayerOpen && (
-        <div className="fixed inset-0 z-[80] flex items-end md:items-center justify-center bg-black/90 backdrop-blur-sm md:p-4">
-          <div className="bg-[#151c2c] border-t md:border border-slate-800 w-full max-w-md rounded-t-3xl md:rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in slide-in-from-bottom-10 md:zoom-in-95">
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+          <div className="bg-[#151c2c] border border-slate-800 w-full max-w-md rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <h3 className="font-bold text-white text-base md:text-sm flex items-center gap-2">
                 <UserPlus size={18} className="text-emerald-400" /> Criar Atleta
@@ -831,11 +1011,11 @@ export default function Home() {
               </div>
               <div>
                 <label className="block text-slate-400 mb-1.5 font-bold">Posição Principal</label>
-                <CustomSelect options={POSITIONS_OPTIONS.map(pos => ({ value: pos, label: pos }))} value={newPlayerData.position} onChange={val => setNewPlayerData({ ...newPlayerData, position: val })} placeholder="Selecionar..." searchable={true} />
+                <CustomSelect options={POSITIONS_OPTIONS.map(pos => ({ value: pos, label: pos }))} value={newPlayerData.position} onChange={val => setNewPlayerData({ ...newPlayerData, position: pos })} placeholder="Selecionar..." searchable={true} />
               </div>
               <div className="flex gap-3 pt-4 border-t border-slate-800 mt-4">
-                <button type="button" onClick={() => setIsNewPlayerOpen(false)} className="flex-1 py-3.5 md:py-2 bg-slate-800 text-slate-300 font-bold rounded-xl md:rounded-lg">Voltar</button>
-                <button type="submit" disabled={creatingPlayer} className="flex-1 py-3.5 md:py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl md:rounded-lg flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-900/20">
+                <button type="button" onClick={() => setIsNewPlayerOpen(false)} className="flex-1 py-3 bg-slate-800 text-slate-300 font-bold rounded-xl">Voltar</button>
+                <button type="submit" disabled={creatingPlayer} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-900/20">
                   {creatingPlayer ? <Loader2 size={16} className="animate-spin" /> : 'Guardar Atleta'}
                 </button>
               </div>
@@ -844,26 +1024,25 @@ export default function Home() {
         </div>
       )}
 
-      {/* PERFIL DETALHADO DO JOGADOR COM TIMELINE */}
+      {/* PERFIL DETALHADO DO JOGADOR */}
       {selectedPlayer && (
-        <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center bg-black/90 backdrop-blur-md md:p-4">
-          <div className="bg-[#151c2c] border-t md:border border-slate-800 w-full max-w-4xl h-[95vh] md:max-h-[92vh] flex flex-col rounded-t-3xl md:rounded-2xl shadow-2xl animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-300 overflow-hidden">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+          <div className="bg-[#151c2c] border border-slate-800 w-full max-w-4xl h-[90vh] flex flex-col rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
             
-            {/* Player Header (Sticky) */}
             <div className="bg-[#151c2c] border-b border-slate-800 p-5 md:p-8 flex-shrink-0 relative">
               <button onClick={() => setSelectedPlayer(null)} className="absolute top-4 right-4 md:top-6 md:right-6 p-2 md:p-2.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition z-10"><X size={20} /></button>
               
               <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6 mt-2 md:mt-0">
                 {selectedPlayer.photo ? (
-                  <img src={selectedPlayer.photo} alt={selectedPlayer.name} className="w-24 h-24 md:w-28 md:h-28 rounded-2xl object-cover border-4 border-[#0d131f] shadow-xl bg-[#0d131f]" />
+                  <img src={selectedPlayer.photo} alt={selectedPlayer.name} className="w-20 h-20 md:w-28 md:h-28 rounded-2xl object-cover border-4 border-[#0d131f] shadow-xl bg-[#0d131f]" />
                 ) : (
-                  <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-[#0d131f] border-4 border-slate-800 flex items-center justify-center text-slate-400 font-bold text-4xl shadow-xl">
+                  <div className="w-20 h-20 md:w-28 md:h-28 rounded-2xl bg-[#0d131f] border-4 border-slate-800 flex items-center justify-center text-slate-400 font-bold text-3xl shadow-xl">
                     {(selectedPlayer.name || 'J').charAt(0)}
                   </div>
                 )}
                 
                 <div className="text-center md:text-left flex-1">
-                  <h2 className="text-2xl md:text-3xl font-black text-white mb-2 tracking-tight">{selectedPlayer.name}</h2>
+                  <h2 className="text-xl md:text-3xl font-black text-white mb-2 tracking-tight">{selectedPlayer.name}</h2>
                   <div className="flex flex-wrap justify-center md:justify-start items-center gap-2 md:gap-3 text-xs md:text-sm">
                     <span className="bg-blue-600 text-white px-3 py-1 md:py-1.5 rounded-lg font-bold shadow-md shadow-blue-900/20">{selectedPlayer.position}</span>
                     <div className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 md:py-1.5 rounded-lg border border-slate-700 text-slate-200 font-medium">
@@ -878,10 +1057,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto bg-[#0d131f] p-4 md:p-8">
-              
-              {/* Stats Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
                 <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left">
                   <span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Idade</span>
@@ -901,7 +1077,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Tabs Internas */}
               <div className="flex gap-4 md:gap-8 border-b border-slate-800 text-xs md:text-sm font-bold mb-6 overflow-x-auto no-scrollbar pb-1">
                 <button onClick={() => setProfileTab('timeline')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'timeline' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}>
                   <FileText size={16} /> Relatórios & Timeline
@@ -911,16 +1086,13 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* TIMELINE VIEW */}
               {profileTab === 'timeline' && (
                 <div className="space-y-6">
                   {getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length > 0 ? (
                     <div className="relative border-l-2 border-slate-800/80 ml-3 md:ml-4 space-y-8 pb-4">
                       {getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).map((report, idx) => (
                         <div key={idx} className="relative pl-6 md:pl-8">
-                          {/* Timeline Dot */}
                           <div className="absolute w-4 h-4 bg-blue-500 rounded-full left-[-9px] top-1 border-4 border-[#0d131f] shadow-sm"></div>
-                          
                           <div className="bg-[#151c2c] p-4 md:p-5 rounded-2xl border border-slate-800 shadow-sm">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-slate-800/60 pb-3">
                               <div>
@@ -958,6 +1130,67 @@ export default function Home() {
                 </div>
               )}
 
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PERFIL EQUIPA */}
+      {selectedTeam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#151c2c] border border-slate-800 w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl shadow-2xl p-6">
+            <div className="flex justify-between items-start mb-6">
+              <div className="flex items-center gap-4">
+                {selectedTeam.logo ? (
+                  <img src={selectedTeam.logo} alt={selectedTeam.name} className="w-16 h-16 object-contain p-1.5 bg-slate-900 rounded-xl border border-slate-800" />
+                ) : (
+                  <div className="w-16 h-16 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold">
+                    <Building2 size={28} />
+                  </div>
+                )}
+                <div>
+                  <h2 className="text-2xl font-bold text-white">{selectedTeam.name}</h2>
+                  <p className="text-xs text-blue-400 font-medium mt-1">{selectedTeam.competition} • <span className="text-slate-400">{selectedTeam.country}</span></p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedTeam(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
+                <span className="text-xs text-slate-500 block mb-1">Jogos Vistos do Clube</span>
+                <span className="text-xl font-bold text-emerald-400">{selectedTeam.totalWatchedMatches} Partidas</span>
+              </div>
+              <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
+                <span className="text-xs text-slate-500 block mb-1">Estatuto de Observação</span>
+                <span className="text-xl font-bold text-blue-400">{selectedTeam.status}</span>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-bold text-white mb-3">Atletas de Interesse Pertencentes ao Clube</h3>
+              <div className="space-y-2">
+                {players.filter(p => p.club.toLowerCase() === selectedTeam.name.toLowerCase()).map(p => (
+                  <div key={p.id} className="bg-[#0d131f] p-3 rounded-lg border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <span className="text-white text-sm font-medium">{p.name}</span>
+                      <span className="text-xs text-slate-400 ml-2">({p.position})</span>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        setSelectedTeam(null);
+                        setSelectedPlayer(p);
+                        setProfileTab('timeline');
+                      }}
+                      className="text-xs text-blue-400 hover:underline"
+                    >
+                      Ver Perfil
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

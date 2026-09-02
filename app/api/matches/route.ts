@@ -44,7 +44,6 @@ function parseDateToTimestamp(dateStr: string): number {
   return isNaN(d) ? 0 : d;
 }
 
-// FUNÇÃO PARA CONTORNAR O LIMITE DE 100 REGISTOS DO AIRTABLE
 async function fetchAllRecords(table: string, headers: any) {
   let allRecords: any[] = [];
   let offset: string | undefined = undefined;
@@ -65,7 +64,6 @@ export async function GET() {
   try {
     const headers = { Authorization: `Bearer ${TOKEN}` };
 
-    // CARREGA TODOS OS REGISTOS (SEM LIMITE DE 100)
     const [recsMatches, recsComps, recsScouts, recsPlayers, recsHighlights] = await Promise.all([
       fetchAllRecords('Matches', headers),
       fetchAllRecords('Competition', headers),
@@ -236,7 +234,13 @@ export async function POST(req: Request) {
     if (body.homeTeamId) fields['Home Team'] = [body.homeTeamId];
     if (body.awayTeamId) fields['Away Team'] = [body.awayTeamId];
     if (body.competitionId) fields['Competition'] = [body.competitionId];
-    if (body.scoutId) fields['Scouts'] = [body.scoutId];
+    
+    // Suporte para múltiplos scouts
+    if (Array.isArray(body.scoutIds) && body.scoutIds.length > 0) {
+      fields['Scouts'] = body.scoutIds;
+    } else if (body.scoutId) {
+      fields['Scouts'] = [body.scoutId];
+    }
 
     const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}/Matches`, {
       method: 'POST',
