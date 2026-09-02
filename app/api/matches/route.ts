@@ -16,38 +16,21 @@ function safeText(val: any, fallback: string = 'N/D'): string {
   return str.startsWith('rec') ? fallback : str;
 }
 
-function countPlayers(val: any): number {
-  if (!val) return 0;
-  if (Array.isArray(val)) return val.length;
-  if (typeof val === 'string') return val.split(',').filter(Boolean).length;
-  return 0;
-}
-
 export async function GET() {
-  if (!BASE_ID || !TOKEN) {
-    return NextResponse.json({ error: 'Faltam credenciais' }, { status: 500 });
-  }
+  if (!BASE_ID || !TOKEN) return NextResponse.json({ error: 'Faltam credenciais' }, { status: 500 });
 
   try {
     let allRecords: any[] = [];
     let offset: string | undefined = undefined;
-    const isDev = process.env.NODE_ENV === 'development';
 
     do {
-      const url = `https://api.airtable.com/v0/${BASE_ID}/Matches?pageSize=100${
-        offset ? `&offset=${offset}` : ''
-      }`;
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${TOKEN}` },
-        cache: 'no-store',
-      });
-
+      const url = `https://api.airtable.com/v0/${BASE_ID}/Matches?pageSize=100${offset ? `&offset=${offset}` : ''}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${TOKEN}` }, cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
       const data = await res.json();
       allRecords = allRecords.concat(data.records || []);
       offset = data.offset;
-      if (isDev) break;
+      if (process.env.NODE_ENV === 'development') break;
     } while (offset);
 
     const matches = allRecords.map((r: any) => {
@@ -58,16 +41,19 @@ export async function GET() {
         id: r.id,
         matchName: safeText(f['Match'], 'Jogo sem Título'),
         gameDate: safeText(f['Game Date'], 'Data N/D'),
-        competition: safeText(f['Competition'], 'Liga / Competição'),
+        // Vai procurar primeiro no Lookup, se não houver usa o campo normal
+        competition: safeText(f['Competition Name'] || f['Competition'], 'Competição Desconhecida'),
         scout: safeText(f['Scouts'], 'Scout Não Atribuído'),
         type: safeText(f['Type'], 'Live / Stream'),
-        playersCount: countPlayers(highlightedPlayers),
+        playersCount: Array.isArray(highlightedPlayers) ? highlightedPlayers.length : 0,
         playersList: safeText(highlightedPlayers, 'Nenhum atleta associado'),
+        // Novas Variáveis Técnicas
+        tempo: safeText(f['Game Tempo'], '-'),
+        intensity: safeText(f['Physicall Intensity'], '-'),
+        technical: safeText(f['Overall Technical Quality'], '-'),
+        pressure: safeText(f['Mental/Fans/Importance Pressure'], '-'),
         notes: safeText(f['Notes'], ''),
-        highlightsReport: safeText(
-          f['Highlights Report'] || f['Notes'],
-          'Sem destaques registados para este jogo.'
-        ),
+        highlightsReport: safeText(f['Highlights Report'] || f['Notes'], 'Sem destaques registados para este jogo.'),
       };
     });
 
