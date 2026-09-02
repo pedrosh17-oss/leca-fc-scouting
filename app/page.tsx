@@ -5,7 +5,7 @@ import {
   Users, Trophy, Shield, Search, Plus, ChevronDown, ChevronUp, Calendar, 
   UserCheck, X, Activity, FileText, BarChart3, Briefcase, Flag, Building2,
   Zap, Crosshair, BrainCircuit, ExternalLink, Globe, Loader2, UserPlus, LogOut, CheckCircle2,
-  Menu, LayoutDashboard, ArrowRight, Star, Edit3, Lock
+  Menu, LayoutDashboard, ArrowRight, Star, Edit3, Lock, Sliders, Settings
 } from 'lucide-react';
 
 const TACTICS_OPTIONS = [
@@ -197,7 +197,7 @@ export default function Home() {
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'players' | 'teams' | 'matches' | 'scouts'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'players' | 'teams' | 'matches' | 'scouts' | 'admin'>('dashboard');
   const [players, setPlayers] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [matches, setMatches] = useState<any[]>([]);
@@ -213,7 +213,14 @@ export default function Home() {
   const [editingMatchId, setExpandedMatchEdit] = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<any | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<any | null>(null);
+  const [selectedScout, setSelectedScout] = useState<any | null>(null);
   const [profileTab, setProfileTab] = useState<'timeline' | 'algo' | 'market'>('timeline');
+
+  // GESTÃO DE MERCADOS ADMIN
+  const [adminMarkets, setAdminMarkets] = useState<string[]>([
+    'Liga 3 (Portugal)', 'Campeonato de Portugal', 'Liga Revelação (Sub-23)', 'S19 Nacional', 'América do Sul (Prospeção)'
+  ]);
+  const [newMarketInput, setNewMarketInput] = useState('');
 
   // FORMS
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
@@ -264,7 +271,6 @@ export default function Home() {
       
       if (dataS.scouts) {
         setScouts(dataS.scouts);
-        // Initialize Auth from local storage if scouts are loaded
         const savedAuthId = localStorage.getItem('leca_scout_auth');
         if (savedAuthId) {
           const user = dataS.scouts.find((s: any) => s.id === savedAuthId);
@@ -309,6 +315,7 @@ export default function Home() {
     setAuthScoutName(null);
     setUserRole('SCOUT');
     setAuthPassword('');
+    setActiveTab('dashboard');
     localStorage.removeItem('leca_scout_auth');
   };
 
@@ -317,8 +324,9 @@ export default function Home() {
   const canEditMatches = userRole === 'ADMIN' || userRole === 'SCOUT';
   const canSeeMarket = userRole === 'ADMIN' || userRole === 'DIRECTOR' || userRole === 'EXECUTIVE';
   const canEditMarket = userRole === 'ADMIN' || userRole === 'DIRECTOR';
+  const isAdmin = userRole === 'ADMIN';
 
-  // FILTRO: SCOUTS REAIS (Remove a Direção da aba "Equipa de Scouts" e das Contagens)
+  // FILTRO: SCOUTS REAIS
   const displayScouts = scouts.filter(s => {
     const role = getRoleForUser(s.name);
     return role === 'SCOUT' || role === 'ADMIN';
@@ -327,6 +335,7 @@ export default function Home() {
   const navigateToMatch = (matchId: string) => {
     setSelectedTeam(null);
     setSelectedPlayer(null);
+    setSelectedScout(null);
     setActiveTab('matches');
     setExpandedMatchId(matchId);
     
@@ -406,6 +415,19 @@ export default function Home() {
     } catch (err) { console.error(err); } finally { setCreatingPlayer(false); }
   };
 
+  const handleAddMarket = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMarketInput.trim()) return;
+    setAdminMarkets([...adminMarkets, newMarketInput.trim()]);
+    setNewMarketInput('');
+    showToast("Mercado adicionado à lista prioritária!");
+  };
+
+  const handleRemoveMarket = (index: number) => {
+    setAdminMarkets(adminMarkets.filter((_, i) => i !== index));
+    showToast("Mercado removido!");
+  };
+
   const filteredPlayers = players.filter(p => {
     const query = search.toLowerCase();
     return (p.name || '').toLowerCase().includes(query) || (p.club || '').toLowerCase().includes(query) || (p.position || '').toLowerCase().includes(query);
@@ -433,6 +455,10 @@ export default function Home() {
       }
     });
     return timeline.sort((a, b) => new Date(b.gameDate).getTime() - new Date(a.gameDate).getTime());
+  };
+
+  const getScoutMatches = (scoutName: string) => {
+    return matches.filter(m => (m.scout || '').toLowerCase().includes((scoutName || '').toLowerCase()));
   };
 
   const getRecentHighlights = () => {
@@ -469,7 +495,7 @@ export default function Home() {
     );
   }
 
-  // ECRÃ DE LOGIN (BLOQUEIO DA APLICAÇÃO)
+  // ECRÃ DE LOGIN
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#0d131f] flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
@@ -492,7 +518,6 @@ export default function Home() {
           <form onSubmit={handleLogin} className="w-full space-y-5">
              <div>
                 <label className="block text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Quem és tu?</label>
-                {/* Aqui mostramos TODOS (scouts, diretores e presidente) para conseguirem entrar */}
                 <CustomSelect 
                   options={scouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
                   value={authScoutId || ''} 
@@ -526,7 +551,6 @@ export default function Home() {
     );
   }
 
-  // INTERFACE PRINCIPAL DA APP (APÓS LOGIN)
   return (
     <main className="min-h-screen bg-[#0d131f] text-slate-100 font-sans relative pb-10 md:pb-6">
       
@@ -537,7 +561,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* HEADER WITH LEÇA FC LOGO E PAINEL DO UTILIZADOR */}
+      {/* HEADER */}
       <header className="sticky top-0 z-40 bg-[#151c2c]/95 backdrop-blur-md border-b border-slate-800 px-5 py-4 md:p-6 md:m-6 md:rounded-xl md:static flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-3.5">
           <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 rounded-xl border border-slate-700/60 flex items-center justify-center p-1 shadow flex-shrink-0 group relative overflow-hidden">
@@ -569,7 +593,6 @@ export default function Home() {
               {players.length} Atletas na DB
             </div>
             
-            {/* BOTÃO DE LOGOUT COM CARGO FORMAL */}
             <div className="flex items-center gap-2 pl-3 border-l border-slate-700">
               <div className="flex flex-col items-end">
                 <span className="text-xs font-medium text-slate-300 leading-tight">{authScoutName}</span>
@@ -586,7 +609,6 @@ export default function Home() {
       {/* MOBILE MENU */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 top-[76px] z-30 bg-[#0d131f] animate-in slide-in-from-top-2 md:hidden overflow-y-auto pb-20">
-          
           <div className="p-5 border-b border-slate-800 bg-[#111723] flex items-center justify-between">
              <div className="flex items-center gap-3">
                <div className="w-10 h-10 rounded-full bg-blue-600/20 border border-blue-500/30 text-blue-400 flex items-center justify-center font-bold text-lg">
@@ -607,6 +629,7 @@ export default function Home() {
           {renderMobileMenuButton('teams', <Building2 className="w-5 h-5"/>, 'Equipas', teams.length)}
           {renderMobileMenuButton('matches', <Trophy className="w-5 h-5"/>, 'Match Center', matches.length)}
           {renderMobileMenuButton('scouts', <Shield className="w-5 h-5"/>, 'Equipa de Scouts', displayScouts.length)}
+          {isAdmin && renderMobileMenuButton('admin', <Sliders className="w-5 h-5"/>, 'Painel Admin')}
         </div>
       )}
 
@@ -617,6 +640,9 @@ export default function Home() {
         <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Building2 className="w-4 h-4" /> Equipas ({teams.length})</button>
         <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Trophy className="w-4 h-4" /> Match Center ({matches.length})</button>
         <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Shield className="w-4 h-4" /> Equipa de Scouts ({displayScouts.length})</button>
+        {isAdmin && (
+          <button onClick={() => setActiveTab('admin')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'admin' ? 'bg-purple-600 text-white shadow-lg' : 'bg-[#151c2c] text-purple-400 hover:text-white border border-purple-500/30'}`}><Sliders className="w-4 h-4" /> Painel Admin</button>
+        )}
       </div>
 
       <div className="max-w-6xl mx-auto px-4 md:px-0 mt-4 md:mt-0">
@@ -624,8 +650,6 @@ export default function Home() {
         {/* TAB 0: DASHBOARD / INÍCIO */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6 animate-in fade-in duration-300">
-            
-            {/* WELCOME BANNER & KPIS */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
               <div className="bg-[#151c2c] p-4 md:p-5 rounded-2xl border border-slate-800 shadow-sm flex flex-col justify-between">
                 <span className="text-slate-500 text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1">Base de Atletas</span>
@@ -652,7 +676,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* QUICK ACTIONS */}
             {canCreateMatches && (
               <div className="bg-[#151c2c] p-4 md:p-6 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div>
@@ -670,7 +693,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* RECENT HIGHLIGHTS FEED */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-sm md:text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -719,7 +741,6 @@ export default function Home() {
                 ))}
               </div>
             </div>
-
           </div>
         )}
 
@@ -828,7 +849,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 3: MATCHES (MATCH CENTER) */}
+        {/* TAB 3: MATCHES */}
         {activeTab === 'matches' && (
           <div className="animate-in fade-in duration-300">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5 md:mb-6">
@@ -873,7 +894,6 @@ export default function Home() {
                     {isExpanded && (
                       <div className="p-4 md:p-5 border-t border-slate-800 bg-[#0d131f] md:bg-[#111723] space-y-6 md:space-y-5">
                         
-                        {/* MATCH HEADER & METRICS */}
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#151c2c] md:bg-[#0d131f] p-4 rounded-xl border border-slate-800 text-xs md:text-sm gap-4">
                           <div className="space-y-2 md:space-y-1.5 w-full md:w-auto">
                             <div className="flex items-center gap-2 text-slate-300"><Shield className="w-4 h-4 text-slate-500"/> <strong>Táticas:</strong> {match.homeTactic} / {match.awayTactic}</div>
@@ -886,7 +906,6 @@ export default function Home() {
                           )}
                         </div>
 
-                        {/* MATCH CONTEXT EDITOR */}
                         {isEditingContext && canEditMatches && (
                           <div className="bg-[#151c2c] md:bg-[#0d131f] p-4 md:p-5 rounded-xl border border-blue-500/30 space-y-4 text-xs md:text-sm shadow-inner animate-in fade-in slide-in-from-top-2">
                             <h4 className="font-bold text-blue-400 uppercase tracking-wider mb-2">Editor de Métricas do Jogo</h4>
@@ -915,7 +934,6 @@ export default function Home() {
                           </div>
                         )}
 
-                        {/* HIGHLIGHTS SECTION */}
                         <div>
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                             <h4 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider">Avaliações Individuais (Highlights)</h4>
@@ -994,7 +1012,6 @@ export default function Home() {
                           )}
                         </div>
 
-                        {/* MÉTRICAS VISUAIS */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
                           <div className="bg-[#151c2c] p-3 md:p-4 rounded-xl border border-slate-800/60">
                              <span className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 uppercase tracking-wider font-bold mb-1"><Zap className="w-3.5 h-3.5"/> Ritmo</span>
@@ -1023,38 +1040,42 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 4: SCOUTS / ESTRUTURA DO CLUBE */}
+        {/* TAB 4: EQUIPA DE SCOUTS (APENAS OBSERVADORES REAIS COM CLIQUE) */}
         {activeTab === 'scouts' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {displayScouts.map((scout) => (
-              <div key={scout.id} className="bg-[#151c2c] border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition flex flex-col shadow-sm">
+              <div 
+                key={scout.id} 
+                onClick={() => setSelectedScout(scout)}
+                className="bg-[#151c2c] border border-slate-800 rounded-xl p-5 hover:border-blue-500/50 transition flex flex-col shadow-sm cursor-pointer group"
+              >
                 <div className="flex items-center gap-4 mb-5">
                   {scout.photo ? (
-                    <img src={scout.photo} alt={scout.name} className="w-14 h-14 rounded-full object-cover border-2 border-slate-700 shadow-md" />
+                    <img src={scout.photo} alt={scout.name} className="w-14 h-14 rounded-full object-cover border-2 border-slate-700 shadow-md group-hover:border-blue-500 transition" />
                   ) : (
-                    <div className="w-14 h-14 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-slate-400 font-bold text-xl shadow-md">
+                    <div className="w-14 h-14 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-slate-400 font-bold text-xl shadow-md group-hover:border-blue-500 transition">
                       {scout.name.charAt(0)}
                     </div>
                   )}
                   <div>
-                    <h3 className="font-bold text-white text-base leading-tight">{scout.name}</h3>
-                    {/* TÍTULO DINÂMICO PARA CADA ELEMENTO */}
+                    <h3 className="font-bold text-white text-base leading-tight group-hover:text-blue-400 transition">{scout.name}</h3>
                     <p className="text-[10px] md:text-xs text-blue-400 font-bold mt-0.5">{getUserTitle(scout.name)}</p>
                   </div>
                 </div>
 
                 <div className="bg-[#0d131f] p-3 rounded-lg border border-slate-800/80 mb-4 flex-1">
                   <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider block mb-2 flex items-center gap-1">
-                    <Globe className="w-3 h-3 text-slate-400" /> Mercados (Brevemente)
+                    <Globe className="w-3 h-3 text-slate-400" /> Mercados Atribuídos
                   </span>
                   <div className="flex flex-wrap gap-1.5">
-                    <span className="text-[10px] text-slate-500 italic">Definições em desenvolvimento.</span>
+                    <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700/60 font-medium">Liga 3</span>
+                    <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700/60 font-medium">CP - Série A</span>
                   </div>
                 </div>
 
                 <div className="flex justify-between items-center text-center pt-3 border-t border-slate-800/60">
                   <div className="flex-1 border-r border-slate-800">
-                    <span className="block text-lg font-bold text-emerald-400">{scout.totalMatches || 0}</span>
+                    <span className="block text-lg font-bold text-emerald-400">{getScoutMatches(scout.name).length}</span>
                     <span className="block text-[8px] md:text-[9px] text-slate-500 uppercase font-bold mt-0.5">Jogos</span>
                   </div>
                   <div className="flex-1 border-r border-slate-800">
@@ -1071,9 +1092,159 @@ export default function Home() {
           </div>
         )}
 
+        {/* TAB 5: PAINEL ADMIN (APENAS PARA O PEDRO OLIVEIRA) */}
+        {activeTab === 'admin' && isAdmin && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="bg-[#151c2c] border border-purple-500/30 p-6 md:p-8 rounded-2xl shadow-xl relative overflow-hidden">
+              <div className="flex items-center gap-3 mb-6 border-b border-slate-800 pb-4">
+                <div className="p-3 bg-purple-600/20 text-purple-400 rounded-xl border border-purple-500/30"><Sliders className="w-6 h-6"/></div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Definições do Departamento de Scouting</h2>
+                  <p className="text-xs text-slate-400">Espaço reservado do Head of Scouting para gerir a plataforma e os alvos de mercado.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* GESTÃO DE MERCADOS ALVO */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-purple-400" /> Definição de Mercados Prioritários
+                  </h3>
+                  <p className="text-xs text-slate-400">Adiciona ou remove ligas e contextos sob observação da equipa.</p>
+
+                  <form onSubmit={handleAddMarket} className="flex gap-2">
+                    <input 
+                      type="text" 
+                      placeholder="Ex: Campeonato de Portugal - Série B..." 
+                      value={newMarketInput} 
+                      onChange={e => setNewMarketInput(e.target.value)} 
+                      className="flex-1 bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
+                    />
+                    <button type="submit" className="px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs flex items-center gap-1">
+                      <Plus className="w-4 h-4"/> Adicionar
+                    </button>
+                  </form>
+
+                  <div className="space-y-2 pt-2">
+                    {adminMarkets.map((m, idx) => (
+                      <div key={idx} className="bg-[#0d131f] p-3 rounded-xl border border-slate-800 flex justify-between items-center text-xs font-medium text-slate-200">
+                        <span>{m}</span>
+                        <button onClick={() => handleRemoveMarket(idx)} className="text-slate-500 hover:text-red-400 transition p-1"><X className="w-4 h-4"/></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ESTATÍSTICAS E PARÂMETROS DO SISTEMA */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <Settings className="w-4 h-4 text-purple-400" /> Parâmetros Globais da Intranet
+                  </h3>
+                  
+                  <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800 space-y-3 text-xs">
+                    <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
+                      <span className="text-slate-400 font-medium">Estado da Sincronização Airtable</span>
+                      <span className="text-emerald-400 font-bold flex items-center gap-1"><CheckCircle2 size={12}/> Ativa</span>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
+                      <span className="text-slate-400 font-medium">Total de Elementos com Acesso</span>
+                      <span className="text-white font-bold">{scouts.length} Pessoas</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400 font-medium">Versão da Plataforma</span>
+                      <span className="text-purple-400 font-bold">Leça FC Scouting v2.5</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* --------------------- MODALS CENTRADOS --------------------- */}
+
+      {/* MODAL DETALHADO DO SCOUT */}
+      {selectedScout && (() => {
+        const scoutMatches = getScoutMatches(selectedScout.name);
+        return (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+            <div className="bg-[#151c2c] border border-slate-800 w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl shadow-2xl p-5 md:p-6 space-y-6 animate-in fade-in zoom-in-95">
+              
+              <div className="flex justify-between items-start border-b border-slate-800/80 pb-4">
+                <div className="flex items-center gap-4">
+                  {selectedScout.photo ? (
+                    <img src={selectedScout.photo} alt={selectedScout.name} className="w-16 h-16 rounded-full object-cover border-2 border-blue-500 shadow-md flex-shrink-0" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-slate-800 border-2 border-blue-500 flex items-center justify-center text-slate-300 font-bold text-2xl flex-shrink-0">
+                      {selectedScout.name.charAt(0)}
+                    </div>
+                  )}
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-bold text-white">{selectedScout.name}</h2>
+                    <p className="text-xs text-blue-400 font-bold mt-1">{getUserTitle(selectedScout.name)}</p>
+                  </div>
+                </div>
+                <button onClick={() => setSelectedScout(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* KPIS DO SCOUT */}
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
+                  <span className="text-xs text-slate-500 block mb-1 font-semibold">Jogos Observados</span>
+                  <span className="text-2xl font-black text-emerald-400">{scoutMatches.length}</span>
+                </div>
+                <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
+                  <span className="text-xs text-slate-500 block mb-1 font-semibold">Destaques Criados</span>
+                  <span className="text-2xl font-black text-white">{selectedScout.playersCount || 0}</span>
+                </div>
+                <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
+                  <span className="text-xs text-slate-500 block mb-1 font-semibold">Live vs Stream</span>
+                  <span className="text-sm font-bold text-blue-400 mt-1 block">{selectedScout.liveMatches || 0} L / {selectedScout.streamMatches || 0} S</span>
+                </div>
+              </div>
+
+              {/* HISTÓRICO DE JOGOS OBSERVADOS POR ESTE SCOUT */}
+              <div>
+                <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Histórico de Partidas Acompanhadas ({scoutMatches.length})</h3>
+                {scoutMatches.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {scoutMatches.map(m => (
+                      <div key={m.id} className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <h4 className="font-bold text-white text-sm">{m.matchName}</h4>
+                          <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {m.gameDate}</span>
+                            <span>•</span>
+                            <span className="text-blue-400 font-medium">{m.competition}</span>
+                            <span>•</span>
+                            <span className="bg-slate-800 px-1.5 py-0.5 rounded text-[10px] text-slate-300">{m.type}</span>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => navigateToMatch(m.id)}
+                          className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-xs font-bold rounded-lg transition flex items-center gap-1.5 self-start sm:self-auto"
+                        >
+                          Ir para Jogo <ExternalLink className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-500 bg-[#0d131f] p-6 rounded-xl border border-slate-800 text-center">
+                    Ainda não existem jogos registados em nome deste observador no Match Center.
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
 
       {/* MODAL EDITAR HIGHLIGHT INDIVIDUAL */}
       {editingHighlight && (
@@ -1164,7 +1335,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL PRÉ-JOGO (COM LISTA DE SCOUTS FILTRADA) */}
+      {/* MODAL PRÉ-JOGO */}
       {isRegisterOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-xl rounded-2xl shadow-2xl p-5 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
@@ -1266,7 +1437,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* PERFIL DETALHADO DO JOGADOR (INCLUI NOVA ABA DE MERCADO) */}
+      {/* PERFIL DETALHADO DO JOGADOR */}
       {selectedPlayer && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-4xl h-[90vh] flex flex-col rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
