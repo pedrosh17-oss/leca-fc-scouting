@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Trophy, Shield, Search, Plus, ChevronDown, ChevronUp, Calendar, 
   UserCheck, X, Activity, Ruler, FileText, BarChart3, Briefcase, Flag, Building2,
-  Zap, Crosshair, BrainCircuit, ExternalLink, Globe, ChevronRight
+  Zap, Crosshair, BrainCircuit, ExternalLink, Globe
 } from 'lucide-react';
 
 export default function Home() {
@@ -15,14 +15,12 @@ export default function Home() {
   const [scouts, setScouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Posição de Paginação e Pesquisa
   const [search, setSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(30);
   
   const [teamFilterStatus, setTeamFilterStatus] = useState('All');
   const [teamFilterComp, setTeamFilterComp] = useState('All');
   
-  // Controlos de Expansão Inline & Modais
   const [expandedPlayerInline, setExpandedPlayerInline] = useState<string | null>(null);
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<any | null>(null);
@@ -67,7 +65,6 @@ export default function Home() {
            (p.position || '').toLowerCase().includes(query);
   });
   
-  // Se houver pesquisa ativa, mostra os resultados sem corte
   const displayedPlayers = search ? filteredPlayers : filteredPlayers.slice(0, visibleCount);
 
   const uniqueTeamComps = Array.from(new Set(teams.map(t => t.competition).filter(c => c !== 'N/D'))).sort();
@@ -95,20 +92,12 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Tabs Principais */}
+      {/* Tabs */}
       <div className="max-w-6xl mx-auto mb-6 flex flex-wrap gap-3">
-        <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}>
-          <Users size={16} /> Base de Jogadores ({players.length})
-        </button>
-        <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}>
-          <Building2 size={16} /> Equipas ({teams.length})
-        </button>
-        <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}>
-          <Trophy size={16} /> Matches ({matches.length})
-        </button>
-        <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}>
-          <Shield size={16} /> Equipa de Scouts ({scouts.length})
-        </button>
+        <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Users size={16} /> Base de Jogadores ({players.length})</button>
+        <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Building2 size={16} /> Equipas ({teams.length})</button>
+        <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Trophy size={16} /> Matches ({matches.length})</button>
+        <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Shield size={16} /> Equipa de Scouts ({scouts.length})</button>
       </div>
 
       <div className="max-w-6xl mx-auto">
@@ -132,7 +121,7 @@ export default function Home() {
                 return (
                   <div key={player.id} className="bg-[#151c2c] border border-slate-800/80 rounded-xl overflow-hidden transition hover:border-slate-700">
                     <div className="p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-4 cursor-pointer" onClick={() => togglePlayerInline(player.id)}>
+                      <div className="flex items-center gap-4 cursor-pointer flex-1" onClick={() => togglePlayerInline(player.id)}>
                         {player.photo ? (
                           <img src={player.photo} alt={player.name} className="w-10 h-10 rounded-full object-cover border border-slate-700" />
                         ) : (
@@ -168,19 +157,23 @@ export default function Home() {
                           {isInlineExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                         </button>
                         
+                        {/* AQUI ESTÁ A CORREÇÃO: e.stopPropagation() evita que o clique feche a aba */}
                         <button 
-                          onClick={() => { setSelectedPlayer(player); setProfileTab('timeline'); }} 
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition"
+                          onClick={(e) => { 
+                            e.stopPropagation();
+                            setSelectedPlayer(player); 
+                            setProfileTab('timeline'); 
+                          }} 
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition shadow-md"
                         >
                           Ver Perfil Completo
                         </button>
                       </div>
                     </div>
 
-                    {/* GAVETA INLINE RÁPIDA */}
                     {isInlineExpanded && (
                       <div className="p-4 bg-[#111723] border-t border-slate-800/80 text-xs space-y-3">
-                        <div className="grid grid-cols-4 gap-3 bg-[#0d131f] p-3 rounded-lg border border-slate-800">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-[#0d131f] p-3 rounded-lg border border-slate-800">
                           <div><span className="text-slate-500 block">Idade</span><span className="text-slate-200 font-semibold">{player.age !== 'N/D' ? `${player.age} anos` : '--'}</span></div>
                           <div><span className="text-slate-500 block">Nacionalidade</span><span className="text-slate-200 font-semibold">{player.nationality}</span></div>
                           <div><span className="text-slate-500 block">Pé Preferencial</span><span className="text-slate-200 font-semibold">{player.foot}</span></div>
@@ -188,7 +181,7 @@ export default function Home() {
                         </div>
                         <div>
                           <span className="text-slate-500 font-semibold block mb-1">Resumo de Observação:</span>
-                          <p className="text-slate-300 leading-relaxed bg-[#0d131f] p-3 rounded-lg border border-slate-800">{player.report}</p>
+                          <p className="text-slate-300 leading-relaxed bg-[#0d131f] p-3 rounded-lg border border-slate-800 whitespace-pre-line">{player.report}</p>
                         </div>
                       </div>
                     )}
@@ -197,7 +190,6 @@ export default function Home() {
               })}
             </div>
 
-            {/* BOTÃO CARREGAR MAIS */}
             {!search && displayedPlayers.length < filteredPlayers.length && (
               <div className="text-center mt-6">
                 <button 
@@ -314,7 +306,8 @@ export default function Home() {
                               {match.highlightedPlayers.map((p: any, idx: number) => (
                                 <div 
                                   key={p.id || idx}
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     const fullP = players.find(player => player.name.toLowerCase() === p.name.toLowerCase()) || p;
                                     setSelectedPlayer(fullP);
                                     setProfileTab('timeline');
@@ -518,7 +511,7 @@ export default function Home() {
                 </div>
               )}
               {profileTab === 'market' && (
-                <div className="bg-[#0d131f] p-5 rounded-xl border border-slate-800 text-sm text-slate-300">
+   <div className="bg-[#0d131f] p-5 rounded-xl border border-slate-800 text-sm text-slate-300">
                   Notas de Mercado & Direção Desportiva.
                 </div>
               )}
