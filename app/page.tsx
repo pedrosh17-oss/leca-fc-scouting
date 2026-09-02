@@ -20,6 +20,7 @@ const POSITIONS_OPTIONS = [
 
 const METRIC_LEVELS = ['Low', 'Medium', 'High'];
 
+// COMPONENTE DROPDOWN AVANÇADO (AGORA SUPORTA IMAGENS/LOGOS)
 function CustomSelect({
   options,
   value,
@@ -28,7 +29,7 @@ function CustomSelect({
   searchable = false,
   className = '',
 }: {
-  options: Array<{ value: string; label: string }>;
+  options: Array<{ value: string; label: string; image?: string | null; icon?: React.ReactNode }>;
   value: string;
   onChange: (val: string) => void;
   placeholder?: string;
@@ -62,27 +63,35 @@ function CustomSelect({
         onClick={() => setIsOpen(!isOpen)}
         className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-left text-slate-200 focus:outline-none focus:border-blue-500 flex justify-between items-center text-xs transition"
       >
-        <span className={selectedOption ? 'text-slate-200 font-medium' : 'text-slate-500'}>
-          {selectedOption ? selectedOption.label : placeholder}
-        </span>
-        <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        <div className="flex items-center gap-2 overflow-hidden">
+          {selectedOption?.image && (
+            <img src={selectedOption.image} alt="" className="w-5 h-5 object-contain rounded-full bg-slate-900" />
+          )}
+          {selectedOption?.icon && !selectedOption.image && (
+            <div className="text-slate-400">{selectedOption.icon}</div>
+          )}
+          <span className={`truncate ${selectedOption ? 'text-slate-200 font-medium' : 'text-slate-500'}`}>
+            {selectedOption ? selectedOption.label : placeholder}
+          </span>
+        </div>
+        <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute z-[100] left-0 right-0 mt-1 bg-[#151c2c] border border-slate-800 rounded-xl shadow-2xl max-h-56 overflow-y-auto p-1.5 space-y-1 text-xs">
+        <div className="absolute z-[100] left-0 right-0 mt-1 bg-[#151c2c]/95 backdrop-blur-md border border-slate-700/80 rounded-xl shadow-2xl max-h-60 overflow-y-auto p-1.5 space-y-1 text-xs">
           {searchable && (
-            <div className="p-1 sticky top-0 bg-[#151c2c] z-10 pb-2">
+            <div className="p-1 sticky top-0 bg-[#151c2c]/95 z-10 pb-2">
               <input
                 type="text"
                 placeholder="Pesquisar..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-[#0d131f] border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#0d131f] border border-slate-800 rounded-lg p-2.5 text-slate-200 text-xs focus:outline-none focus:border-blue-500"
               />
             </div>
           )}
           {filteredOptions.length === 0 ? (
-            <div className="p-2.5 text-slate-500 text-center">Sem opções disponíveis</div>
+            <div className="p-3 text-slate-500 text-center font-medium">Sem opções disponíveis</div>
           ) : (
             filteredOptions.map((opt) => (
               <button
@@ -93,13 +102,20 @@ function CustomSelect({
                   setIsOpen(false);
                   setSearchTerm('');
                 }}
-                className={`w-full text-left px-3 py-2 rounded-lg transition ${
+                className={`w-full text-left px-3 py-2.5 rounded-lg transition flex items-center gap-2.5 ${
                   opt.value === value
                     ? 'bg-blue-600/20 text-blue-400 font-medium border border-blue-500/30'
-                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white border border-transparent'
                 }`}
               >
-                {opt.label}
+                {opt.image ? (
+                  <img src={opt.image} alt="" className="w-6 h-6 object-contain rounded-md bg-slate-900 p-0.5 border border-slate-700" />
+                ) : opt.icon ? (
+                  <span className="text-slate-400">{opt.icon}</span>
+                ) : (
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-700 flex-shrink-0" />
+                )}
+                <span className="truncate">{opt.label}</span>
               </button>
             ))
           )}
@@ -174,7 +190,7 @@ export default function Home() {
   const [isNewPlayerOpen, setIsNewPlayerOpen] = useState(false);
   const [newPlayerData, setNewPlayerData] = useState({ name: '', clubId: '', position: '' });
   const [creatingPlayer, setCreatingPlayer] = useState(false);
-  const [availableMatchTeams, setAvailableMatchTeams] = useState<Array<{ id: string; name: string }>>([]);
+  const [availableMatchTeams, setAvailableMatchTeams] = useState<Array<{ id: string; name: string; logo?: string | null }>>([]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -376,6 +392,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#0d131f] text-slate-100 p-6 font-sans relative">
       
+      {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-6 right-6 z-[100] bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 duration-300 font-medium text-xs">
           <CheckCircle2 size={18} />
@@ -383,6 +400,7 @@ export default function Home() {
         </div>
       )}
 
+      {/* Header */}
       <header className="max-w-6xl mx-auto flex justify-between items-center mb-8 bg-[#151c2c] p-6 rounded-xl border border-slate-800">
         <div>
           <span className="text-xs font-semibold tracking-wider text-slate-400 uppercase">Departamento de Scouting & Prospecção</span>
@@ -394,6 +412,7 @@ export default function Home() {
         </div>
       </header>
 
+      {/* Tabs */}
       <div className="max-w-6xl mx-auto mb-6 flex flex-wrap gap-3">
         <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Users size={16} /> Base de Jogadores ({players.length})</button>
         <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Building2 size={16} /> Equipas ({teams.length})</button>
@@ -485,12 +504,12 @@ export default function Home() {
                 <Search className="absolute left-4 top-3.5 text-slate-500" size={18} />
                 <input type="text" placeholder="Pesquisar equipa..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-[#151c2c] border border-slate-800 rounded-xl py-3 pl-11 pr-4 text-sm text-slate-200 focus:outline-none focus:border-blue-500" />
               </div>
-              <div className="flex gap-4">
+              <div className="flex gap-4 z-20">
                 <CustomSelect
                   options={[{ value: 'All', label: 'Todas as Competições' }, ...uniqueTeamComps.map(c => ({ value: c, label: c }))]}
                   value={teamFilterComp}
                   onChange={setTeamFilterComp}
-                  className="w-48"
+                  className="w-56"
                 />
                 <CustomSelect
                   options={[{ value: 'All', label: 'Todos os Estatutos' }, ...uniqueTeamStatus.map(s => ({ value: s, label: s }))]}
@@ -839,7 +858,7 @@ export default function Home() {
 
       {/* MODAL FOCADO EM EDITAR O HIGHLIGHT DE UM UNICO JOGADOR */}
       {editingHighlight && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl p-6 space-y-4">
             <div className="flex justify-between items-start border-b border-slate-800 pb-4">
               <div className="flex items-center gap-3">
@@ -885,7 +904,7 @@ export default function Home() {
 
       {/* MODAL ADICIONAR NOVO HIGHLIGHT DE ATLETA A UM JOGO */}
       {isAddHighlightOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl p-6 space-y-4">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <div>
@@ -910,7 +929,11 @@ export default function Home() {
                   </button>
                 </div>
                 <CustomSelect
-                  options={players.map(p => ({ value: p.id, label: `${p.name} (${p.position} • ${p.club})` }))}
+                  options={players.map(p => ({ 
+                    value: p.id, 
+                    label: `${p.name} (${p.position} • ${p.club})`,
+                    image: p.photo
+                  }))}
                   value={newHighlightData.playerId}
                   onChange={val => setNewHighlightData({ ...newHighlightData, playerId: val })}
                   placeholder="Selecionar Atleta..."
@@ -938,7 +961,7 @@ export default function Home() {
 
       {/* MODAL PRÉ-JOGO */}
       {isRegisterOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-xl rounded-2xl shadow-2xl p-6">
             <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
               <div className="flex items-center gap-3">
@@ -960,7 +983,7 @@ export default function Home() {
                 <div>
                   <label className="block text-slate-400 font-semibold mb-1">Equipa da Casa</label>
                   <CustomSelect
-                    options={teams.map(t => ({ value: t.id, label: t.name }))}
+                    options={teams.map(t => ({ value: t.id, label: t.name, image: t.logo }))}
                     value={preGameData.homeTeamId}
                     onChange={val => setPreGameData({ ...preGameData, homeTeamId: val })}
                     placeholder="Selecionar Equipa..."
@@ -970,7 +993,7 @@ export default function Home() {
                 <div>
                   <label className="block text-slate-400 font-semibold mb-1">Equipa Visitante</label>
                   <CustomSelect
-                    options={teams.map(t => ({ value: t.id, label: t.name }))}
+                    options={teams.map(t => ({ value: t.id, label: t.name, image: t.logo }))}
                     value={preGameData.awayTeamId}
                     onChange={val => setPreGameData({ ...preGameData, awayTeamId: val })}
                     placeholder="Selecionar Equipa..."
@@ -987,7 +1010,7 @@ export default function Home() {
                 <div>
                   <label className="block text-slate-400 font-semibold mb-1">Tipo de Observação</label>
                   <CustomSelect
-                    options={[{ value: '🏟️ Live', label: '🏟️ Live' }, { value: '💻 Stream', label: '💻 Stream' }]}
+                    options={[{ value: '🏟️ Live', label: 'Live', icon: '🏟️' }, { value: '💻 Stream', label: 'Stream', icon: '💻' }]}
                     value={preGameData.type}
                     onChange={val => setPreGameData({ ...preGameData, type: val })}
                     placeholder="Selecionar Tipo..."
@@ -996,7 +1019,7 @@ export default function Home() {
                 <div>
                   <label className="block text-slate-400 font-semibold mb-1">Scout Responsável</label>
                   <CustomSelect
-                    options={scouts.map(s => ({ value: s.id, label: s.name }))}
+                    options={scouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))}
                     value={preGameData.scoutId}
                     onChange={val => setPreGameData({ ...preGameData, scoutId: val })}
                     placeholder="Selecionar Scout..."
@@ -1029,7 +1052,7 @@ export default function Home() {
 
       {/* MINI-MODAL: CRIAR NOVO ATLETA NA BD */}
       {isNewPlayerOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <h3 className="font-bold text-white text-sm flex items-center gap-2">
@@ -1055,7 +1078,7 @@ export default function Home() {
               <div>
                 <label className="block text-slate-400 mb-1 font-semibold">Clube Atual</label>
                 <CustomSelect
-                  options={(availableMatchTeams.length > 0 ? availableMatchTeams : teams).map(t => ({ value: t.id, label: t.name }))}
+                  options={(availableMatchTeams.length > 0 ? availableMatchTeams : teams).map(t => ({ value: t.id, label: t.name, image: t.logo }))}
                   value={newPlayerData.clubId}
                   onChange={val => setNewPlayerData({ ...newPlayerData, clubId: val })}
                   placeholder="Selecionar Clube..."
@@ -1087,7 +1110,7 @@ export default function Home() {
 
       {/* MODAL PERFIL JOGADOR */}
       {selectedPlayer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <div className="sticky top-0 z-20 bg-[#151c2c]/95 backdrop-blur border-b border-slate-800 p-6 pb-0">
               <div className="flex justify-between items-start mb-6">
@@ -1169,7 +1192,7 @@ export default function Home() {
                 </div>
               )}
               {profileTab === 'market' && (
-                <div className="bg-[#0d131f] p-5 rounded-xl border border-slate-800 text-sm text-slate-300">
+   <div className="bg-[#0d131f] p-5 rounded-xl border border-slate-800 text-sm text-slate-300">
                   Notas de Mercado & Direção Desportiva.
                 </div>
               )}
