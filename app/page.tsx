@@ -264,6 +264,7 @@ export default function Home() {
       
       if (dataS.scouts) {
         setScouts(dataS.scouts);
+        // Initialize Auth from local storage if scouts are loaded
         const savedAuthId = localStorage.getItem('leca_scout_auth');
         if (savedAuthId) {
           const user = dataS.scouts.find((s: any) => s.id === savedAuthId);
@@ -316,6 +317,12 @@ export default function Home() {
   const canEditMatches = userRole === 'ADMIN' || userRole === 'SCOUT';
   const canSeeMarket = userRole === 'ADMIN' || userRole === 'DIRECTOR' || userRole === 'EXECUTIVE';
   const canEditMarket = userRole === 'ADMIN' || userRole === 'DIRECTOR';
+
+  // FILTRO: SCOUTS REAIS (Remove a Direção da aba "Equipa de Scouts" e das Contagens)
+  const displayScouts = scouts.filter(s => {
+    const role = getRoleForUser(s.name);
+    return role === 'SCOUT' || role === 'ADMIN';
+  });
 
   const navigateToMatch = (matchId: string) => {
     setSelectedTeam(null);
@@ -485,6 +492,7 @@ export default function Home() {
           <form onSubmit={handleLogin} className="w-full space-y-5">
              <div>
                 <label className="block text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Quem és tu?</label>
+                {/* Aqui mostramos TODOS (scouts, diretores e presidente) para conseguirem entrar */}
                 <CustomSelect 
                   options={scouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
                   value={authScoutId || ''} 
@@ -561,7 +569,7 @@ export default function Home() {
               {players.length} Atletas na DB
             </div>
             
-            {/* NOVO: BOTÃO DE LOGOUT COM CARGO FORMAL */}
+            {/* BOTÃO DE LOGOUT COM CARGO FORMAL */}
             <div className="flex items-center gap-2 pl-3 border-l border-slate-700">
               <div className="flex flex-col items-end">
                 <span className="text-xs font-medium text-slate-300 leading-tight">{authScoutName}</span>
@@ -598,7 +606,7 @@ export default function Home() {
           {renderMobileMenuButton('players', <Users className="w-5 h-5"/>, 'Base de Jogadores', players.length)}
           {renderMobileMenuButton('teams', <Building2 className="w-5 h-5"/>, 'Equipas', teams.length)}
           {renderMobileMenuButton('matches', <Trophy className="w-5 h-5"/>, 'Match Center', matches.length)}
-          {renderMobileMenuButton('scouts', <Shield className="w-5 h-5"/>, 'Equipa de Scouts', scouts.length)}
+          {renderMobileMenuButton('scouts', <Shield className="w-5 h-5"/>, 'Equipa de Scouts', displayScouts.length)}
         </div>
       )}
 
@@ -608,7 +616,7 @@ export default function Home() {
         <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Users className="w-4 h-4" /> Base de Jogadores ({players.length})</button>
         <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Building2 className="w-4 h-4" /> Equipas ({teams.length})</button>
         <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Trophy className="w-4 h-4" /> Match Center ({matches.length})</button>
-        <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Shield className="w-4 h-4" /> Equipa do Clube ({scouts.length})</button>
+        <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Shield className="w-4 h-4" /> Equipa de Scouts ({displayScouts.length})</button>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 md:px-0 mt-4 md:mt-0">
@@ -638,13 +646,13 @@ export default function Home() {
               </div>
 
               <div className="bg-[#151c2c] p-4 md:p-5 rounded-2xl border border-slate-800 shadow-sm flex flex-col justify-between">
-                <span className="text-slate-500 text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1">Equipa do Clube</span>
-                <span className="text-2xl md:text-3xl font-black text-emerald-400">{scouts.length}</span>
-                <span className="text-[10px] text-slate-400 font-medium mt-2">Membros Registados</span>
+                <span className="text-slate-500 text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1">Equipa de Scouts</span>
+                <span className="text-2xl md:text-3xl font-black text-emerald-400">{displayScouts.length}</span>
+                <span className="text-[10px] text-slate-400 font-medium mt-2">Observadores no Terreno</span>
               </div>
             </div>
 
-            {/* QUICK ACTIONS - VISÍVEL APENAS SE TIVER PERMISSÃO DE CRIAR JOGOS */}
+            {/* QUICK ACTIONS */}
             {canCreateMatches && (
               <div className="bg-[#151c2c] p-4 md:p-6 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div>
@@ -1018,7 +1026,7 @@ export default function Home() {
         {/* TAB 4: SCOUTS / ESTRUTURA DO CLUBE */}
         {activeTab === 'scouts' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {scouts.map((scout) => (
+            {displayScouts.map((scout) => (
               <div key={scout.id} className="bg-[#151c2c] border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition flex flex-col shadow-sm">
                 <div className="flex items-center gap-4 mb-5">
                   {scout.photo ? (
@@ -1030,7 +1038,7 @@ export default function Home() {
                   )}
                   <div>
                     <h3 className="font-bold text-white text-base leading-tight">{scout.name}</h3>
-                    {/* AQUI: TÍTULO DINÂMICO PARA CADA ELEMENTO */}
+                    {/* TÍTULO DINÂMICO PARA CADA ELEMENTO */}
                     <p className="text-[10px] md:text-xs text-blue-400 font-bold mt-0.5">{getUserTitle(scout.name)}</p>
                   </div>
                 </div>
@@ -1156,7 +1164,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL PRÉ-JOGO */}
+      {/* MODAL PRÉ-JOGO (COM LISTA DE SCOUTS FILTRADA) */}
       {isRegisterOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-xl rounded-2xl shadow-2xl p-5 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
@@ -1200,7 +1208,7 @@ export default function Home() {
                   <span className="text-[9px] bg-slate-800 text-slate-500 px-2 py-0.5 rounded font-normal">Auto-preenchido</span>
                 </label>
                 <CustomMultiSelect 
-                  options={scouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
+                  options={displayScouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
                   selectedIds={preGameData.scoutIds} 
                   onChange={ids => setPreGameData({ ...preGameData, scoutIds: ids })} 
                   placeholder="Selecionar Scouts..." 
@@ -1258,7 +1266,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* PERFIL DETALHADO DO JOGADOR */}
+      {/* PERFIL DETALHADO DO JOGADOR (INCLUI NOVA ABA DE MERCADO) */}
       {selectedPlayer && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-4xl h-[90vh] flex flex-col rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
