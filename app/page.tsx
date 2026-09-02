@@ -232,6 +232,16 @@ export default function Home() {
 
   useEffect(() => { loadData(); }, []);
 
+  // FUNÇÃO GLOBAL DE NAVEGAÇÃO
+  const navigateToMatch = (matchId: string) => {
+    setSelectedTeam(null);
+    setSelectedPlayer(null);
+    setActiveTab('matches');
+    setExpandedMatchId(matchId);
+    // Smooth scroll para garantir que o utilizador vê o topo da lista ou o jogo aberto
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const toggleMatch = (id: string) => setExpandedMatchId(expandedMatchId === id ? null : id);
 
   const startEditMatchContext = (match: any) => {
@@ -322,7 +332,7 @@ export default function Home() {
       if (m.highlightedPlayers) {
         const found = m.highlightedPlayers.find((p: any) => p.id === playerId || (p.name || '').toLowerCase() === (playerName || '').toLowerCase());
         if (found && found.note && found.note !== 'Sem notas registadas.') {
-          timeline.push({ matchName: m.matchName, gameDate: m.gameDate, scout: m.scout, note: found.note });
+          timeline.push({ matchId: m.id, matchName: m.matchName, gameDate: m.gameDate, scout: m.scout, note: found.note });
         }
       }
     });
@@ -335,7 +345,7 @@ export default function Home() {
       if (m.highlightedPlayers) {
         m.highlightedPlayers.forEach((p: any) => {
           if (p.note && p.note !== 'Sem notas registadas.') {
-            list.push({ ...p, matchName: m.matchName, gameDate: m.gameDate, scout: m.scout });
+            list.push({ ...p, matchId: m.id, matchName: m.matchName, gameDate: m.gameDate, scout: m.scout });
           }
         });
       }
@@ -493,12 +503,21 @@ export default function Home() {
                           </p>
                         </div>
                       </div>
-                      <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded font-semibold">{p.gameDate}</span>
+                      <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded font-semibold flex items-center gap-1">
+                        {p.gameDate}
+                      </span>
                     </div>
 
                     <p className="text-xs text-slate-300 leading-relaxed bg-[#0d131f] p-3 rounded-xl border border-slate-800/60 line-clamp-3">
                       {p.note}
                     </p>
+                    
+                    <button 
+                      onClick={() => navigateToMatch(p.matchId)}
+                      className="text-[10px] text-blue-400 font-bold hover:underline flex items-center justify-end w-full gap-1 pt-1"
+                    >
+                      Ir para Jogo <ExternalLink className="w-3 h-3" />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -592,7 +611,11 @@ export default function Home() {
                       )}
                       <div className="min-w-0">
                         <h3 className="font-bold text-white text-base truncate">{team.name}</h3>
-                        <p className="text-xs text-blue-400 font-medium mt-1 truncate">{team.competition} <span className="text-slate-500 hidden sm:inline">• {team.country}</span></p>
+                        <p className="text-xs text-blue-400 font-medium mt-1 truncate">
+                          {team.competition && team.competition !== 'N/D' ? team.competition : ''} 
+                          {team.competition && team.competition !== 'N/D' && team.country ? <span className="text-slate-500 hidden sm:inline"> • </span> : ''}
+                          <span className="text-slate-500 hidden sm:inline">{team.country || ''}</span>
+                        </p>
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1.5 flex-shrink-0 pl-2">
@@ -630,8 +653,8 @@ export default function Home() {
                           <h3 className="font-bold text-white text-sm md:text-base truncate leading-tight mb-1 md:mb-0">{match.matchName}</h3>
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] md:text-xs text-slate-400 mt-1">
                             <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {match.gameDate}</span>
-                            <span className="text-slate-600">•</span>
-                            <span className="text-blue-400 font-semibold truncate max-w-[120px] md:max-w-none">{match.competition}</span>
+                            {match.competition && match.competition !== 'N/D' && <span className="text-slate-600">•</span>}
+                            {match.competition && match.competition !== 'N/D' && <span className="text-blue-400 font-semibold truncate max-w-[120px] md:max-w-none">{match.competition}</span>}
                             <span className="text-slate-600">•</span>
                             <span className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">{match.type}</span>
                           </div>
@@ -1109,8 +1132,16 @@ export default function Home() {
                                   <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {report.gameDate}</span>
                                 </div>
                               </div>
-                              <div className="bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50 flex items-center gap-1.5 text-[10px] md:text-xs font-medium text-slate-300 self-start sm:self-auto">
-                                <UserCheck className="w-3 h-3 text-blue-400"/> Scout: {report.scout}
+                              <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                                <div className="bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50 flex items-center gap-1.5 text-[10px] md:text-xs font-medium text-slate-300">
+                                  <UserCheck className="w-3 h-3 text-blue-400"/> Scout: {report.scout}
+                                </div>
+                                <button 
+                                  onClick={() => navigateToMatch(report.matchId)}
+                                  className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5"
+                                >
+                                  Ir para Jogo <ExternalLink className="w-3 h-3" />
+                                </button>
                               </div>
                             </div>
                             <div className="text-xs md:text-sm text-slate-300 leading-relaxed font-sans whitespace-pre-wrap">
@@ -1164,7 +1195,11 @@ export default function Home() {
                   )}
                   <div>
                     <h2 className="text-xl md:text-2xl font-bold text-white">{selectedTeam.name}</h2>
-                    <p className="text-xs text-blue-400 font-medium mt-1">{selectedTeam.competition} • <span className="text-slate-400">{selectedTeam.country}</span></p>
+                    <p className="text-xs text-blue-400 font-medium mt-1">
+                      {selectedTeam.competition && selectedTeam.competition !== 'N/D' ? selectedTeam.competition : ''}
+                      {selectedTeam.competition && selectedTeam.competition !== 'N/D' && selectedTeam.country ? <span className="text-slate-500"> • </span> : ''}
+                      {selectedTeam.country && <span className="text-slate-400">{selectedTeam.country}</span>}
+                    </p>
                   </div>
                 </div>
                 <button onClick={() => setSelectedTeam(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition">
@@ -1241,8 +1276,16 @@ export default function Home() {
                             <span className="bg-slate-800 px-1.5 py-0.5 rounded text-[10px] text-slate-300">{m.type}</span>
                           </div>
                         </div>
-                        <div className="bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50 text-xs text-slate-300 font-medium flex items-center gap-1.5 self-start sm:self-auto">
-                          <UserCheck className="w-3.5 h-3.5 text-blue-400"/> Scout: {m.scout}
+                        <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                          <div className="bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50 text-xs text-slate-300 font-medium flex items-center gap-1.5">
+                            <UserCheck className="w-3.5 h-3.5 text-blue-400"/> Scout: {m.scout}
+                          </div>
+                          <button 
+                            onClick={() => navigateToMatch(m.id)}
+                            className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-xs font-bold rounded-lg transition flex items-center gap-1.5"
+                          >
+                            Ir para Jogo <ExternalLink className="w-3 h-3" />
+                          </button>
                         </div>
                       </div>
                     ))}

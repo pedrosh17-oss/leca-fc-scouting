@@ -11,8 +11,23 @@ function safeText(val: any, fallback: string = 'N/D'): string {
     const clean = val.filter((item) => typeof item === 'string' && !item.startsWith('rec'));
     return clean.length > 0 ? clean.join(', ') : fallback;
   }
+  if (typeof val === 'object' && val.name) return val.name;
   const str = String(val);
   return str.startsWith('rec') ? fallback : str;
+}
+
+async function fetchAllRecords(table: string, headers: any) {
+  let allRecords: any[] = [];
+  let offset: string | undefined = undefined;
+  do {
+    const url = `https://api.airtable.com/v0/${BASE_ID}/${table}?pageSize=100${offset ? `&offset=${offset}` : ''}`;
+    const res = await fetch(url, { headers, cache: 'no-store' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    allRecords = allRecords.concat(data.records || []);
+    offset = data.offset;
+  } while (offset);
+  return allRecords;
 }
 
 export async function GET() {
@@ -21,41 +36,64 @@ export async function GET() {
   }
 
   try {
-    let allRecords: any[] = [];
-    let offset: string | undefined = undefined;
-    const isDev = process.env.NODE_ENV === 'development';
+    const headers = { Authorization: `Bearer ${TOKEN}` };
 
-    do {
-      const url = `https://api.airtable.com/v0/${BASE_ID}/Teams?pageSize=100${
-        offset ? `&offset=${offset}` : ''
-      }`;
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${TOKEN}` },
-        cache: 'no-store',
-      });
+    const [recsTeams, recsComps] = await Promise.all([
+      fetchAllRecords('Teams', headers),
+      fetchAllRecords('Competition', headers),
+    ]);
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const data = await res.json();
-      allRecords = allRecords.concat(data.records || []);
-      offset = data.offset;
-      if (isDev) break;
-    } while (offset);
-
-    const teams = allRecords.map((r: any) => {
+    // Mapear IDs de competição para o nome real no Airtable
+    const compMap: Record<string, string> = {};
+    recsComps.forEach((r: any) => {
       const f = r.fields || {};
-      const logoUrl = Array.isArray(f['Logo']) && f['Logo'][0]?.url ? f['Logo'][0].url : null;
+      const compName = f['Competition Name'] || f['Name'] || f['Competition'] || f['Liga'];
+      if (r.id && compName) {
+        compMap[r.id] = String(compName).trim();
+      }
+    });
+
+    const teams = recsTeams.map((r: any) => {
+      const f = r.fields || {};
+
+      // Mapeamento dinâmico da competição
+      let competition = 'N/D';
+      const rawComp = f['Competition'] || f['Competition Name'] || f['Liga'] || f['League'] || f['Competição'];
+
+      if (Array.isArray(rawComp)) {
+        const resolved = rawComp
+          .map((id: string) => compMap[id] || id)
+          .filter((val: string) => typeof val === 'string' && !val.startsWith('rec'));
+        if (resolved.length > 0) competition = resolved.join(', ');
+      } else if (rawComp) {
+        competition = compMap[rawComp] || safeText(rawComp, 'N/D');
+      }
+
+      const logoUrl = Array.isArray(f['Logo']) && f['Logo'][0]?.url 
+        ? f['Logo'][0].url 
+        : Array.isArray(f['Emblema']) && f['Emblema'][0]?.url 
+        ? f['Emblema'][0].url 
+        : null;
+
+      const teamName = f['Team Name'] || f['Name'] || f['Equipa'] || f['Clube'] || 'Equipa sem Nome';
+      const country = safeText(f['Country'] || f['País'], 'Portugal');
+      const status = safeText(f['Status'] || f['Estatuto'], 'Unobserved');
+      const totalWatchedMatches = typeof f['Total Watched Matches'] === 'number' 
+        ? f['Total Watched Matches'] 
+        : (f['Watched Matches'] || 0);
 
       return {
         id: r.id,
-        name: safeText(f['Team Name'], 'Equipa Sem Nome'),
+        name: String(teamName).trim(),
+        competition,
+        country,
         logo: logoUrl,
-        country: safeText(f['Country'], 'Portugal'),
-        competition: safeText(f['Competition'], 'N/D'),
-        totalWatchedMatches: f['Total watched matches'] ?? 0,
-        status: safeText(f['Status'], '⚪ Unobserved'),
+        status,
+        totalWatchedMatches,
       };
     });
+
+    teams.sort((a, b) => a.name.localeCompare(b.name));
 
     return NextResponse.json({ total: teams.length, teams });
   } catch (err: any) {
