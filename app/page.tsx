@@ -42,9 +42,9 @@ export default function Home() {
   };
 
   const filteredPlayers = players.filter(p => {
-    const name = p.fields['Nome do Jogador'] || '';
-    const club = p.fields['Clube'] || '';
-    const pos = p.fields['Posição Principal'] || '';
+    const name = p.name || '';
+    const club = p.club || '';
+    const pos = p.position || '';
     const query = search.toLowerCase();
     return name.toLowerCase().includes(query) || club.toLowerCase().includes(query) || pos.toLowerCase().includes(query);
   });
@@ -108,17 +108,20 @@ export default function Home() {
 
             <div className="grid gap-3">
               {filteredPlayers.map((player) => {
-                const name = player.fields['Nome do Jogador'] || 'Sem Nome';
-                const pos = player.fields['Posição Principal'] || 'N/D';
-                const clubRaw = player.fields['Clube'];
-                const club = Array.isArray(clubRaw) ? 'Clube Associado' : (clubRaw && !clubRaw.startsWith('rec') ? clubRaw : 'Sem Clube');
+                const name = player.name || 'Sem Nome';
+                const pos = player.position || 'N/D';
+                const club = player.club || 'Sem Clube';
 
                 return (
                   <div key={player.id} className="bg-[#151c2c] border border-slate-800/80 rounded-xl p-4 flex items-center justify-between hover:border-slate-700 transition">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm">
-                        {name.charAt(0)}
-                      </div>
+                      {player.photo ? (
+                         <img src={player.photo} alt={name} className="w-10 h-10 rounded-full object-cover border border-slate-700" />
+                      ) : (
+                         <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm">
+                           {name.charAt(0)}
+                         </div>
+                      )}
                       <div>
                         <h3 className="font-semibold text-white text-base">{name}</h3>
                         <p className="text-xs text-slate-400 mt-0.5">
@@ -148,9 +151,9 @@ export default function Home() {
 
             <div className="grid gap-4">
               {matches.map((match) => {
-                const title = match.fields['Jogo'] || 'Jogo sem Título';
-                const date = match.fields['Data'] || '';
-                const notes = match.fields['Highlights'] || match.fields['Notas'] || 'Sem observações registadas.';
+                const title = match.matchName || 'Jogo sem Título';
+                const date = match.gameDate || '';
+                const notes = match.highlightsReport || 'Sem observações registadas.';
                 const isExpanded = expandedMatchId === match.id;
 
                 return (
@@ -166,7 +169,9 @@ export default function Home() {
                         <div>
                           <h3 className="font-semibold text-white text-lg">{title}</h3>
                           <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
-                            {date && <span className="flex items-center gap-1"><Calendar size={12} /> {date}</span>}
+                            {date && date !== 'N/D' && <span className="flex items-center gap-1"><Calendar size={12} /> {date}</span>}
+                            <span>•</span>
+                            <span>{match.competition || 'Competição N/D'}</span>
                           </div>
                         </div>
                       </div>
@@ -200,8 +205,10 @@ export default function Home() {
                   <UserCheck size={20} />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white">{scout.fields['Nome'] || 'Scout'}</h3>
-                  <p className="text-xs text-slate-400">{scout.fields['Email'] || 'Sem email'}</p>
+                  <h3 className="font-semibold text-white">{scout.name || 'Scout'}</h3>
+                  <p className="text-xs text-slate-400">
+                     Jogos: {scout.totalMatches} (Live: {scout.liveMatches} | Stream: {scout.streamMatches})
+                  </p>
                 </div>
               </div>
             ))}
