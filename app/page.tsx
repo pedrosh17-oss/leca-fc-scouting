@@ -109,6 +109,29 @@ export default function Home() {
 
   const toggleMatch = (id: string) => setExpandedMatchId(expandedMatchId === id ? null : id);
 
+  const startEditMatch = (match: any) => {
+    setReportData({
+      homeTactic: match.homeTactic && match.homeTactic !== '-' ? match.homeTactic : '1-4-3-3',
+      awayTactic: match.awayTactic && match.awayTactic !== '-' ? match.awayTactic : '1-4-3-3',
+      tempo: match.tempo && match.tempo !== '-' ? match.tempo : 'Medium',
+      intensity: match.intensity && match.intensity !== '-' ? match.intensity : 'Medium',
+      technical: match.technical && match.technical !== '-' ? match.technical : 'Medium',
+      pressure: match.pressure && match.pressure !== '-' ? match.pressure : 'Medium',
+      notes: match.notes || '',
+    });
+
+    if (match.highlightedPlayers && match.highlightedPlayers.length > 0) {
+      setHighlights(match.highlightedPlayers.map((p: any) => ({
+        playerId: p.id,
+        notes: p.note && p.note !== 'Sem notas registadas.' ? p.note : ''
+      })));
+    } else {
+      setHighlights([{ playerId: '', notes: '' }]);
+    }
+
+    setExpandedMatchEdit(editingMatchId === match.id ? null : match.id);
+  };
+
   const addHighlightRow = () => setHighlights([...highlights, { playerId: '', notes: '' }]);
   const removeHighlightRow = (index: number) => setHighlights(highlights.filter((_, i) => i !== index));
   const updateHighlightRow = (index: number, field: 'playerId' | 'notes', value: string) => {
@@ -177,7 +200,7 @@ export default function Home() {
     }
   };
 
-  // CRIAR NOVO JOGADOR NA BD (CORRIGIDO VIA LINKED RECORD & MULTI-SELECT)
+  // CRIAR NOVO JOGADOR
   const handleCreateNewPlayer = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreatingPlayer(true);
@@ -441,7 +464,7 @@ export default function Home() {
                             <div className="text-slate-400">Táticas: Casa ({match.homeTactic}) vs Visitante ({match.awayTactic})</div>
                           </div>
                           <button 
-                            onClick={() => setExpandedMatchEdit(isEditing ? null : match.id)}
+                            onClick={() => startEditMatch(match)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/20 border border-blue-500/30 text-blue-400 rounded-lg font-medium hover:bg-blue-600/30 transition"
                           >
                             <Edit3 size={14} /> {isEditing ? 'Fechar Edição' : 'Preencher / Editar Relatório'}
@@ -532,7 +555,7 @@ export default function Home() {
                           </div>
                         ) : (
                           <>
-                            {/* CARTÕES UNIFICADOS COM DESTAQUE INDIVIDUAL INCORPORADO */}
+                            {/* CARTÕES UNIFICADOS COM BOTÃO EDITAR HIGHLIGHT INCORPORADO */}
                             {match.highlightedPlayers && match.highlightedPlayers.length > 0 && (
                               <div>
                                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Atletas Referenciados & Observações Individuais</h4>
@@ -561,16 +584,28 @@ export default function Home() {
                                               </p>
                                             </div>
                                           </div>
-                                          <button 
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setSelectedPlayer(fullP);
-                                              setProfileTab('timeline');
-                                            }}
-                                            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition border border-slate-700 flex items-center gap-1"
-                                          >
-                                            Ver Perfil <ExternalLink size={12} />
-                                          </button>
+
+                                          <div className="flex items-center gap-2">
+                                            <button 
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                startEditMatch(match);
+                                              }}
+                                              className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-xs font-medium rounded-lg transition flex items-center gap-1"
+                                            >
+                                              <Edit3 size={12} /> Editar Highlight
+                                            </button>
+                                            <button 
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedPlayer(fullP);
+                                                setProfileTab('timeline');
+                                              }}
+                                              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition border border-slate-700 flex items-center gap-1"
+                                            >
+                                              Ver Perfil <ExternalLink size={12} />
+                                            </button>
+                                          </div>
                                         </div>
 
                                         <div className="text-xs text-slate-300 leading-relaxed bg-[#0d131f] p-3 rounded-lg border border-slate-800/80 font-sans whitespace-pre-line">

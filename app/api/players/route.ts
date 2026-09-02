@@ -59,7 +59,7 @@ export async function GET() {
   }
 }
 
-// CRIAR NOVO JOGADOR NA TABELA PLAYERS (FORMATO MULTIPLE SELECT CORRIGIDO)
+// CRIAR NOVO JOGADOR (OMITE O CAMPO COMPUTADO STATUS)
 export async function POST(req: Request) {
   if (!BASE_ID || !TOKEN) return NextResponse.json({ error: 'Faltam credenciais' }, { status: 500 });
 
@@ -69,8 +69,7 @@ export async function POST(req: Request) {
 
     const fields: Record<string, any> = {
       'Player Name': body.name,
-      'Position': [posVal], // Array de strings obrigatório para Multiple Select no Airtable
-      'Status': '🟡 Monitoring',
+      'Position': [posVal],
     };
 
     if (body.clubId) {
