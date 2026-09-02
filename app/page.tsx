@@ -27,7 +27,7 @@ const DEPT_PASSWORD = 'LECA';
 type Role = 'ADMIN' | 'DIRECTOR' | 'EXECUTIVE' | 'SCOUT';
 
 function getRoleForUser(name: string): Role {
-  const lowerName = name.toLowerCase();
+  const lowerName = (name || '').toLowerCase();
   if (lowerName.includes('pedro oliveira')) return 'ADMIN';
   if (lowerName.includes('miguel salvador')) return 'DIRECTOR';
   if (
@@ -37,6 +37,15 @@ function getRoleForUser(name: string): Role {
     lowerName.includes('andre da silva')
   ) return 'EXECUTIVE';
   return 'SCOUT';
+}
+
+function getUserTitle(name: string): string {
+  const lowerName = (name || '').toLowerCase();
+  if (lowerName.includes('pedro oliveira')) return 'Head of Scouting';
+  if (lowerName.includes('miguel salvador')) return 'Diretor Desportivo';
+  if (lowerName.includes('josé luís') || lowerName.includes('jose luis')) return 'Presidente';
+  if (lowerName.includes('andré da silva') || lowerName.includes('andre da silva')) return 'Diretor Geral';
+  return 'Scout do Clube';
 }
 
 function CustomSelect({
@@ -552,10 +561,11 @@ export default function Home() {
               {players.length} Atletas na DB
             </div>
             
+            {/* NOVO: BOTÃO DE LOGOUT COM CARGO FORMAL */}
             <div className="flex items-center gap-2 pl-3 border-l border-slate-700">
               <div className="flex flex-col items-end">
                 <span className="text-xs font-medium text-slate-300 leading-tight">{authScoutName}</span>
-                <span className="text-[9px] text-blue-400 font-bold uppercase">{userRole}</span>
+                <span className="text-[9px] text-blue-400 font-bold uppercase">{getUserTitle(authScoutName || '')}</span>
               </div>
               <button onClick={handleLogout} className="p-2 ml-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-red-400 rounded-lg transition" title="Terminar Sessão">
                 <LogOut className="w-4 h-4" />
@@ -576,7 +586,7 @@ export default function Home() {
                </div>
                <div>
                  <p className="text-sm font-bold text-white leading-tight">{authScoutName}</p>
-                 <p className="text-[10px] text-blue-400 font-bold uppercase mt-0.5">{userRole}</p>
+                 <p className="text-[10px] text-blue-400 font-bold uppercase mt-0.5">{getUserTitle(authScoutName || '')}</p>
                </div>
              </div>
              <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-400">
@@ -598,7 +608,7 @@ export default function Home() {
         <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Users className="w-4 h-4" /> Base de Jogadores ({players.length})</button>
         <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Building2 className="w-4 h-4" /> Equipas ({teams.length})</button>
         <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Trophy className="w-4 h-4" /> Match Center ({matches.length})</button>
-        <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Shield className="w-4 h-4" /> Equipa de Scouts ({scouts.length})</button>
+        <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Shield className="w-4 h-4" /> Equipa do Clube ({scouts.length})</button>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 md:px-0 mt-4 md:mt-0">
@@ -628,9 +638,9 @@ export default function Home() {
               </div>
 
               <div className="bg-[#151c2c] p-4 md:p-5 rounded-2xl border border-slate-800 shadow-sm flex flex-col justify-between">
-                <span className="text-slate-500 text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1">Equipa de Scouts</span>
+                <span className="text-slate-500 text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1">Equipa do Clube</span>
                 <span className="text-2xl md:text-3xl font-black text-emerald-400">{scouts.length}</span>
-                <span className="text-[10px] text-slate-400 font-medium mt-2">Observadores</span>
+                <span className="text-[10px] text-slate-400 font-medium mt-2">Membros Registados</span>
               </div>
             </div>
 
@@ -1005,7 +1015,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 4: SCOUTS */}
+        {/* TAB 4: SCOUTS / ESTRUTURA DO CLUBE */}
         {activeTab === 'scouts' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {scouts.map((scout) => (
@@ -1020,7 +1030,8 @@ export default function Home() {
                   )}
                   <div>
                     <h3 className="font-bold text-white text-base leading-tight">{scout.name}</h3>
-                    <p className="text-[10px] md:text-xs text-blue-400 font-medium mt-0.5">Scout do Clube</p>
+                    {/* AQUI: TÍTULO DINÂMICO PARA CADA ELEMENTO */}
+                    <p className="text-[10px] md:text-xs text-blue-400 font-bold mt-0.5">{getUserTitle(scout.name)}</p>
                   </div>
                 </div>
 
@@ -1192,7 +1203,7 @@ export default function Home() {
                   options={scouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
                   selectedIds={preGameData.scoutIds} 
                   onChange={ids => setPreGameData({ ...preGameData, scoutIds: ids })} 
-                  placeholder="Selecionar Scouts que acompanharam o jogo..." 
+                  placeholder="Selecionar Scouts..." 
                 />
               </div>
 
@@ -1254,27 +1265,14 @@ export default function Home() {
             
             <div className="bg-[#151c2c] border-b border-slate-800 p-5 md:p-8 flex-shrink-0 relative">
               <button onClick={() => setSelectedPlayer(null)} className="absolute top-4 right-4 md:top-6 md:right-6 p-2 md:p-2.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition z-10"><X className="w-5 h-5" /></button>
-              
               <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6 mt-2 md:mt-0">
-                {selectedPlayer.photo ? (
-                  <img src={selectedPlayer.photo} alt={selectedPlayer.name} className="w-20 h-20 md:w-28 md:h-28 rounded-2xl object-cover border-4 border-[#0d131f] shadow-xl bg-[#0d131f]" />
-                ) : (
-                  <div className="w-20 h-20 md:w-28 md:h-28 rounded-2xl bg-[#0d131f] border-4 border-slate-800 flex items-center justify-center text-slate-400 font-bold text-3xl shadow-xl">
-                    {(selectedPlayer.name || 'J').charAt(0)}
-                  </div>
-                )}
-                
+                {selectedPlayer.photo ? <img src={selectedPlayer.photo} alt={selectedPlayer.name} className="w-20 h-20 md:w-28 md:h-28 rounded-2xl object-cover border-4 border-[#0d131f] shadow-xl bg-[#0d131f]" /> : <div className="w-20 h-20 md:w-28 md:h-28 rounded-2xl bg-[#0d131f] border-4 border-slate-800 flex items-center justify-center text-slate-400 font-bold text-3xl shadow-xl">{(selectedPlayer.name || 'J').charAt(0)}</div>}
                 <div className="text-center md:text-left flex-1">
                   <h2 className="text-xl md:text-3xl font-black text-white mb-2 tracking-tight">{selectedPlayer.name}</h2>
                   <div className="flex flex-wrap justify-center md:justify-start items-center gap-2 md:gap-3 text-xs md:text-sm">
                     <span className="bg-blue-600 text-white px-3 py-1 md:py-1.5 rounded-lg font-bold shadow-md shadow-blue-900/20">{selectedPlayer.position}</span>
-                    <div className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 md:py-1.5 rounded-lg border border-slate-700 text-slate-200 font-medium">
-                      {selectedPlayer.clubLogo ? <img src={selectedPlayer.clubLogo} alt={selectedPlayer.club} className="w-4 h-4 md:w-5 md:h-5 object-contain" /> : <Shield className="w-4 h-4 text-blue-400" />}
-                      <span className="truncate max-w-[120px] md:max-w-none">{selectedPlayer.club}</span>
-                    </div>
-                    <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 md:py-1.5 rounded-lg font-bold uppercase tracking-wide flex items-center gap-1.5">
-                      <Activity className="w-3.5 h-3.5" /> {selectedPlayer.status}
-                    </span>
+                    <div className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 md:py-1.5 rounded-lg border border-slate-700 text-slate-200 font-medium">{selectedPlayer.clubLogo ? <img src={selectedPlayer.clubLogo} alt={selectedPlayer.club} className="w-4 h-4 md:w-5 md:h-5 object-contain" /> : <Shield className="w-4 h-4 text-blue-400" />}<span className="truncate max-w-[120px] md:max-w-none">{selectedPlayer.club}</span></div>
+                    <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 md:py-1.5 rounded-lg font-bold uppercase tracking-wide flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> {selectedPlayer.status}</span>
                   </div>
                 </div>
               </div>
@@ -1282,31 +1280,15 @@ export default function Home() {
 
             <div className="flex-1 overflow-y-auto bg-[#0d131f] p-4 md:p-8">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
-                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left">
-                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Idade</span>
-                  <span className="text-white text-lg font-black">{selectedPlayer.age !== 'N/D' ? `${selectedPlayer.age} anos` : '--'}</span>
-                </div>
-                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left">
-                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Nacionalidade</span>
-                  <span className="text-white text-base md:text-lg font-black flex items-center justify-center md:justify-start gap-1.5 truncate w-full"><Flag className="w-3.5 h-3.5 text-slate-400 flex-shrink-0"/> <span className="truncate">{selectedPlayer.nationality || '--'}</span></span>
-                </div>
-                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left">
-                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Pé / Altura</span>
-                  <span className="text-white text-lg font-black">{selectedPlayer.foot || '-'} • {selectedPlayer.height || '-'}</span>
-                </div>
-                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left bg-blue-900/10 border-blue-900/30">
-                  <span className="text-blue-500/70 text-[10px] uppercase font-bold tracking-widest block mb-1">Jogos Vistos</span>
-                  <span className="text-blue-400 text-2xl font-black">{getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length}</span>
-                </div>
+                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left"><span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Idade</span><span className="text-white text-lg font-black">{selectedPlayer.age !== 'N/D' ? `${selectedPlayer.age} anos` : '--'}</span></div>
+                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left"><span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Nacionalidade</span><span className="text-white text-base md:text-lg font-black flex items-center justify-center md:justify-start gap-1.5 truncate w-full"><Flag className="w-3.5 h-3.5 text-slate-400 flex-shrink-0"/> <span className="truncate">{selectedPlayer.nationality || '--'}</span></span></div>
+                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left"><span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Pé / Altura</span><span className="text-white text-lg font-black">{selectedPlayer.foot || '-'} • {selectedPlayer.height || '-'}</span></div>
+                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left bg-blue-900/10 border-blue-900/30"><span className="text-blue-500/70 text-[10px] uppercase font-bold tracking-widest block mb-1">Jogos Vistos</span><span className="text-blue-400 text-2xl font-black">{getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length}</span></div>
               </div>
 
               <div className="flex gap-4 md:gap-8 border-b border-slate-800 text-xs md:text-sm font-bold mb-6 overflow-x-auto no-scrollbar pb-1">
-                <button onClick={() => setProfileTab('timeline')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'timeline' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}>
-                  <FileText className="w-4 h-4" /> Relatórios & Timeline
-                </button>
-                <button onClick={() => setProfileTab('algo')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'algo' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}>
-                  <BarChart3 className="w-4 h-4" /> Looker Studio (Algoritmo)
-                </button>
+                <button onClick={() => setProfileTab('timeline')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'timeline' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}><FileText className="w-4 h-4" /> Relatórios & Timeline</button>
+                <button onClick={() => setProfileTab('algo')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'algo' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}><BarChart3 className="w-4 h-4" /> Looker Studio (Algoritmo)</button>
                 {canSeeMarket && (
                   <button onClick={() => setProfileTab('market')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'market' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}>
                     <Briefcase className="w-4 h-4" /> Mercado & Decisão
@@ -1323,47 +1305,25 @@ export default function Home() {
                           <div className="absolute w-4 h-4 bg-blue-500 rounded-full left-[-9px] top-1 border-4 border-[#0d131f] shadow-sm"></div>
                           <div className="bg-[#151c2c] p-4 md:p-5 rounded-2xl border border-slate-800 shadow-sm">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-slate-800/60 pb-3">
-                              <div>
-                                <h4 className="font-bold text-white text-sm md:text-base leading-tight">{report.matchName}</h4>
-                                <div className="flex items-center gap-2 text-[10px] md:text-xs text-slate-400 mt-1">
-                                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {report.gameDate}</span>
-                                </div>
-                              </div>
+                              <div><h4 className="font-bold text-white text-sm md:text-base leading-tight">{report.matchName}</h4><div className="flex items-center gap-2 text-[10px] md:text-xs text-slate-400 mt-1"><span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {report.gameDate}</span></div></div>
                               <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                                <div className="bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50 flex items-center gap-1.5 text-[10px] md:text-xs font-medium text-slate-300">
-                                  <UserCheck className="w-3 h-3 text-blue-400"/> Scout: {report.scout}
-                                </div>
-                                <button 
-                                  onClick={() => navigateToMatch(report.matchId)}
-                                  className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5"
-                                >
-                                  Ir para Jogo <ExternalLink className="w-3 h-3" />
-                                </button>
+                                <div className="bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50 flex items-center gap-1.5 text-[10px] md:text-xs font-medium text-slate-300"><UserCheck className="w-3 h-3 text-blue-400"/> Scout: {report.scout}</div>
+                                <button onClick={() => navigateToMatch(report.matchId)} className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5">Ir para Jogo <ExternalLink className="w-3 h-3" /></button>
                               </div>
                             </div>
-                            <div className="text-xs md:text-sm text-slate-300 leading-relaxed font-sans whitespace-pre-wrap">
-                              {report.note}
-                            </div>
+                            <div className="text-xs md:text-sm text-slate-300 leading-relaxed font-sans whitespace-pre-wrap">{report.note}</div>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-12 bg-[#151c2c] rounded-2xl border border-slate-800 border-dashed">
-                      <FileText className="w-8 h-8 mx-auto text-slate-600 mb-3" />
-                      <p className="text-sm text-slate-400 font-medium">Ainda não existem relatórios de jogo para este atleta.</p>
-                      <p className="text-xs text-slate-500 mt-1">As observações individuais feitas no Match Center aparecerão aqui.</p>
-                    </div>
+                    <div className="text-center py-12 bg-[#151c2c] rounded-2xl border border-slate-800 border-dashed"><FileText className="w-8 h-8 mx-auto text-slate-600 mb-3" /><p className="text-sm text-slate-400 font-medium">Ainda não existem relatórios de jogo para este atleta.</p><p className="text-xs text-slate-500 mt-1">As observações individuais feitas no Match Center aparecerão aqui.</p></div>
                   )}
                 </div>
               )}
 
               {profileTab === 'algo' && (
-                <div className="flex flex-col items-center justify-center py-20 bg-blue-900/5 rounded-2xl border border-blue-900/20 text-center px-4">
-                  <BarChart3 className="w-12 h-12 text-blue-500/50 mb-4" />
-                  <h3 className="text-lg font-bold text-blue-400 mb-2">Integração Looker Studio</h3>
-                  <p className="text-sm text-slate-400 max-w-md">Em breve, a avaliação do algoritmo e os gráficos de rating gerados pelo vosso sistema em Excel estarão incorporados nesta vista.</p>
-                </div>
+                <div className="flex flex-col items-center justify-center py-20 bg-blue-900/5 rounded-2xl border border-blue-900/20 text-center px-4"><BarChart3 className="w-12 h-12 text-blue-500/50 mb-4" /><h3 className="text-lg font-bold text-blue-400 mb-2">Integração Looker Studio</h3><p className="text-sm text-slate-400 max-w-md">Em breve, a avaliação do algoritmo e os gráficos de rating gerados pelo vosso sistema em Excel estarão incorporados nesta vista.</p></div>
               )}
 
               {profileTab === 'market' && canSeeMarket && (
