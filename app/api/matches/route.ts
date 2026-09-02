@@ -118,7 +118,6 @@ export async function GET() {
       const highlightsText = f['Highlights Report'] || f['Notes'] || '';
       const parsedHighlights = parseHighlightsReport(highlightsText);
 
-      // Mapeamento dos cartões com nota individual associada
       const playerList: any[] = [];
       const rawPlayers = f['Players from Highlights'];
 
@@ -168,8 +167,8 @@ export async function GET() {
       };
     });
 
-    // ORDENAÇÃO CRONOLÓGICA DECRESCENTE (Jogos recentes primeiro)
-    matches.sort((a, b) => parseDateToTimestamp(b.gameDate) - parseDateToTimestamp(a.gameDate));
+    // Tipagem explícita (a: any, b: any) para passar a validação estrita do build
+    matches.sort((a: any, b: any) => parseDateToTimestamp(b.gameDate) - parseDateToTimestamp(a.gameDate));
 
     return NextResponse.json({ total: matches.length, matches, competitions: competitionsList });
   } catch (err: any) {
