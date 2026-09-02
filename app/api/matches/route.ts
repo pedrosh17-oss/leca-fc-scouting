@@ -29,6 +29,21 @@ function parseHighlightsReport(reportText: string) {
   return results;
 }
 
+function parseDateToTimestamp(dateStr: string): number {
+  if (!dateStr) return 0;
+  if (dateStr.includes('/')) {
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      return new Date(year, month, day).getTime();
+    }
+  }
+  const d = new Date(dateStr).getTime();
+  return isNaN(d) ? 0 : d;
+}
+
 export async function GET() {
   if (!BASE_ID || !TOKEN) return NextResponse.json({ error: 'Faltam credenciais' }, { status: 500 });
 
@@ -75,17 +90,13 @@ export async function GET() {
         position: f['Position'] || 'N/D',
         club: f['Team name'] || f['Current Team'] || 'Sem Clube',
         clubLogo: clubLogoUrl,
-        age: f['Age'] || 'N/D',
-        nationality: f['Nationality'] || 'N/A',
-        status: f['Status'] || '⚪ No Activity',
-        report: f['Report '] || f['Final Report'] || 'Sem observações registadas.',
       };
 
       if (f['Player Name']) playerByNameMap[f['Player Name'].trim().toLowerCase()] = pObj;
       playerByIdMap[r.id] = pObj;
     });
 
-    const matches = (dataMatches.records || []).map((r: any) => {
+    let matches = (dataMatches.records || []).map((r: any) => {
       const f = r.fields || {};
 
       let compName = 'Competição N/D';
@@ -107,28 +118,34 @@ export async function GET() {
       const highlightsText = f['Highlights Report'] || f['Notes'] || '';
       const parsedHighlights = parseHighlightsReport(highlightsText);
 
+      // Mapeamento dos cartões com nota individual associada
       const playerList: any[] = [];
       const rawPlayers = f['Players from Highlights'];
 
       if (Array.isArray(rawPlayers)) {
         rawPlayers.forEach((item: string) => {
-          if (playerByIdMap[item]) playerList.push(playerByIdMap[item]);
-          else if (typeof item === 'string' && playerByNameMap[item.trim().toLowerCase()]) playerList.push(playerByNameMap[item.trim().toLowerCase()]);
-          else if (typeof item === 'string' && !item.startsWith('rec')) playerList.push({ id: item, name: item, position: 'N/D', club: 'N/D' });
+          let pObj = playerByIdMap[item] || (typeof item === 'string' ? playerByNameMap[item.trim().toLowerCase()] : null);
+          if (!pObj && typeof item === 'string' && !item.startsWith('rec')) {
+            pObj = { id: item, name: item, position: 'N/D', club: 'N/D' };
+          }
+          if (pObj) {
+            const foundNote = parsedHighlights.find(ph => ph.name.toLowerCase() === pObj.name.toLowerCase());
+            playerList.push({ ...pObj, note: foundNote ? foundNote.text : 'Sem notas registadas.' });
+          }
         });
       } else if (typeof rawPlayers === 'string') {
         rawPlayers.split(',').forEach((nameStr) => {
           const cleanName = nameStr.trim();
-          if (playerByNameMap[cleanName.toLowerCase()]) playerList.push(playerByNameMap[cleanName.toLowerCase()]);
-          else if (cleanName) playerList.push({ id: cleanName, name: cleanName, position: 'N/D', club: 'N/D' });
+          let pObj = playerByNameMap[cleanName.toLowerCase()] || { id: cleanName, name: cleanName, position: 'N/D', club: 'N/D' };
+          const foundNote = parsedHighlights.find(ph => ph.name.toLowerCase() === cleanName.toLowerCase());
+          playerList.push({ ...pObj, note: foundNote ? foundNote.text : 'Sem notas registadas.' });
         });
       }
 
       if (playerList.length === 0 && parsedHighlights.length > 0) {
         parsedHighlights.forEach((ph) => {
-          const matchP = playerByNameMap[ph.name.toLowerCase()];
-          if (matchP) playerList.push(matchP);
-          else playerList.push({ id: ph.name, name: ph.name, position: 'N/D', club: 'N/D' });
+          const matchP = playerByNameMap[ph.name.toLowerCase()] || { id: ph.name, name: ph.name, position: 'N/D', club: 'N/D' };
+          playerList.push({ ...matchP, note: ph.text });
         });
       }
 
@@ -146,12 +163,13 @@ export async function GET() {
         technical: safeText(f['Overall Technical Quality'], '-'),
         pressure: safeText(f['Mental/Fans/Importance Pressure'], '-'),
         notes: safeText(f['Notes'], ''),
-        highlightsReport: highlightsText,
-        parsedHighlights: parsedHighlights,
         highlightedPlayers: playerList,
         playersCount: playerList.length,
       };
     });
+
+    // ORDENAÇÃO CRONOLÓGICA DECRESCENTE (Jogos recentes primeiro)
+    matches.sort((a, b) => parseDateToTimestamp(b.gameDate) - parseDateToTimestamp(a.gameDate));
 
     return NextResponse.json({ total: matches.length, matches, competitions: competitionsList });
   } catch (err: any) {
@@ -159,7 +177,6 @@ export async function GET() {
   }
 }
 
-// 1. CRIAR JOGO (PRÉ-JOGO) - OMITE O CAMPO FORMULA "Match"
 export async function POST(req: Request) {
   if (!BASE_ID || !TOKEN) return NextResponse.json({ error: 'Faltam credenciais' }, { status: 500 });
 
@@ -185,7 +202,6 @@ export async function POST(req: Request) {
     const resData = await res.json();
 
     if (!res.ok) {
-      console.error("Airtable POST Error:", resData);
       return NextResponse.json({ error: resData.error?.message || 'Erro ao criar registo no Airtable' }, { status: 422 });
     }
 
@@ -195,7 +211,6 @@ export async function POST(req: Request) {
   }
 }
 
-// 2. PREENCHER RELATÓRIO DO JOGO & HIGHLIGHTS (PÓS-JOGO)
 export async function PATCH(req: Request) {
   if (!BASE_ID || !TOKEN) return NextResponse.json({ error: 'Faltam credenciais' }, { status: 500 });
 

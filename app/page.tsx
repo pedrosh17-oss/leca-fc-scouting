@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Trophy, Shield, Search, Plus, ChevronDown, ChevronUp, Calendar, 
   UserCheck, X, Activity, Ruler, FileText, BarChart3, Briefcase, Flag, Building2,
-  Zap, Crosshair, BrainCircuit, ExternalLink, Globe, Loader2, UserPlus, Trash2, Edit3
+  Zap, Crosshair, BrainCircuit, ExternalLink, Globe, Loader2, UserPlus, Trash2, Edit3, CheckCircle2
 } from 'lucide-react';
 
 const TACTICS_OPTIONS = [
@@ -27,6 +27,8 @@ export default function Home() {
   const [scouts, setScouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   const [search, setSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(30);
   
@@ -39,7 +41,7 @@ export default function Home() {
   const [selectedTeam, setSelectedTeam] = useState<any | null>(null);
   const [profileTab, setProfileTab] = useState<'timeline' | 'algo' | 'market'>('timeline');
 
-  // MODAL PRÉ-JOGO (CRIAR PARTIDA)
+  // MODAL PRÉ-JOGO
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [submittingPre, setSubmittingPre] = useState(false);
   const [preGameData, setPreGameData] = useState({
@@ -51,7 +53,7 @@ export default function Home() {
     type: '🏟️ Live',
   });
 
-  // WORKSPACE PÓS-JOGO (PREENCHER RELATÓRIO)
+  // WORKSPACE PÓS-JOGO
   const [submittingReport, setSubmittingReport] = useState(false);
   const [reportData, setReportData] = useState({
     homeTactic: '1-4-3-3',
@@ -69,8 +71,13 @@ export default function Home() {
 
   // MINI-MODAL NOVO ATLETA
   const [isNewPlayerOpen, setIsNewPlayerOpen] = useState(false);
-  const [newPlayerData, setNewPlayerData] = useState({ name: '', club: '', position: 'Center Midfielder' });
+  const [newPlayerData, setNewPlayerData] = useState({ name: '', clubId: '', position: 'Center Midfielder' });
   const [creatingPlayer, setCreatingPlayer] = useState(false);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
 
   const loadData = async () => {
     try {
@@ -110,7 +117,7 @@ export default function Home() {
     setHighlights(updated);
   };
 
-  // SUBMETER PRÉ-JOGO (CRIAR PARTIDA COM LINKED RECORDS)
+  // SUBMETER PRÉ-JOGO
   const handlePreGameSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittingPre(true);
@@ -131,18 +138,18 @@ export default function Home() {
           competitionId: '', scoutId: '', type: '🏟️ Live',
         });
         await loadData();
+        showToast("Jogo agendado com sucesso!");
       } else {
         alert(`Erro Airtable: ${resData.error || 'Falha ao agendar jogo.'}`);
       }
     } catch (err) {
       console.error("Erro ao agendar jogo", err);
-      alert("Erro na ligação ao servidor.");
     } finally {
       setSubmittingPre(false);
     }
   };
 
-  // SUBMETER PÓS-JOGO (RELATÓRIO & HIGHLIGHTS)
+  // SUBMETER PÓS-JOGO
   const handleReportSubmit = async (matchId: string) => {
     setSubmittingReport(true);
 
@@ -159,6 +166,7 @@ export default function Home() {
         setExpandedMatchEdit(null);
         setHighlights([{ playerId: '', notes: '' }]);
         await loadData();
+        showToast("Relatório de jogo guardado com sucesso!");
       } else {
         alert(`Erro Airtable: ${resData.error || 'Falha ao submeter relatório.'}`);
       }
@@ -169,7 +177,7 @@ export default function Home() {
     }
   };
 
-  // CRIAR NOVO JOGADOR RÁPIDO NA BD
+  // CRIAR NOVO JOGADOR NA BD (CORRIGIDO VIA LINKED RECORD & MULTI-SELECT)
   const handleCreateNewPlayer = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreatingPlayer(true);
@@ -193,14 +201,13 @@ export default function Home() {
         
         setHighlights(updated);
         setIsNewPlayerOpen(false);
-        setNewPlayerData({ name: '', club: '', position: 'Center Midfielder' });
-        alert("Atleta criado com sucesso na BD!");
+        setNewPlayerData({ name: '', clubId: '', position: 'Center Midfielder' });
+        showToast(`Atleta "${data.player.name}" criado com sucesso!`);
       } else {
-        alert(`Erro Airtable: ${data.error || 'Falha ao criar atleta.'}`);
+        alert(`Erro Airtable Players: ${data.error || 'Falha ao criar atleta.'}`);
       }
     } catch (err) {
       console.error("Erro ao criar jogador", err);
-      alert("Erro de ligação ao criar jogador.");
     } finally {
       setCreatingPlayer(false);
     }
@@ -225,8 +232,16 @@ export default function Home() {
   });
 
   return (
-    <main className="min-h-screen bg-[#0d131f] text-slate-100 p-6 font-sans">
+    <main className="min-h-screen bg-[#0d131f] text-slate-100 p-6 font-sans relative">
       
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-[100] bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 duration-300 font-medium text-xs">
+          <CheckCircle2 size={18} />
+          {toastMessage}
+        </div>
+      )}
+
       {/* Header */}
       <header className="max-w-6xl mx-auto flex justify-between items-center mb-8 bg-[#151c2c] p-6 rounded-xl border border-slate-800">
         <div>
@@ -517,39 +532,50 @@ export default function Home() {
                           </div>
                         ) : (
                           <>
+                            {/* CARTÕES UNIFICADOS COM DESTAQUE INDIVIDUAL INCORPORADO */}
                             {match.highlightedPlayers && match.highlightedPlayers.length > 0 && (
                               <div>
-                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Atletas Referenciados Neste Jogo</h4>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Atletas Referenciados & Observações Individuais</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   {match.highlightedPlayers.map((p: any, idx: number) => {
                                     const fullP = players.find(player => (player.name || '').trim().toLowerCase() === (p.name || '').trim().toLowerCase()) || p;
 
                                     return (
                                       <div 
                                         key={p.id || idx}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedPlayer(fullP);
-                                          setProfileTab('timeline');
-                                        }}
-                                        className="bg-[#151c2c] border border-slate-800/80 p-3 rounded-xl flex items-center justify-between cursor-pointer hover:border-blue-500/50 hover:bg-slate-800/60 transition group"
+                                        className="bg-[#151c2c] border border-slate-800 p-4 rounded-xl space-y-3 hover:border-slate-700 transition"
                                       >
-                                        <div className="flex items-center gap-3">
-                                          {fullP.photo ? (
-                                            <img src={fullP.photo} alt={fullP.name} className="w-9 h-9 rounded-full object-cover border border-slate-700" />
-                                          ) : (
-                                            <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-xs">
-                                              {(fullP.name || 'J').charAt(0)}
+                                        <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                                          <div className="flex items-center gap-3">
+                                            {fullP.photo ? (
+                                              <img src={fullP.photo} alt={fullP.name} className="w-10 h-10 rounded-full object-cover border border-slate-700 shadow" />
+                                            ) : (
+                                              <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm">
+                                                {(fullP.name || 'J').charAt(0)}
+                                              </div>
+                                            )}
+                                            <div>
+                                              <h5 className="font-semibold text-white text-sm">{fullP.name}</h5>
+                                              <p className="text-xs text-slate-400 mt-0.5">
+                                                <span className="text-blue-400 font-medium">{fullP.position && fullP.position !== 'N/D' ? fullP.position : 'Atleta'}</span> • {fullP.club && fullP.club !== 'N/D' ? fullP.club : 'Clube N/D'}
+                                              </p>
                                             </div>
-                                          )}
-                                          <div>
-                                            <h5 className="font-semibold text-white text-xs group-hover:text-blue-400 transition">{fullP.name}</h5>
-                                            <p className="text-[11px] text-slate-400 mt-0.5">
-                                              <span className="text-blue-400 font-medium">{fullP.position && fullP.position !== 'N/D' ? fullP.position : 'Atleta'}</span> • {fullP.club && fullP.club !== 'N/D' ? fullP.club : 'Clube N/D'}
-                                            </p>
                                           </div>
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSelectedPlayer(fullP);
+                                              setProfileTab('timeline');
+                                            }}
+                                            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition border border-slate-700 flex items-center gap-1"
+                                          >
+                                            Ver Perfil <ExternalLink size={12} />
+                                          </button>
                                         </div>
-                                        <ExternalLink size={14} className="text-slate-500 group-hover:text-blue-400 transition" />
+
+                                        <div className="text-xs text-slate-300 leading-relaxed bg-[#0d131f] p-3 rounded-lg border border-slate-800/80 font-sans whitespace-pre-line">
+                                          {p.note || 'Sem nota registada.'}
+                                        </div>
                                       </div>
                                     );
                                   })}
@@ -557,7 +583,7 @@ export default function Home() {
                               </div>
                             )}
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
                               <div className="bg-[#151c2c] p-3 rounded-lg border border-slate-800/60">
                                  <span className="flex items-center gap-1.5 text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1"><Zap size={12}/> Ritmo de Jogo</span>
                                  <span className="text-sm font-medium text-white">{match.tempo}</span>
@@ -573,13 +599,6 @@ export default function Home() {
                               <div className="bg-[#151c2c] p-3 rounded-lg border border-slate-800/60">
                                  <span className="flex items-center gap-1.5 text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1"><BrainCircuit size={12}/> Pressão Mental</span>
                                  <span className="text-sm font-medium text-white">{match.pressure}</span>
-                              </div>
-                            </div>
-
-                            <div>
-                              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Relatório & Destaques da Partida</h4>
-                              <div className="text-sm text-slate-300 leading-relaxed whitespace-pre-line bg-[#0d131f] p-4 rounded-lg border border-slate-800">
-                                {match.highlightsReport}
                               </div>
                             </div>
                           </>
@@ -651,7 +670,7 @@ export default function Home() {
 
       </div>
 
-      {/* MODAL PRÉ-JOGO: AGENDAR PARTIDA */}
+      {/* MODAL PRÉ-JOGO */}
       {isRegisterOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-xl rounded-2xl shadow-2xl p-6">
@@ -749,9 +768,9 @@ export default function Home() {
 
               <div>
                 <label className="block text-slate-400 mb-1">Clube Atual</label>
-                <select value={newPlayerData.club} onChange={e => setNewPlayerData({ ...newPlayerData, club: e.target.value })} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-2.5 text-slate-200">
+                <select value={newPlayerData.clubId} onChange={e => setNewPlayerData({ ...newPlayerData, clubId: e.target.value })} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-2.5 text-slate-200">
                   <option value="">Sem Clube / Outro</option>
-                  {teams.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                  {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
               </div>
 

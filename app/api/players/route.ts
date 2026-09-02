@@ -59,20 +59,23 @@ export async function GET() {
   }
 }
 
-// CRIAR NOVO JOGADOR NA TABELA PLAYERS
+// CRIAR NOVO JOGADOR NA TABELA PLAYERS (FORMATO MULTIPLE SELECT CORRIGIDO)
 export async function POST(req: Request) {
   if (!BASE_ID || !TOKEN) return NextResponse.json({ error: 'Faltam credenciais' }, { status: 500 });
 
   try {
     const body = await req.json();
+    const posVal = body.position || 'Center Midfielder';
 
     const fields: Record<string, any> = {
       'Player Name': body.name,
-      'Position': body.position || 'N/D',
+      'Position': [posVal], // Array de strings obrigatório para Multiple Select no Airtable
       'Status': '🟡 Monitoring',
     };
 
-    if (body.club) fields['Current Team'] = body.club;
+    if (body.clubId) {
+      fields['Current Team'] = [body.clubId];
+    }
 
     const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}/Players`, {
       method: 'POST',
@@ -83,12 +86,12 @@ export async function POST(req: Request) {
       body: JSON.stringify({ fields }),
     });
 
+    const createdRecord = await res.json();
+
     if (!res.ok) {
-      const errData = await res.json();
-      throw new Error(`Erro Airtable Players: ${JSON.stringify(errData)}`);
+      return NextResponse.json({ error: createdRecord.error?.message || 'Erro ao criar atleta no Airtable' }, { status: 422 });
     }
 
-    const createdRecord = await res.json();
     return NextResponse.json({ success: true, player: { id: createdRecord.id, name: body.name } });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
