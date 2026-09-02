@@ -21,8 +21,11 @@ export async function GET() {
   try {
     let allRecords: any[] = [];
     let offset: string | undefined = undefined;
+    
+    // Deteta se estamos no StackBlitz (dev) ou Vercel (produção)
+    const isDev = process.env.NODE_ENV === 'development';
 
-    // Loop que varre as páginas do Airtable até trazer os 700+ atletas
+    // Loop que varre as páginas do Airtable
     do {
       const url = `https://api.airtable.com/v0/${BASE_ID}/Players?pageSize=100${
         offset ? `&offset=${offset}` : ''
@@ -37,6 +40,12 @@ export async function GET() {
       const data = await res.json();
       allRecords = allRecords.concat(data.records || []);
       offset = data.offset;
+      
+      // SE ESTIVERMOS NO STACKBLITZ, PÁRA O LOOP NA PRIMEIRA PÁGINA (100 ATLETAS REAIS)
+      if (isDev) {
+        break; 
+      }
+
     } while (offset);
 
     const players = allRecords.map((r: any) => {
