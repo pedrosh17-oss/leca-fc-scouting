@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Users, Trophy, Shield, Search, Plus, ChevronDown, ChevronUp, Calendar, 
   UserCheck, X, Activity, FileText, BarChart3, Briefcase, Flag, Building2,
-  Zap, Crosshair, BrainCircuit, ExternalLink, Globe, Loader2, UserPlus, Trash2, Edit3, CheckCircle2,
+  Zap, Crosshair, BrainCircuit, ExternalLink, Globe, Loader2, UserPlus, LogOut, CheckCircle2,
   Menu, LayoutDashboard, ArrowRight, Star
 } from 'lucide-react';
 
@@ -20,6 +20,9 @@ const POSITIONS_OPTIONS = [
 ];
 
 const METRIC_LEVELS = ['Low', 'Medium', 'High'];
+
+// A PASSWORD GLOBAL DO DEPARTAMENTO (Podes alterar aqui)
+const DEPT_PASSWORD = 'LECA'; 
 
 function CustomSelect({
   options, value, onChange, placeholder = 'Selecionar...', searchable = false, className = '',
@@ -163,6 +166,11 @@ function CustomMultiSelect({
 }
 
 export default function Home() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authScoutId, setAuthScoutId] = useState<string | null>(null);
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'players' | 'teams' | 'matches' | 'scouts'>('dashboard');
   const [players, setPlayers] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
@@ -230,14 +238,47 @@ export default function Home() {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { 
+    const savedAuth = localStorage.getItem('leca_scout_auth');
+    if (savedAuth) {
+      setIsAuthenticated(true);
+      setAuthScoutId(savedAuth);
+    }
+    loadData(); 
+  }, []);
 
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (authPassword === DEPT_PASSWORD && authScoutId) {
+      setIsAuthenticated(true);
+      localStorage.setItem('leca_scout_auth', authScoutId);
+      setAuthError('');
+    } else {
+      setAuthError('Password incorreta ou Scout não selecionado.');
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setAuthScoutId(null);
+    setAuthPassword('');
+    localStorage.removeItem('leca_scout_auth');
+  };
+
+  // NAVEGAR PARA O MATCH CENTER COM SCROLL INTELIGENTE
   const navigateToMatch = (matchId: string) => {
     setSelectedTeam(null);
     setSelectedPlayer(null);
     setActiveTab('matches');
     setExpandedMatchId(matchId);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Aguarda o React renderizar a aba Matches e desliza a página até ao jogo exato
+    setTimeout(() => {
+      const element = document.getElementById(`match-${matchId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 150);
   };
 
   const toggleMatch = (id: string) => setExpandedMatchId(expandedMatchId === id ? null : id);
@@ -290,7 +331,7 @@ export default function Home() {
     e.preventDefault(); setSubmittingPre(true);
     try {
       const res = await fetch('/api/matches', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(preGameData), });
-      if (res.ok) { setIsRegisterOpen(false); setPreGameData({ homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutIds: [], type: '' }); await loadData(); showToast("Jogo agendado com sucesso!"); }
+      if (res.ok) { setIsRegisterOpen(false); setPreGameData({ homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutIds: authScoutId ? [authScoutId] : [], type: '' }); await loadData(); showToast("Jogo agendado com sucesso!"); }
     } catch (err) { console.error(err); } finally { setSubmittingPre(false); }
   };
 
@@ -361,6 +402,74 @@ export default function Home() {
     </button>
   );
 
+  // ECRÃ DE CARREGAMENTO INICIAL
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0d131f] flex flex-col items-center justify-center text-slate-400">
+        <Loader2 className="w-8 h-8 animate-spin mb-4 text-emerald-400" />
+        <p className="text-sm font-medium tracking-widest uppercase">A sincronizar Airtable...</p>
+      </div>
+    );
+  }
+
+  // ECRÃ DE LOGIN (BLOQUEIO DA APLICAÇÃO)
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#0d131f] flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
+        {/* Elemento de fundo para dar estilo */}
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none"></div>
+        
+        <div className="w-full max-w-md bg-[#151c2c]/80 backdrop-blur-md border border-slate-800 p-8 rounded-3xl shadow-2xl flex flex-col items-center animate-in fade-in zoom-in-95 duration-500 z-10">
+          <div className="w-24 h-24 bg-slate-900 rounded-2xl border border-slate-700/60 flex items-center justify-center p-2 mb-6 shadow-xl relative overflow-hidden">
+            <img 
+              src={lecaLogoUrl} 
+              alt="Leça FC" 
+              className="w-full h-full object-contain"
+              onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.classList.add('bg-blue-600/20'); }}
+            />
+            <Shield className="w-10 h-10 text-blue-400 absolute hidden group-has-[img[style*='display: none']]:block" />
+          </div>
+          
+          <h1 className="text-2xl md:text-3xl font-black text-white tracking-wide mb-1 text-center">INTRANET SAD</h1>
+          <p className="text-xs md:text-sm text-slate-400 mb-8 text-center font-medium">Departamento de Scouting e Prospeção</p>
+          
+          <form onSubmit={handleLogin} className="w-full space-y-5">
+             <div>
+                <label className="block text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Quem és tu?</label>
+                <CustomSelect 
+                  options={scouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
+                  value={authScoutId || ''} 
+                  onChange={val => setAuthScoutId(val)} 
+                  placeholder="Seleciona o teu perfil..." 
+                  searchable={true} 
+                />
+             </div>
+             <div>
+                <label className="block text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Password do Departamento</label>
+                <input 
+                  type="password" 
+                  value={authPassword} 
+                  onChange={e => setAuthPassword(e.target.value)} 
+                  className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-slate-200 focus:outline-none focus:border-blue-500 shadow-inner" 
+                  placeholder="••••••••" 
+                  required 
+                />
+             </div>
+             {authError && (
+               <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-lg text-center">
+                 <p className="text-xs text-red-400 font-medium">{authError}</p>
+               </div>
+             )}
+             <button type="submit" className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 transition mt-2 flex items-center justify-center gap-2">
+               Entrar no Sistema <ArrowRight className="w-4 h-4" />
+             </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // INTERFACE PRINCIPAL DA APP (APÓS LOGIN)
   return (
     <main className="min-h-screen bg-[#0d131f] text-slate-100 font-sans relative pb-10 md:pb-6">
       
@@ -374,7 +483,7 @@ export default function Home() {
       {/* HEADER WITH LEÇA FC LOGO */}
       <header className="sticky top-0 z-40 bg-[#151c2c]/95 backdrop-blur-md border-b border-slate-800 px-5 py-4 md:p-6 md:m-6 md:rounded-xl md:static flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 rounded-xl border border-slate-700/60 flex items-center justify-center p-1 shadow flex-shrink-0 group">
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 rounded-xl border border-slate-700/60 flex items-center justify-center p-1 shadow flex-shrink-0 group relative overflow-hidden">
             <img 
               src={lecaLogoUrl} 
               alt="Leça FC SAD" 
@@ -384,7 +493,7 @@ export default function Home() {
                 e.currentTarget.parentElement?.classList.add('bg-blue-600/20');
               }}
             />
-            <Shield className="w-6 h-6 text-blue-400 hidden group-has-[img[style*='display: none']]:block" />
+            <Shield className="w-6 h-6 text-blue-400 absolute hidden group-has-[img[style*='display: none']]:block" />
           </div>
           <div>
             <span className="hidden md:block text-[10px] md:text-xs font-semibold tracking-wider text-slate-400 uppercase mb-0.5">Departamento de Scouting</span>
@@ -392,24 +501,38 @@ export default function Home() {
           </div>
         </div>
         
-        <button className="md:hidden p-2 -mr-2 text-slate-300 hover:text-white" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
+        <div className="flex items-center gap-3">
+          <button className="md:hidden p-2 text-slate-300 hover:text-white" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
 
-        <div className="hidden md:flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-full text-xs font-medium">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          {players.length} Atletas na DB
+          <div className="hidden md:flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-full text-xs font-medium">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              {players.length} Atletas na DB
+            </div>
+            {/* BOTÃO DE LOGOUT */}
+            <button onClick={handleLogout} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-red-400 rounded-full transition border border-slate-700" title="Terminar Sessão">
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </header>
 
       {/* MOBILE MENU */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 top-[76px] z-30 bg-[#0d131f] animate-in slide-in-from-top-2 md:hidden overflow-y-auto">
+        <div className="fixed inset-0 top-[76px] z-30 bg-[#0d131f] animate-in slide-in-from-top-2 md:hidden overflow-y-auto pb-20">
           {renderMobileMenuButton('dashboard', <LayoutDashboard className="w-5 h-5"/>, 'Início / Painel')}
           {renderMobileMenuButton('players', <Users className="w-5 h-5"/>, 'Base de Jogadores', players.length)}
           {renderMobileMenuButton('teams', <Building2 className="w-5 h-5"/>, 'Equipas', teams.length)}
           {renderMobileMenuButton('matches', <Trophy className="w-5 h-5"/>, 'Match Center', matches.length)}
           {renderMobileMenuButton('scouts', <Shield className="w-5 h-5"/>, 'Equipa de Scouts', scouts.length)}
+          
+          <div className="p-5 border-t border-slate-800 mt-4">
+            <button onClick={handleLogout} className="w-full py-3 bg-slate-800 text-red-400 font-bold rounded-xl flex items-center justify-center gap-2">
+              <LogOut className="w-4 h-4" /> Terminar Sessão
+            </button>
+          </div>
         </div>
       )}
 
@@ -462,7 +585,7 @@ export default function Home() {
                 <p className="text-xs text-slate-400 mt-0.5">Ações rápidas para acompanhamento das partidas e prospeção</p>
               </div>
               <div className="flex w-full sm:w-auto gap-3">
-                <button onClick={() => setIsRegisterOpen(true)} className="flex-1 sm:flex-none px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white text-xs md:text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
+                <button onClick={() => { setPreGameData({ ...preGameData, scoutIds: authScoutId ? [authScoutId] : [] }); setIsRegisterOpen(true); }} className="flex-1 sm:flex-none px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white text-xs md:text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
                   <Plus className="w-4 h-4" /> Agendar Jogo
                 </button>
                 <button onClick={() => { setActiveTab('players'); }} className="flex-1 sm:flex-none px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs md:text-sm font-bold rounded-xl flex items-center justify-center gap-2 border border-slate-700">
@@ -634,7 +757,7 @@ export default function Home() {
           <div className="animate-in fade-in duration-300">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5 md:mb-6">
               <p className="text-xs md:text-sm text-slate-400 hidden sm:block">Motor de observação de equipas e atletas.</p>
-              <button onClick={() => setIsRegisterOpen(true)} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-4 md:py-3 rounded-xl text-sm md:text-base font-bold transition shadow-lg shadow-blue-900/20">
+              <button onClick={() => { setPreGameData({ ...preGameData, scoutIds: authScoutId ? [authScoutId] : [] }); setIsRegisterOpen(true); }} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-4 md:py-3 rounded-xl text-sm md:text-base font-bold transition shadow-lg shadow-blue-900/20">
                 <Plus className="w-5 h-5" /> Agendar Jogo
               </button>
             </div>
@@ -645,10 +768,10 @@ export default function Home() {
                 const isEditingContext = editingMatchId === match.id;
 
                 return (
-                  <div key={match.id} className="bg-[#151c2c] border border-slate-800 rounded-xl overflow-hidden transition shadow-sm">
+                  <div key={match.id} id={`match-${match.id}`} className={`bg-[#151c2c] border ${isExpanded ? 'border-blue-500/50' : 'border-slate-800'} rounded-xl overflow-hidden transition-all shadow-sm`}>
                     <div onClick={() => toggleMatch(match.id)} className="p-4 md:p-5 flex items-center justify-between cursor-pointer hover:bg-slate-800/40">
                       <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                        <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 flex-shrink-0"><Trophy className="w-5 h-5" /></div>
+                        <div className={`p-3 rounded-xl ${isExpanded ? 'bg-blue-500 text-white' : 'bg-blue-500/10 text-blue-400'} border border-blue-500/20 flex-shrink-0 transition-colors`}><Trophy className="w-5 h-5" /></div>
                         <div className="min-w-0">
                           <h3 className="font-bold text-white text-sm md:text-base truncate leading-tight mb-1 md:mb-0">{match.matchName}</h3>
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] md:text-xs text-slate-400 mt-1">
@@ -956,7 +1079,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL PRÉ-JOGO (COM MULTI-SELEÇÃO DE SCOUTS) */}
+      {/* MODAL PRÉ-JOGO */}
       {isRegisterOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-xl rounded-2xl shadow-2xl p-5 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
@@ -1174,7 +1297,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL PERFIL EQUIPA (PADRONIZADO E COM JOGOS OBSERVADOS) */}
+      {/* MODAL PERFIL EQUIPA */}
       {selectedTeam && (() => {
         const teamPlayers = players.filter(p => (p.club || '').toLowerCase() === (selectedTeam.name || '').toLowerCase());
         const teamMatches = matches.filter(m => (m.matchName || '').toLowerCase().includes((selectedTeam.name || '').toLowerCase()));
@@ -1183,7 +1306,6 @@ export default function Home() {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <div className="bg-[#151c2c] border border-slate-800 w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl shadow-2xl p-5 md:p-6 space-y-6">
               
-              {/* Header */}
               <div className="flex justify-between items-start border-b border-slate-800/80 pb-4">
                 <div className="flex items-center gap-4">
                   {selectedTeam.logo ? (
@@ -1207,7 +1329,6 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* KPIs */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
                   <span className="text-xs text-slate-500 block mb-1 font-semibold">Jogos Observados</span>
@@ -1219,7 +1340,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Atletas do Clube */}
               <div>
                 <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Atletas de Interesse na Base de Dados ({teamPlayers.length})</h3>
                 {teamPlayers.length > 0 ? (
@@ -1259,7 +1379,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Histórico de Jogos Observados */}
               <div>
                 <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Histórico de Jogos Observados ({teamMatches.length})</h3>
                 {teamMatches.length > 0 ? (
@@ -1282,7 +1401,7 @@ export default function Home() {
                           </div>
                           <button 
                             onClick={() => navigateToMatch(m.id)}
-                            className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-xs font-bold rounded-lg transition flex items-center gap-1.5"
+                            className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5"
                           >
                             Ir para Jogo <ExternalLink className="w-3 h-3" />
                           </button>
