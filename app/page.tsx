@@ -10,7 +10,10 @@ export default function Home() {
   const [scouts, setScouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  
+  // Controlos para expandir
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
+  const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -39,6 +42,10 @@ export default function Home() {
 
   const toggleMatch = (id: string) => {
     setExpandedMatchId(expandedMatchId === id ? null : id);
+  };
+
+  const togglePlayer = (id: string) => {
+    setExpandedPlayerId(expandedPlayerId === id ? null : id);
   };
 
   const filteredPlayers = players.filter(p => {
@@ -110,28 +117,70 @@ export default function Home() {
               {filteredPlayers.map((player) => {
                 const name = player.name || 'Sem Nome';
                 const pos = player.position || 'N/D';
-                const club = player.club || 'Sem Clube';
+                let club = player.club || 'Sem Clube';
+                
+                // Filtro blindado no frontend: Se for código do Airtable, esconde!
+                if (typeof club === 'string' && club.includes('rec') && club.length === 17) {
+                  club = 'Clube Associado';
+                }
+
+                const isExpanded = expandedPlayerId === player.id;
 
                 return (
-                  <div key={player.id} className="bg-[#151c2c] border border-slate-800/80 rounded-xl p-4 flex items-center justify-between hover:border-slate-700 transition">
-                    <div className="flex items-center gap-4">
-                      {player.photo ? (
-                         <img src={player.photo} alt={name} className="w-10 h-10 rounded-full object-cover border border-slate-700" />
-                      ) : (
-                         <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm">
-                           {name.charAt(0)}
-                         </div>
-                      )}
-                      <div>
-                        <h3 className="font-semibold text-white text-base">{name}</h3>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          <span className="text-blue-400 font-medium">{pos}</span> • {club}
-                        </p>
+                  <div key={player.id} className="bg-[#151c2c] border border-slate-800/80 rounded-xl overflow-hidden transition hover:border-slate-700">
+                    <div className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        {player.photo ? (
+                           <img src={player.photo} alt={name} className="w-10 h-10 rounded-full object-cover border border-slate-700" />
+                        ) : (
+                           <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm">
+                             {name.charAt(0)}
+                           </div>
+                        )}
+                        <div>
+                          <h3 className="font-semibold text-white text-base">{name}</h3>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            <span className="text-blue-400 font-medium">{pos}</span> • {club}
+                          </p>
+                        </div>
                       </div>
+                      <button 
+                        onClick={() => togglePlayer(player.id)}
+                        className={`px-4 py-2 text-xs font-medium rounded-lg transition border ${
+                          isExpanded 
+                            ? 'bg-blue-600 border-blue-500 text-white' 
+                            : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                        }`}
+                      >
+                        {isExpanded ? 'Fechar Perfil' : 'Ver Perfil'}
+                      </button>
                     </div>
-                    <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg transition border border-slate-700">
-                      Ver Perfil
-                    </button>
+
+                    {/* PERFIL EXPANDIDO DO JOGADOR */}
+                    {isExpanded && (
+                      <div className="p-5 border-t border-slate-800 bg-[#111723]">
+                        <div className="grid grid-cols-3 gap-4 mb-4 text-sm">
+                          <div>
+                            <span className="block text-slate-500 text-[10px] uppercase tracking-wider mb-1">Idade</span>
+                            <span className="text-slate-200 font-medium">{player.age !== 'N/D' ? player.age : '--'}</span>
+                          </div>
+                          <div>
+                            <span className="block text-slate-500 text-[10px] uppercase tracking-wider mb-1">Nacionalidade</span>
+                            <span className="text-slate-200 font-medium">{player.nationality !== 'N/A' ? player.nationality : '--'}</span>
+                          </div>
+                          <div>
+                            <span className="block text-slate-500 text-[10px] uppercase tracking-wider mb-1">Estatuto</span>
+                            <span className="text-slate-200 font-medium">{player.status}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <span className="block text-slate-500 text-[10px] uppercase tracking-wider mb-2">Relatório de Observação</span>
+                          <div className="text-sm text-slate-300 leading-relaxed whitespace-pre-line bg-[#0d131f] p-4 rounded-lg border border-slate-800">
+                            {player.report}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -180,7 +229,6 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* Conteúdo expandido */}
                     {isExpanded && (
                       <div className="p-5 border-t border-slate-800 bg-[#111723]">
                         <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Destaques / Relatório do Jogo</h4>
