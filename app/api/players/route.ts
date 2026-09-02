@@ -16,35 +16,17 @@ function safeText(val: any, fallback: string = 'N/D'): string {
   return str.startsWith('rec') ? fallback : str;
 }
 
-function formatFoot(val: any): string {
-  if (!val) return 'N/D';
-  const str = String(val).trim();
-  if (str === 'D') return 'Direito (D)';
-  if (str === 'E') return 'Esquerdo (E)';
-  if (str === 'A') return 'Ambidestro';
-  return str;
-}
-
 export async function GET() {
-  if (!BASE_ID || !TOKEN) {
-    return NextResponse.json({ error: 'Faltam credenciais' }, { status: 500 });
-  }
+  if (!BASE_ID || !TOKEN) return NextResponse.json({ error: 'Faltam credenciais' }, { status: 500 });
 
   try {
     let allRecords: any[] = [];
     let offset: string | undefined = undefined;
 
     do {
-      const url = `https://api.airtable.com/v0/${BASE_ID}/Players?pageSize=100${
-        offset ? `&offset=${offset}` : ''
-      }`;
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${TOKEN}` },
-        cache: 'no-store',
-      });
-
+      const url = `https://api.airtable.com/v0/${BASE_ID}/Players?pageSize=100${offset ? `&offset=${offset}` : ''}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${TOKEN}` }, cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
       const data = await res.json();
       allRecords = allRecords.concat(data.records || []);
       offset = data.offset;
@@ -53,22 +35,7 @@ export async function GET() {
     const players = allRecords.map((r: any) => {
       const f = r.fields || {};
       const photoUrl = Array.isArray(f['Photo']) && f['Photo'][0]?.url ? f['Photo'][0].url : null;
-      
-      const clubLogoUrl = Array.isArray(f['Club Logo']) && f['Club Logo'][0]?.url 
-        ? f['Club Logo'][0].url 
-        : Array.isArray(f['Team Logo']) && f['Team Logo'][0]?.url 
-        ? f['Team Logo'][0].url 
-        : null;
-
-      const rawClub = f['Team name'] || f['Current Team'];
-      let clubName = safeText(rawClub, 'Sem Clube');
-
-      const rawHeight = f[' Height'] || f['Height'] || f['Altura'];
-      const rawFoot = f['Foot'] || f['Preferred Foot'] || f['Pé'] || f['Pé Preferencial'];
-
-      const mentionsCount = Array.isArray(f['Matches']) 
-        ? f['Matches'].length 
-        : (Array.isArray(f['Highlights']) ? f['Highlights'].length : 0);
+      const clubLogoUrl = Array.isArray(f['Club Logo']) && f['Club Logo'][0]?.url ? f['Club Logo'][0].url : null;
 
       return {
         id: r.id,
@@ -77,17 +44,52 @@ export async function GET() {
         position: safeText(f['Position'], 'N/D'),
         nationality: safeText(f['Nationality'], 'N/A'),
         age: safeText(f['Age'], 'N/D'),
-        height: safeText(rawHeight, 'N/D'),
-        foot: formatFoot(rawFoot),
-        club: clubName,
+        height: safeText(f[' Height'] || f['Height'], 'N/D'),
+        foot: safeText(f['Foot'], 'N/D'),
+        club: safeText(f['Team name'] || f['Current Team'], 'Sem Clube'),
         clubLogo: clubLogoUrl,
         status: safeText(f['Status'], '⚪ No Activity'),
         report: safeText(f['Report '] || f['Final Report'], 'Sem observações registadas.'),
-        mentions: mentionsCount,
       };
     });
 
     return NextResponse.json({ total: players.length, players });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+// CRIAR NOVO JOGADOR NA TABELA PLAYERS
+export async function POST(req: Request) {
+  if (!BASE_ID || !TOKEN) return NextResponse.json({ error: 'Faltam credenciais' }, { status: 500 });
+
+  try {
+    const body = await req.json();
+
+    const fields: Record<string, any> = {
+      'Player Name': body.name,
+      'Position': body.position || 'N/D',
+      'Status': '🟡 Monitoring',
+    };
+
+    if (body.club) fields['Current Team'] = body.club;
+
+    const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}/Players`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ fields }),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(`Erro Airtable Players: ${JSON.stringify(errData)}`);
+    }
+
+    const createdRecord = await res.json();
+    return NextResponse.json({ success: true, player: { id: createdRecord.id, name: body.name } });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
