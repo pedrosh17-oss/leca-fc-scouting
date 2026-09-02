@@ -64,7 +64,7 @@ export async function GET() {
         position: safeText(f['Position'], 'N/D'),
         nationality: safeText(f['Nationality'], 'N/A'),
         age: safeText(f['Age'], 'N/D'),
-        club: safeText(f['Current Team'], 'Sem Clube'),
+        club: safeText(f['Team name'], 'Sem Clube'),
         status: safeText(f['Status'], '⚪ No Activity'),
         report: safeText(
           f['Report '] || f['Final Report'],
