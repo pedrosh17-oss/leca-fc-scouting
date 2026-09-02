@@ -1143,66 +1143,121 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL PERFIL EQUIPA */}
-      {selectedTeam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#151c2c] border border-slate-800 w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl shadow-2xl p-6">
-            <div className="flex justify-between items-start mb-6">
-              <div className="flex items-center gap-4">
-                {selectedTeam.logo ? (
-                  <img src={selectedTeam.logo} alt={selectedTeam.name} className="w-16 h-16 object-contain p-1.5 bg-slate-900 rounded-xl border border-slate-800" />
-                ) : (
-                  <div className="w-16 h-16 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold">
-                    <Building2 className="w-7 h-7" />
+      {/* MODAL PERFIL EQUIPA (PADRONIZADO E COM JOGOS OBSERVADOS) */}
+      {selectedTeam && (() => {
+        const teamPlayers = players.filter(p => (p.club || '').toLowerCase() === (selectedTeam.name || '').toLowerCase());
+        const teamMatches = matches.filter(m => (m.matchName || '').toLowerCase().includes((selectedTeam.name || '').toLowerCase()));
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="bg-[#151c2c] border border-slate-800 w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl shadow-2xl p-5 md:p-6 space-y-6">
+              
+              {/* Header */}
+              <div className="flex justify-between items-start border-b border-slate-800/80 pb-4">
+                <div className="flex items-center gap-4">
+                  {selectedTeam.logo ? (
+                    <img src={selectedTeam.logo} alt={selectedTeam.name} className="w-14 h-14 md:w-16 md:h-16 object-contain p-1.5 bg-slate-900 rounded-xl border border-slate-800 flex-shrink-0" />
+                  ) : (
+                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold flex-shrink-0">
+                      <Building2 className="w-7 h-7" />
+                    </div>
+                  )}
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-bold text-white">{selectedTeam.name}</h2>
+                    <p className="text-xs text-blue-400 font-medium mt-1">{selectedTeam.competition} • <span className="text-slate-400">{selectedTeam.country}</span></p>
                   </div>
-                )}
-                <div>
-                  <h2 className="text-2xl font-bold text-white">{selectedTeam.name}</h2>
-                  <p className="text-xs text-blue-400 font-medium mt-1">{selectedTeam.competition} • <span className="text-slate-400">{selectedTeam.country}</span></p>
+                </div>
+                <button onClick={() => setSelectedTeam(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* KPIs */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
+                  <span className="text-xs text-slate-500 block mb-1 font-semibold">Jogos Observados</span>
+                  <span className="text-xl font-bold text-emerald-400">{teamMatches.length} Partidas</span>
+                </div>
+                <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
+                  <span className="text-xs text-slate-500 block mb-1 font-semibold">Estatuto de Observação</span>
+                  <span className="text-xl font-bold text-blue-400">{selectedTeam.status || 'Monitored'}</span>
                 </div>
               </div>
-              <button onClick={() => setSelectedTeam(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
-                <span className="text-xs text-slate-500 block mb-1">Jogos Vistos do Clube</span>
-                <span className="text-xl font-bold text-emerald-400">{selectedTeam.totalWatchedMatches} Partidas</span>
-              </div>
-              <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
-                <span className="text-xs text-slate-500 block mb-1">Estatuto de Observação</span>
-                <span className="text-xl font-bold text-blue-400">{selectedTeam.status}</span>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-bold text-white mb-3">Atletas de Interesse Pertencentes ao Clube</h3>
-              <div className="space-y-2">
-                {players.filter(p => (p.club || '').toLowerCase() === (selectedTeam.name || '').toLowerCase()).map(p => (
-                  <div key={p.id} className="bg-[#0d131f] p-3 rounded-lg border border-slate-800 flex items-center justify-between">
-                    <div>
-                      <span className="text-white text-sm font-medium">{p.name}</span>
-                      <span className="text-xs text-slate-400 ml-2">({p.position})</span>
-                    </div>
-                    <button 
-                      onClick={() => {
-                        setSelectedTeam(null);
-                        setSelectedPlayer(p);
-                        setProfileTab('timeline');
-                      }}
-                      className="text-xs text-blue-400 hover:underline"
-                    >
-                      Ver Perfil
-                    </button>
+              {/* Atletas do Clube */}
+              <div>
+                <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Atletas de Interesse na Base de Dados ({teamPlayers.length})</h3>
+                {teamPlayers.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {teamPlayers.map(p => (
+                      <div key={p.id} className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800 flex items-center justify-between hover:border-slate-700 transition">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {p.photo ? (
+                            <img src={p.photo} alt={p.name} className="w-10 h-10 rounded-full object-cover border border-slate-700 bg-slate-800 flex-shrink-0" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-xs flex-shrink-0">
+                              {(p.name || 'J').charAt(0)}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <h4 className="font-bold text-white text-sm truncate">{p.name}</h4>
+                            <p className="text-xs text-blue-400 font-medium mt-0.5 truncate">{p.position}</p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            setSelectedTeam(null);
+                            setSelectedPlayer(p);
+                            setProfileTab('timeline');
+                          }}
+                          className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-xs font-bold rounded-lg transition flex-shrink-0 ml-2"
+                        >
+                          Ver Perfil
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  <div className="text-xs text-slate-500 bg-[#0d131f] p-4 rounded-xl border border-slate-800 text-center">
+                    Ainda não existem atletas desta equipa registados na base de dados.
+                  </div>
+                )}
               </div>
+
+              {/* Histórico de Jogos Observados */}
+              <div>
+                <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Histórico de Jogos Observados ({teamMatches.length})</h3>
+                {teamMatches.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {teamMatches.map(m => (
+                      <div key={m.id} className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <h4 className="font-bold text-white text-sm">{m.matchName}</h4>
+                          <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {m.gameDate}</span>
+                            <span>•</span>
+                            <span className="text-blue-400 font-medium">{m.competition}</span>
+                            <span>•</span>
+                            <span className="bg-slate-800 px-1.5 py-0.5 rounded text-[10px] text-slate-300">{m.type}</span>
+                          </div>
+                        </div>
+                        <div className="bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50 text-xs text-slate-300 font-medium flex items-center gap-1.5 self-start sm:self-auto">
+                          <UserCheck className="w-3.5 h-3.5 text-blue-400"/> Scout: {m.scout}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-500 bg-[#0d131f] p-4 rounded-xl border border-slate-800 text-center">
+                    Ainda não foram registados jogos observados desta equipa no Match Center.
+                  </div>
+                )}
+              </div>
+
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
     </main>
   );
