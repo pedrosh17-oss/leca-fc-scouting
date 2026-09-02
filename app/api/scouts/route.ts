@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server';
 
-const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'appxQowbIclSmyuol').trim();
-const TOKEN = (
-  process.env.AIRTABLE_PAT ||
-  'patqtC0tvfQAgwxNc.77aafcd9ed5ae095f13fa5eb4535fbc437792ed541079158a0b5b2afacd38dd'
-).trim();
+const BASE_ID = process.env.AIRTABLE_BASE_ID;
+const TOKEN = process.env.AIRTABLE_PAT;
 
 function safeNum(val: any): number {
   const p = parseInt(val, 10);
@@ -12,6 +9,10 @@ function safeNum(val: any): number {
 }
 
 export async function GET() {
+  if (!BASE_ID || !TOKEN) {
+    return NextResponse.json({ scouts: [] });
+  }
+
   try {
     const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}/Scouts`, {
       headers: { Authorization: `Bearer ${TOKEN}` },
