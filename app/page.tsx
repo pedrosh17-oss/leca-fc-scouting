@@ -23,6 +23,7 @@ export default function Home() {
   const [players, setPlayers] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [matches, setMatches] = useState<any[]>([]);
+  const [competitions, setCompetitions] = useState<any[]>([]);
   const [scouts, setScouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -42,11 +43,11 @@ export default function Home() {
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [submittingPre, setSubmittingPre] = useState(false);
   const [preGameData, setPreGameData] = useState({
-    homeTeam: '',
-    awayTeam: '',
+    homeTeamId: '',
+    awayTeamId: '',
     gameDate: new Date().toISOString().split('T')[0],
-    competition: '',
-    scout: '',
+    competitionId: '',
+    scoutId: '',
     type: '🏟️ Live',
   });
 
@@ -76,7 +77,7 @@ export default function Home() {
       const [resP, resT, resM, resS] = await Promise.all([
         fetch('/api/players').catch(() => ({ json: () => ({ players: [] }) })),
         fetch('/api/teams').catch(() => ({ json: () => ({ teams: [] }) })),
-        fetch('/api/matches').catch(() => ({ json: () => ({ matches: [] }) })),
+        fetch('/api/matches').catch(() => ({ json: () => ({ matches: [], competitions: [] }) })),
         fetch('/api/scouts').catch(() => ({ json: () => ({ scouts: [] }) }))
       ]);
       
@@ -88,6 +89,7 @@ export default function Home() {
       if (dataP.players) setPlayers(dataP.players);
       if (dataT.teams) setTeams(dataT.teams);
       if (dataM.matches) setMatches(dataM.matches);
+      if (dataM.competitions) setCompetitions(dataM.competitions);
       if (dataS.scouts) setScouts(dataS.scouts);
     } catch (err) {
       console.error("Erro ao carregar dados", err);
@@ -108,12 +110,16 @@ export default function Home() {
     setHighlights(updated);
   };
 
-  // SUBMETER PRÉ-JOGO (CRIAR PARTIDA)
+  // SUBMETER PRÉ-JOGO (CRIAR PARTIDA COM LINKED RECORDS)
   const handlePreGameSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittingPre(true);
 
-    const matchTitle = `${preGameData.homeTeam} vs ${preGameData.awayTeam} (${preGameData.gameDate.split('-').reverse().join('/')})`;
+    const homeObj = teams.find(t => t.id === preGameData.homeTeamId);
+    const awayObj = teams.find(t => t.id === preGameData.awayTeamId);
+    const homeName = homeObj ? homeObj.name : 'Equipa Casa';
+    const awayName = awayObj ? awayObj.name : 'Equipa Visitante';
+    const matchTitle = `${homeName} vs ${awayName} (${preGameData.gameDate.split('-').reverse().join('/')})`;
 
     try {
       const res = await fetch('/api/matches', {
@@ -122,18 +128,21 @@ export default function Home() {
         body: JSON.stringify({ ...preGameData, matchTitle }),
       });
 
+      const resData = await res.json();
+
       if (res.ok) {
         setIsRegisterOpen(false);
         setPreGameData({
-          homeTeam: '', awayTeam: '', gameDate: new Date().toISOString().split('T')[0],
-          competition: '', scout: '', type: '🏟️ Live',
+          homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0],
+          competitionId: '', scoutId: '', type: '🏟️ Live',
         });
         await loadData();
       } else {
-        alert("Erro ao agendar o jogo.");
+        alert(`Erro Airtable: ${resData.error || 'Falha ao agendar jogo.'}`);
       }
     } catch (err) {
       console.error("Erro ao agendar jogo", err);
+      alert("Erro na ligação ao servidor.");
     } finally {
       setSubmittingPre(false);
     }
@@ -150,12 +159,14 @@ export default function Home() {
         body: JSON.stringify({ matchId, ...reportData, highlights }),
       });
 
+      const resData = await res.json();
+
       if (res.ok) {
         setExpandedMatchEdit(null);
         setHighlights([{ playerId: '', notes: '' }]);
         await loadData();
       } else {
-        alert("Erro ao gravar relatório do jogo.");
+        alert(`Erro Airtable: ${resData.error || 'Falha ao submeter relatório.'}`);
       }
     } catch (err) {
       console.error("Erro ao submeter relatório", err);
@@ -164,7 +175,7 @@ export default function Home() {
     }
   };
 
-  // CRIAR NOVO JOGADOR RÁPIDO
+  // CRIAR NOVO JOGADOR RÁPIDO NA BD
   const handleCreateNewPlayer = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreatingPlayer(true);
@@ -641,7 +652,7 @@ export default function Home() {
 
       </div>
 
-      {/* MODAL PRÉ-JOGO: AGENDAR PARIDA */}
+      {/* MODAL PRÉ-JOGO: AGENDAR PARTIDA */}
       {isRegisterOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-xl rounded-2xl shadow-2xl p-6">
@@ -664,16 +675,16 @@ export default function Home() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-slate-400 font-semibold mb-1">Equipa da Casa</label>
-                  <select required value={preGameData.homeTeam} onChange={e => setPreGameData({ ...preGameData, homeTeam: e.target.value })} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-slate-200">
+                  <select required value={preGameData.homeTeamId} onChange={e => setPreGameData({ ...preGameData, homeTeamId: e.target.value })} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-slate-200">
                     <option value="">Selecionar Equipa...</option>
-                    {teams.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                    {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-slate-400 font-semibold mb-1">Equipa Visitante</label>
-                  <select required value={preGameData.awayTeam} onChange={e => setPreGameData({ ...preGameData, awayTeam: e.target.value })} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-slate-200">
+                  <select required value={preGameData.awayTeamId} onChange={e => setPreGameData({ ...preGameData, awayTeamId: e.target.value })} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-slate-200">
                     <option value="">Selecionar Equipa...</option>
-                    {teams.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                    {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
               </div>
@@ -692,7 +703,7 @@ export default function Home() {
                 </div>
                 <div>
                   <label className="block text-slate-400 font-semibold mb-1">Scout Responsável</label>
-                  <select value={preGameData.scout} onChange={e => setPreGameData({ ...preGameData, scout: e.target.value })} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-slate-200">
+                  <select value={preGameData.scoutId} onChange={e => setPreGameData({ ...preGameData, scoutId: e.target.value })} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-slate-200">
                     <option value="">Selecionar Scout...</option>
                     {scouts.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
@@ -701,9 +712,9 @@ export default function Home() {
 
               <div>
                 <label className="block text-slate-400 font-semibold mb-1">Competição / Liga</label>
-                <select value={preGameData.competition} onChange={e => setPreGameData({ ...preGameData, competition: e.target.value })} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-slate-200">
+                <select value={preGameData.competitionId} onChange={e => setPreGameData({ ...preGameData, competitionId: e.target.value })} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-slate-200">
                   <option value="">Selecionar Competição...</option>
-                  {uniqueTeamComps.map(c => <option key={c} value={c}>{c}</option>)}
+                  {competitions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
 

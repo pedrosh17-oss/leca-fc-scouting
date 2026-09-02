@@ -35,8 +35,12 @@ export async function GET() {
     const dataPlayers = await resPlayers.json();
 
     const compMap: Record<string, string> = {};
+    const competitionsList: Array<{ id: string; name: string }> = [];
     (dataComps.records || []).forEach((r: any) => {
-      if (r.id && r.fields['Competition Name']) compMap[r.id] = r.fields['Competition Name'];
+      if (r.id && r.fields['Competition Name']) {
+        compMap[r.id] = r.fields['Competition Name'];
+        competitionsList.push({ id: r.id, name: r.fields['Competition Name'] });
+      }
     });
 
     const scoutMap: Record<string, string> = {};
@@ -108,7 +112,7 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ total: matches.length, matches });
+    return NextResponse.json({ total: matches.length, matches, competitions: competitionsList });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -127,8 +131,10 @@ export async function POST(req: Request) {
       'Type': body.type || '🏟️ Live',
     };
 
-    if (body.competition) fields['Competition'] = [body.competition];
-    if (body.scout) fields['Scouts'] = [body.scout];
+    if (body.homeTeamId) fields['Home Team'] = [body.homeTeamId];
+    if (body.awayTeamId) fields['Away Team'] = [body.awayTeamId];
+    if (body.competitionId) fields['Competition'] = [body.competitionId];
+    if (body.scoutId) fields['Scouts'] = [body.scoutId];
 
     const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}/Matches`, {
       method: 'POST',
@@ -136,13 +142,14 @@ export async function POST(req: Request) {
       body: JSON.stringify({ fields }),
     });
 
+    const resData = await res.json();
+
     if (!res.ok) {
-      const errData = await res.json();
-      throw new Error(`Erro ao criar jogo: ${JSON.stringify(errData)}`);
+      console.error("Airtable POST Error:", resData);
+      return NextResponse.json({ error: resData.error?.message || 'Erro ao criar registo no Airtable' }, { status: 422 });
     }
 
-    const createdRecord = await res.json();
-    return NextResponse.json({ success: true, record: createdRecord });
+    return NextResponse.json({ success: true, record: resData });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -171,9 +178,10 @@ export async function PATCH(req: Request) {
       body: JSON.stringify({ fields: matchFields }),
     });
 
+    const resMatchData = await resMatch.json();
+
     if (!resMatch.ok) {
-      const errData = await resMatch.json();
-      throw new Error(`Erro ao atualizar jogo: ${JSON.stringify(errData)}`);
+      return NextResponse.json({ error: resMatchData.error?.message || 'Erro no Airtable' }, { status: 422 });
     }
 
     if (Array.isArray(body.highlights) && body.highlights.length > 0) {
