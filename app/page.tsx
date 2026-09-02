@@ -13,9 +13,9 @@ const TACTICS_OPTIONS = [
 ];
 
 const POSITIONS_OPTIONS = [
-  'Goalkeeper', 'Right Back', 'Left Back', 'Center Back', 
-  'Defensive Midfielder', 'Central Midfielder', 'Attacking Midfielder', 
-  'Right Winger', 'Left Winger', 'Striker'
+  'Center Back', 'Center Midfielder', 'Defensive Midfielder', 'Forward', 
+  'Goalkeeper', 'Left Back', 'Left Winger', 'Ofensive Midfielder', 
+  'Right Back', 'Right Winger', 'Striker'
 ];
 
 export default function Home() {
@@ -69,7 +69,7 @@ export default function Home() {
 
   // MINI-MODAL NOVO ATLETA
   const [isNewPlayerOpen, setIsNewPlayerOpen] = useState(false);
-  const [newPlayerData, setNewPlayerData] = useState({ name: '', club: '', position: 'Central Midfielder' });
+  const [newPlayerData, setNewPlayerData] = useState({ name: '', club: '', position: 'Center Midfielder' });
   const [creatingPlayer, setCreatingPlayer] = useState(false);
 
   const loadData = async () => {
@@ -115,17 +115,11 @@ export default function Home() {
     e.preventDefault();
     setSubmittingPre(true);
 
-    const homeObj = teams.find(t => t.id === preGameData.homeTeamId);
-    const awayObj = teams.find(t => t.id === preGameData.awayTeamId);
-    const homeName = homeObj ? homeObj.name : 'Equipa Casa';
-    const awayName = awayObj ? awayObj.name : 'Equipa Visitante';
-    const matchTitle = `${homeName} vs ${awayName} (${preGameData.gameDate.split('-').reverse().join('/')})`;
-
     try {
       const res = await fetch('/api/matches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...preGameData, matchTitle }),
+        body: JSON.stringify(preGameData),
       });
 
       const resData = await res.json();
@@ -187,8 +181,9 @@ export default function Home() {
         body: JSON.stringify(newPlayerData),
       });
 
+      const data = await res.json();
+
       if (res.ok) {
-        const data = await res.json();
         await loadData();
 
         const updated = [...highlights];
@@ -198,10 +193,14 @@ export default function Home() {
         
         setHighlights(updated);
         setIsNewPlayerOpen(false);
-        setNewPlayerData({ name: '', club: '', position: 'Central Midfielder' });
+        setNewPlayerData({ name: '', club: '', position: 'Center Midfielder' });
+        alert("Atleta criado com sucesso na BD!");
+      } else {
+        alert(`Erro Airtable: ${data.error || 'Falha ao criar atleta.'}`);
       }
     } catch (err) {
       console.error("Erro ao criar jogador", err);
+      alert("Erro de ligação ao criar jogador.");
     } finally {
       setCreatingPlayer(false);
     }

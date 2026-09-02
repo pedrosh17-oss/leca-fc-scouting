@@ -16,6 +16,19 @@ function safeText(val: any, fallback: string = 'N/D'): string {
   return str.startsWith('rec') ? fallback : str;
 }
 
+function parseHighlightsReport(reportText: string) {
+  if (!reportText) return [];
+  const regex = /👤\s*([^➔\n]+)\s*➔\s*([\s\S]*?)(?=(?:👤|$))/g;
+  const results: { name: string; text: string }[] = [];
+  let match;
+  while ((match = regex.exec(reportText)) !== null) {
+    const name = match[1].trim();
+    const text = match[2].trim();
+    if (name) results.push({ name, text });
+  }
+  return results;
+}
+
 export async function GET() {
   if (!BASE_ID || !TOKEN) return NextResponse.json({ error: 'Faltam credenciais' }, { status: 500 });
 
@@ -52,13 +65,22 @@ export async function GET() {
     const playerByIdMap: Record<string, any> = {};
     (dataPlayers.records || []).forEach((r: any) => {
       const f = r.fields || {};
+      const photoUrl = Array.isArray(f['Photo']) && f['Photo'][0]?.url ? f['Photo'][0].url : null;
+      const clubLogoUrl = Array.isArray(f['Club Logo']) && f['Club Logo'][0]?.url ? f['Club Logo'][0].url : null;
+
       const pObj = {
         id: r.id,
         name: f['Player Name'] || 'Sem Nome',
-        photo: Array.isArray(f['Photo']) && f['Photo'][0]?.url ? f['Photo'][0].url : null,
+        photo: photoUrl,
         position: f['Position'] || 'N/D',
         club: f['Team name'] || f['Current Team'] || 'Sem Clube',
+        clubLogo: clubLogoUrl,
+        age: f['Age'] || 'N/D',
+        nationality: f['Nationality'] || 'N/A',
+        status: f['Status'] || '⚪ No Activity',
+        report: f['Report '] || f['Final Report'] || 'Sem observações registadas.',
       };
+
       if (f['Player Name']) playerByNameMap[f['Player Name'].trim().toLowerCase()] = pObj;
       playerByIdMap[r.id] = pObj;
     });
@@ -82,6 +104,9 @@ export async function GET() {
         scoutNames = scoutMap[f['Scouts']] || safeText(f['Scouts'], 'Scout Não Atribuído');
       }
 
+      const highlightsText = f['Highlights Report'] || f['Notes'] || '';
+      const parsedHighlights = parseHighlightsReport(highlightsText);
+
       const playerList: any[] = [];
       const rawPlayers = f['Players from Highlights'];
 
@@ -89,6 +114,21 @@ export async function GET() {
         rawPlayers.forEach((item: string) => {
           if (playerByIdMap[item]) playerList.push(playerByIdMap[item]);
           else if (typeof item === 'string' && playerByNameMap[item.trim().toLowerCase()]) playerList.push(playerByNameMap[item.trim().toLowerCase()]);
+          else if (typeof item === 'string' && !item.startsWith('rec')) playerList.push({ id: item, name: item, position: 'N/D', club: 'N/D' });
+        });
+      } else if (typeof rawPlayers === 'string') {
+        rawPlayers.split(',').forEach((nameStr) => {
+          const cleanName = nameStr.trim();
+          if (playerByNameMap[cleanName.toLowerCase()]) playerList.push(playerByNameMap[cleanName.toLowerCase()]);
+          else if (cleanName) playerList.push({ id: cleanName, name: cleanName, position: 'N/D', club: 'N/D' });
+        });
+      }
+
+      if (playerList.length === 0 && parsedHighlights.length > 0) {
+        parsedHighlights.forEach((ph) => {
+          const matchP = playerByNameMap[ph.name.toLowerCase()];
+          if (matchP) playerList.push(matchP);
+          else playerList.push({ id: ph.name, name: ph.name, position: 'N/D', club: 'N/D' });
         });
       }
 
@@ -106,7 +146,8 @@ export async function GET() {
         technical: safeText(f['Overall Technical Quality'], '-'),
         pressure: safeText(f['Mental/Fans/Importance Pressure'], '-'),
         notes: safeText(f['Notes'], ''),
-        highlightsReport: safeText(f['Highlights Report'] || f['Notes'], 'Sem destaques registados.'),
+        highlightsReport: highlightsText,
+        parsedHighlights: parsedHighlights,
         highlightedPlayers: playerList,
         playersCount: playerList.length,
       };
@@ -118,7 +159,7 @@ export async function GET() {
   }
 }
 
-// 1. CRIAR JOGO (PRÉ-JOGO)
+// 1. CRIAR JOGO (PRÉ-JOGO) - OMITE O CAMPO FORMULA "Match"
 export async function POST(req: Request) {
   if (!BASE_ID || !TOKEN) return NextResponse.json({ error: 'Faltam credenciais' }, { status: 500 });
 
@@ -126,7 +167,6 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     const fields: Record<string, any> = {
-      'Match': body.matchTitle,
       'Game Date': body.gameDate,
       'Type': body.type || '🏟️ Live',
     };
