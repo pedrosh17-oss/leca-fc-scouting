@@ -21,7 +21,6 @@ export default function Home() {
   const [teamFilterStatus, setTeamFilterStatus] = useState('All');
   const [teamFilterComp, setTeamFilterComp] = useState('All');
   
-  const [expandedPlayerInline, setExpandedPlayerInline] = useState<string | null>(null);
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<any | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<any | null>(null);
@@ -56,7 +55,6 @@ export default function Home() {
   }, []);
 
   const toggleMatch = (id: string) => setExpandedMatchId(expandedMatchId === id ? null : id);
-  const togglePlayerInline = (id: string) => setExpandedPlayerInline(expandedPlayerInline === id ? null : id);
 
   const filteredPlayers = players.filter(p => {
     const query = search.toLowerCase();
@@ -92,17 +90,25 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Tabs */}
+      {/* Tabs Principais */}
       <div className="max-w-6xl mx-auto mb-6 flex flex-wrap gap-3">
-        <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Users size={16} /> Base de Jogadores ({players.length})</button>
-        <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Building2 size={16} /> Equipas ({teams.length})</button>
-        <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Trophy size={16} /> Matches ({matches.length})</button>
-        <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Shield size={16} /> Equipa de Scouts ({scouts.length})</button>
+        <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}>
+          <Users size={16} /> Base de Jogadores ({players.length})
+        </button>
+        <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}>
+          <Building2 size={16} /> Equipas ({teams.length})
+        </button>
+        <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}>
+          <Trophy size={16} /> Matches ({matches.length})
+        </button>
+        <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}>
+          <Shield size={16} /> Equipa de Scouts ({scouts.length})
+        </button>
       </div>
 
       <div className="max-w-6xl mx-auto">
         
-        {/* TAB 1: PLAYERS */}
+        {/* TAB 1: PLAYERS (LISTA DIRETA SEM SETINHA/GAVETA) */}
         {activeTab === 'players' && (
           <div>
             <div className="relative mb-6">
@@ -115,79 +121,52 @@ export default function Home() {
             </div>
 
             <div className="grid gap-3">
-              {displayedPlayers.map((player) => {
-                const isInlineExpanded = expandedPlayerInline === player.id;
-
-                return (
-                  <div key={player.id} className="bg-[#151c2c] border border-slate-800/80 rounded-xl overflow-hidden transition hover:border-slate-700">
-                    <div className="p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-4 cursor-pointer flex-1" onClick={() => togglePlayerInline(player.id)}>
-                        {player.photo ? (
-                          <img src={player.photo} alt={player.name} className="w-10 h-10 rounded-full object-cover border border-slate-700" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm">
-                            {player.name.charAt(0)}
-                          </div>
-                        )}
-                        <div>
-                          <h3 className="font-semibold text-white text-base flex items-center gap-2">
-                            {player.name}
-                            <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-normal">{player.status}</span>
-                          </h3>
-                          <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-                            <span className="text-blue-400 font-medium">{player.position}</span>
-                            <span>•</span>
-                            <div className="flex items-center gap-1.5">
-                              {player.clubLogo ? (
-                                <img src={player.clubLogo} alt={player.club} className="w-3.5 h-3.5 object-contain" />
-                              ) : (
-                                <Shield className="w-3 h-3 text-slate-500" />
-                              )}
-                              <span>{player.club}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => togglePlayerInline(player.id)}
-                          className="px-3 py-1.5 bg-slate-800/60 hover:bg-slate-800 text-slate-400 text-xs rounded-lg transition"
-                        >
-                          {isInlineExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </button>
-                        
-                        {/* AQUI ESTÁ A CORREÇÃO: e.stopPropagation() evita que o clique feche a aba */}
-                        <button 
-                          onClick={(e) => { 
-                            e.stopPropagation();
-                            setSelectedPlayer(player); 
-                            setProfileTab('timeline'); 
-                          }} 
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition shadow-md"
-                        >
-                          Ver Perfil Completo
-                        </button>
-                      </div>
-                    </div>
-
-                    {isInlineExpanded && (
-                      <div className="p-4 bg-[#111723] border-t border-slate-800/80 text-xs space-y-3">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-[#0d131f] p-3 rounded-lg border border-slate-800">
-                          <div><span className="text-slate-500 block">Idade</span><span className="text-slate-200 font-semibold">{player.age !== 'N/D' ? `${player.age} anos` : '--'}</span></div>
-                          <div><span className="text-slate-500 block">Nacionalidade</span><span className="text-slate-200 font-semibold">{player.nationality}</span></div>
-                          <div><span className="text-slate-500 block">Pé Preferencial</span><span className="text-slate-200 font-semibold">{player.foot}</span></div>
-                          <div><span className="text-slate-500 block">Altura</span><span className="text-slate-200 font-semibold">{player.height}</span></div>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 font-semibold block mb-1">Resumo de Observação:</span>
-                          <p className="text-slate-300 leading-relaxed bg-[#0d131f] p-3 rounded-lg border border-slate-800 whitespace-pre-line">{player.report}</p>
-                        </div>
+              {displayedPlayers.map((player) => (
+                <div 
+                  key={player.id} 
+                  onClick={() => { setSelectedPlayer(player); setProfileTab('timeline'); }}
+                  className="bg-[#151c2c] border border-slate-800/80 rounded-xl p-4 flex items-center justify-between hover:border-slate-700 transition cursor-pointer"
+                >
+                  <div className="flex items-center gap-4">
+                    {player.photo ? (
+                      <img src={player.photo} alt={player.name} className="w-10 h-10 rounded-full object-cover border border-slate-700" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm">
+                        {player.name.charAt(0)}
                       </div>
                     )}
+                    <div>
+                      <h3 className="font-semibold text-white text-base flex items-center gap-2">
+                        {player.name}
+                        <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-normal">{player.status}</span>
+                      </h3>
+                      <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                        <span className="text-blue-400 font-medium">{player.position}</span>
+                        <span>•</span>
+                        <div className="flex items-center gap-1.5">
+                          {player.clubLogo ? (
+                            <img src={player.clubLogo} alt={player.club} className="w-3.5 h-3.5 object-contain" />
+                          ) : (
+                            <Shield className="w-3 h-3 text-slate-500" />
+                          )}
+                          <span>{player.club}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                );
-              })}
+
+                  <button 
+                    onClick={(e) => { 
+                      e.stopPropagation();
+                      setSelectedPlayer(player); 
+                      setProfileTab('timeline'); 
+                    }} 
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition shadow-md"
+                  >
+                    Ver Perfil Completo
+                  </button>
+                </div>
+              ))}
             </div>
 
             {!search && displayedPlayers.length < filteredPlayers.length && (
@@ -254,7 +233,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 3: MATCHES */}
+        {/* TAB 3: MATCHES (CRUZAMENTO AUTOMÁTICO DE FOTOS/DADOS NOS MINI-CARTÕES) */}
         {activeTab === 'matches' && (
           <div className="grid gap-4">
             <div className="flex justify-between items-center mb-4">
@@ -303,35 +282,39 @@ export default function Home() {
                           <div>
                             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Atletas Referenciados Neste Jogo</h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                              {match.highlightedPlayers.map((p: any, idx: number) => (
-                                <div 
-                                  key={p.id || idx}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const fullP = players.find(player => player.name.toLowerCase() === p.name.toLowerCase()) || p;
-                                    setSelectedPlayer(fullP);
-                                    setProfileTab('timeline');
-                                  }}
-                                  className="bg-[#151c2c] border border-slate-800/80 p-3 rounded-xl flex items-center justify-between cursor-pointer hover:border-blue-500/50 hover:bg-slate-800/60 transition group"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    {p.photo ? (
-                                      <img src={p.photo} alt={p.name} className="w-9 h-9 rounded-full object-cover border border-slate-700" />
-                                    ) : (
-                                      <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-xs">
-                                        {p.name.charAt(0)}
+                              {match.highlightedPlayers.map((p: any, idx: number) => {
+                                // Cruza em tempo real o jogador com a base de dados global
+                                const fullP = players.find(player => (player.name || '').trim().toLowerCase() === (p.name || '').trim().toLowerCase()) || p;
+
+                                return (
+                                  <div 
+                                    key={p.id || idx}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedPlayer(fullP);
+                                      setProfileTab('timeline');
+                                    }}
+                                    className="bg-[#151c2c] border border-slate-800/80 p-3 rounded-xl flex items-center justify-between cursor-pointer hover:border-blue-500/50 hover:bg-slate-800/60 transition group"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      {fullP.photo ? (
+                                        <img src={fullP.photo} alt={fullP.name} className="w-9 h-9 rounded-full object-cover border border-slate-700" />
+                                      ) : (
+                                        <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-xs">
+                                          {(fullP.name || 'J').charAt(0)}
+                                        </div>
+                                      )}
+                                      <div>
+                                        <h5 className="font-semibold text-white text-xs group-hover:text-blue-400 transition">{fullP.name}</h5>
+                                        <p className="text-[11px] text-slate-400 mt-0.5">
+                                          <span className="text-blue-400 font-medium">{fullP.position && fullP.position !== 'N/D' ? fullP.position : 'Atleta'}</span> • {fullP.club && fullP.club !== 'N/D' ? fullP.club : 'Clube N/D'}
+                                        </p>
                                       </div>
-                                    )}
-                                    <div>
-                                      <h5 className="font-semibold text-white text-xs group-hover:text-blue-400 transition">{p.name}</h5>
-                                      <p className="text-[11px] text-slate-400 mt-0.5">
-                                        <span className="text-blue-400 font-medium">{p.position}</span> • {p.club}
-                                      </p>
                                     </div>
+                                    <ExternalLink size={14} className="text-slate-500 group-hover:text-blue-400 transition" />
                                   </div>
-                                  <ExternalLink size={14} className="text-slate-500 group-hover:text-blue-400 transition" />
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -511,7 +494,7 @@ export default function Home() {
                 </div>
               )}
               {profileTab === 'market' && (
-   <div className="bg-[#0d131f] p-5 rounded-xl border border-slate-800 text-sm text-slate-300">
+                <div className="bg-[#0d131f] p-5 rounded-xl border border-slate-800 text-sm text-slate-300">
                   Notas de Mercado & Direção Desportiva.
                 </div>
               )}
