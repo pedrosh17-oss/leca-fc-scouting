@@ -5,7 +5,7 @@ import {
   Users, Trophy, Shield, Search, Plus, ChevronDown, ChevronUp, Calendar, 
   UserCheck, X, Activity, FileText, BarChart3, Briefcase, Flag, Building2,
   Zap, Crosshair, BrainCircuit, ExternalLink, Globe, Loader2, UserPlus, LogOut, CheckCircle2,
-  Menu, LayoutDashboard, ArrowRight, Star
+  Menu, LayoutDashboard, ArrowRight, Star, Edit3
 } from 'lucide-react';
 
 const TACTICS_OPTIONS = [
