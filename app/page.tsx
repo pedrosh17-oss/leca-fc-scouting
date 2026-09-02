@@ -128,33 +128,72 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB MATCHES */}
+        {/* TAB MATCHES EXPANDIDA */}
         {activeTab === 'matches' && (
           <div className="grid gap-4">
-             <div className="flex justify-between items-center mb-6">
-              <p className="text-sm text-slate-400">Histórico e relatórios de partidas.</p>
-              <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition"><Plus size={16} /> Novo Jogo</button>
+            <div className="flex justify-between items-center mb-4">
+              <p className="text-sm text-slate-400">Jogos observados e volume de atletas identificados.</p>
+              <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+                <Plus size={16} /> Registar Jogo
+              </button>
             </div>
-             {matches.map((match) => (
-               <div key={match.id} className="bg-[#151c2c] border border-slate-800 rounded-xl overflow-hidden">
-                 <div onClick={() => toggleMatch(match.id)} className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-800/40">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2.5 rounded-lg bg-blue-500/10 text-blue-400"><Trophy size={20} /></div>
-                      <div>
-                        <h3 className="font-semibold text-white text-lg">{match.matchName || 'Jogo sem Título'}</h3>
-                        <p className="text-xs text-slate-400 mt-1">{match.gameDate} • {match.competition}</p>
+
+            <div className="grid gap-3">
+              {matches.map((match) => {
+                const isExpanded = expandedMatchId === match.id;
+
+                return (
+                  <div key={match.id} className="bg-[#151c2c] border border-slate-800 rounded-xl overflow-hidden transition hover:border-slate-700">
+                    <div 
+                      onClick={() => toggleMatch(match.id)}
+                      className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-800/40"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                          <Trophy size={22} />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-white text-base">{match.matchName}</h3>
+                          <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
+                            <span className="flex items-center gap-1 text-slate-300"><Calendar size={12} /> {match.gameDate}</span>
+                            <span>•</span>
+                            <span className="text-blue-400 font-medium">{match.competition}</span>
+                            <span>•</span>
+                            <span className="bg-slate-800 px-2 py-0.5 rounded text-slate-300">{match.type}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-6">
+                        <div className="text-right hidden sm:block">
+                          <span className="block text-xs font-semibold text-emerald-400">{match.playersCount} Jogadores</span>
+                          <span className="text-[10px] text-slate-500 uppercase">Destacados</span>
+                        </div>
+                        <div className="text-slate-400">
+                          {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        </div>
                       </div>
                     </div>
-                    <div className="text-slate-400">{expandedMatchId === match.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}</div>
-                 </div>
-                 {expandedMatchId === match.id && (
-                   <div className="p-5 border-t border-slate-800 bg-[#111723]">
-                      <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Relatório do Jogo</h4>
-                      <div className="text-sm text-slate-300 leading-relaxed whitespace-pre-line bg-[#0d131f] p-4 rounded-lg border border-slate-800">{match.highlightsReport}</div>
-                   </div>
-                 )}
-               </div>
-             ))}
+
+                    {isExpanded && (
+                      <div className="p-5 border-t border-slate-800 bg-[#111723] space-y-4">
+                        <div className="flex items-center justify-between text-xs text-slate-400 bg-[#0d131f] p-3 rounded-lg border border-slate-800">
+                          <span><strong>Scout Observador:</strong> {match.scout}</span>
+                          <span><strong>Atletas Referenciados:</strong> {match.playersCount}</span>
+                        </div>
+
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Relatório & Destaques da Partida</h4>
+                          <div className="text-sm text-slate-300 leading-relaxed whitespace-pre-line bg-[#0d131f] p-4 rounded-lg border border-slate-800">
+                            {match.highlightsReport}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
