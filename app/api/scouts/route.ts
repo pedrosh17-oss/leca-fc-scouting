@@ -24,8 +24,14 @@ export async function GET() {
     const scouts = (data.records || []).map((r: any) => {
       const f = r.fields || {};
       const photoUrl = Array.isArray(f['Profile Photo']) && f['Profile Photo'][0]?.url ? f['Profile Photo'][0].url : null;
-      
       const playersHighlighted = Array.isArray(f['Players (Highlights)']) ? f['Players (Highlights)'].length : 0;
+
+      const rawComps = f['Competition Rollup (from Matches)'] || f['Competições'] || '';
+      const compsArray = Array.isArray(rawComps) 
+        ? rawComps.map(c => String(c))
+        : typeof rawComps === 'string' && rawComps 
+        ? rawComps.split(',').map(s => s.trim()) 
+        : [];
 
       return {
         id: r.id,
@@ -35,7 +41,7 @@ export async function GET() {
         streamMatches: f['Stream Matches'] || 0,
         totalMatches: f['Total Matches'] || 0,
         playersCount: playersHighlighted,
-        competitions: f['Competition Rollup (from Matches)'] ? String(f['Competition Rollup (from Matches)']) : 'Sem competições registadas',
+        competitions: compsArray.length > 0 ? compsArray : ['Sem mercado atribuído'],
       };
     });
 

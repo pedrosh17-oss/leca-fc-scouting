@@ -7,9 +7,12 @@ const TOKEN = process.env.AIRTABLE_PAT;
 
 function safeText(val: any, fallback: string = 'N/D'): string {
   if (!val) return fallback;
-  if (Array.isArray(val)) return val.join(', ');
-  if (typeof val === 'object' && val.name) return val.name;
-  return String(val);
+  if (Array.isArray(val)) {
+    const clean = val.filter((item) => typeof item === 'string' && !item.startsWith('rec'));
+    return clean.length > 0 ? clean.join(', ') : fallback;
+  }
+  const str = String(val);
+  return str.startsWith('rec') ? fallback : str;
 }
 
 export async function GET() {
@@ -18,64 +21,46 @@ export async function GET() {
   }
 
   try {
-    let allRecords: any[] = [];
-    let offset: string | undefined = undefined;
-    const isDev = process.env.NODE_ENV === 'development';
+    const headers = { Authorization: `Bearer ${TOKEN}` };
 
-    do {
-      const url = `https://api.airtable.com/v0/${BASE_ID}/Players?pageSize=100${
-        offset ? `&offset=${offset}` : ''
-      }`;
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${TOKEN}` },
-        cache: 'no-store',
-      });
+    // Tradução paralela das chaves de competição
+    const [resTeams, resComps] = await Promise.all([
+      fetch(`https://api.airtable.com/v0/${BASE_ID}/Teams?pageSize=100`, { headers, cache: 'no-store' }),
+      fetch(`https://api.airtable.com/v0/${BASE_ID}/Competition?pageSize=100`, { headers, cache: 'no-store' })
+    ]);
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const dataTeams = await resTeams.json();
+    const dataComps = await resComps.json();
 
-      const data = await res.json();
-      allRecords = allRecords.concat(data.records || []);
-      offset = data.offset;
-      if (isDev) break;
-    } while (offset);
+    const compMap: Record<string, string> = {};
+    (dataComps.records || []).forEach((r: any) => {
+      if (r.id && r.fields['Competition Name']) compMap[r.id] = r.fields['Competition Name'];
+    });
 
-    const players = allRecords.map((r: any) => {
+    const teams = (dataTeams.records || []).map((r: any) => {
       const f = r.fields || {};
-      const photoUrl = Array.isArray(f['Photo']) && f['Photo'][0]?.url ? f['Photo'][0].url : null;
-      
-      // Suporte para Logo do Clube do Airtable (seja campo de anexo ou lookup)
-      const clubLogoUrl = Array.isArray(f['Club Logo']) && f['Club Logo'][0]?.url 
-        ? f['Club Logo'][0].url 
-        : Array.isArray(f['Team Logo']) && f['Team Logo'][0]?.url 
-        ? f['Team Logo'][0].url 
-        : null;
+      const logoUrl = Array.isArray(f['Logo']) && f['Logo'][0]?.url ? f['Logo'][0].url : null;
 
-      const rawClub = f['Team name'] || f['Current Team'];
-      let clubName = safeText(rawClub, 'Sem Clube');
-      if (typeof clubName === 'string' && clubName.includes('rec') && clubName.length === 17) {
-        clubName = 'Clube Associado';
+      let compName = 'Competição N/D';
+      if (Array.isArray(f['Competition'])) {
+        const resolved = f['Competition'].map((id: string) => compMap[id] || id).filter((val: string) => !val.startsWith('rec'));
+        if (resolved.length > 0) compName = resolved.join(', ');
+      } else if (f['Competition']) {
+        compName = compMap[f['Competition']] || safeText(f['Competition'], 'Competição N/D');
       }
-
-      const mentionsCount = Array.isArray(f['Matches']) ? f['Matches'].length : (Array.isArray(f['Highlights']) ? f['Highlights'].length : 0);
 
       return {
         id: r.id,
-        name: safeText(f['Player Name'], 'Sem Nome'),
-        photo: photoUrl,
-        position: safeText(f['Position'], 'N/D'),
-        nationality: safeText(f['Nationality'], 'N/A'),
-        age: safeText(f['Age'], 'N/D'),
-        height: safeText(f['Height'] || f['Altura'], 'N/D'),
-        foot: safeText(f['Preferred Foot'] || f['Pé'] || f['Pé Preferencial'], 'N/D'),
-        club: clubName,
-        clubLogo: clubLogoUrl,
-        status: safeText(f['Status'], '⚪ No Activity'),
-        report: safeText(f['Report '] || f['Final Report'], 'Sem observações registadas.'),
-        mentions: mentionsCount,
+        name: safeText(f['Team Name'], 'Equipa Sem Nome'),
+        logo: logoUrl,
+        country: safeText(f['Country'], 'Portugal'),
+        competition: compName,
+        totalWatchedMatches: f['Total watched matches'] ?? 0,
+        status: safeText(f['Status'], '⚪ Unobserved'),
       };
     });
 
-    return NextResponse.json({ total: players.length, players });
+    return NextResponse.json({ total: teams.length, teams });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
