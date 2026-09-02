@@ -53,7 +53,7 @@ export default function Home() {
     type: '🏟️ Live',
   });
 
-  // WORKSPACE PÓS-JOGO
+  // WORKSPACE CONTEXTO DO JOGO
   const [submittingReport, setSubmittingReport] = useState(false);
   const [reportData, setReportData] = useState({
     homeTactic: '1-4-3-3',
@@ -65,9 +65,19 @@ export default function Home() {
     notes: '',
   });
 
-  const [highlights, setHighlights] = useState<Array<{ playerId: string; notes: string }>>([
-    { playerId: '', notes: '' }
-  ]);
+  // MODAL DE EDIÇÃO INDIVIDUAL DE HIGHLIGHT DE UM JOGADOR
+  const [editingHighlight, setEditingHighlight] = useState<{
+    matchId: string;
+    matchName: string;
+    player: any;
+    highlightId: string | null;
+    notes: string;
+  } | null>(null);
+  const [savingHighlight, setSavingHighlight] = useState(false);
+
+  // MODAL ADICIONAR NOVO HIGHLIGHT A UM JOGO
+  const [isAddHighlightOpen, setIsAddHighlightOpen] = useState<{ matchId: string; matchName: string } | null>(null);
+  const [newHighlightData, setNewHighlightData] = useState({ playerId: '', notes: '' });
 
   // MINI-MODAL NOVO ATLETA
   const [isNewPlayerOpen, setIsNewPlayerOpen] = useState(false);
@@ -109,7 +119,7 @@ export default function Home() {
 
   const toggleMatch = (id: string) => setExpandedMatchId(expandedMatchId === id ? null : id);
 
-  const startEditMatch = (match: any) => {
+  const startEditMatchContext = (match: any) => {
     setReportData({
       homeTactic: match.homeTactic && match.homeTactic !== '-' ? match.homeTactic : '1-4-3-3',
       awayTactic: match.awayTactic && match.awayTactic !== '-' ? match.awayTactic : '1-4-3-3',
@@ -119,25 +129,95 @@ export default function Home() {
       pressure: match.pressure && match.pressure !== '-' ? match.pressure : 'Medium',
       notes: match.notes || '',
     });
-
-    if (match.highlightedPlayers && match.highlightedPlayers.length > 0) {
-      setHighlights(match.highlightedPlayers.map((p: any) => ({
-        playerId: p.id,
-        notes: p.note && p.note !== 'Sem notas registadas.' ? p.note : ''
-      })));
-    } else {
-      setHighlights([{ playerId: '', notes: '' }]);
-    }
-
     setExpandedMatchEdit(editingMatchId === match.id ? null : match.id);
   };
 
-  const addHighlightRow = () => setHighlights([...highlights, { playerId: '', notes: '' }]);
-  const removeHighlightRow = (index: number) => setHighlights(highlights.filter((_, i) => i !== index));
-  const updateHighlightRow = (index: number, field: 'playerId' | 'notes', value: string) => {
-    const updated = [...highlights];
-    updated[index][field] = value;
-    setHighlights(updated);
+  // SUBMETER APENAS DADOS COLETIVOS DO JOGO
+  const handleReportSubmit = async (matchId: string) => {
+    setSubmittingReport(true);
+
+    try {
+      const res = await fetch('/api/matches', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matchId, ...reportData }),
+      });
+
+      const resData = await res.json();
+
+      if (res.ok) {
+        setExpandedMatchEdit(null);
+        await loadData();
+        showToast("Dados do jogo atualizados!");
+      } else {
+        alert(`Erro Airtable: ${resData.error || 'Falha ao atualizar jogo.'}`);
+      }
+    } catch (err) {
+      console.error("Erro ao submeter relatório do jogo", err);
+    } finally {
+      setSubmittingReport(false);
+    }
+  };
+
+  // SUBMETER HIGHLIGHT INDIVIDUAL DE UM JOGADOR
+  const handleSaveSingleHighlight = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingHighlight) return;
+    setSavingHighlight(true);
+
+    try {
+      const res = await fetch('/api/highlights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          matchId: editingHighlight.matchId,
+          playerId: editingHighlight.player.id,
+          highlightId: editingHighlight.highlightId,
+          notes: editingHighlight.notes,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setEditingHighlight(null);
+        await loadData();
+        showToast(`Highlight de ${editingHighlight.player.name} guardado!`);
+      } else {
+        alert(`Erro ao guardar highlight: ${data.error}`);
+      }
+    } catch (err) {
+      console.error("Erro ao guardar highlight", err);
+    } finally {
+      setSavingHighlight(false);
+    }
+  };
+
+  // CRIAR NOVO HIGHLIGHT DE JOGADOR
+  const handleAddHighlightSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isAddHighlightOpen) return;
+
+    try {
+      const res = await fetch('/api/highlights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          matchId: isAddHighlightOpen.matchId,
+          playerId: newHighlightData.playerId,
+          notes: newHighlightData.notes,
+        }),
+      });
+
+      if (res.ok) {
+        setIsAddHighlightOpen(null);
+        setNewHighlightData({ playerId: '', notes: '' });
+        await loadData();
+        showToast("Novo destaque adicionado ao jogo!");
+      }
+    } catch (err) {
+      console.error("Erro ao criar highlight", err);
+    }
   };
 
   // SUBMETER PRÉ-JOGO
@@ -172,34 +252,6 @@ export default function Home() {
     }
   };
 
-  // SUBMETER PÓS-JOGO
-  const handleReportSubmit = async (matchId: string) => {
-    setSubmittingReport(true);
-
-    try {
-      const res = await fetch('/api/matches', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matchId, ...reportData, highlights }),
-      });
-
-      const resData = await res.json();
-
-      if (res.ok) {
-        setExpandedMatchEdit(null);
-        setHighlights([{ playerId: '', notes: '' }]);
-        await loadData();
-        showToast("Relatório de jogo guardado com sucesso!");
-      } else {
-        alert(`Erro Airtable: ${resData.error || 'Falha ao submeter relatório.'}`);
-      }
-    } catch (err) {
-      console.error("Erro ao submeter relatório", err);
-    } finally {
-      setSubmittingReport(false);
-    }
-  };
-
   // CRIAR NOVO JOGADOR
   const handleCreateNewPlayer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -216,13 +268,11 @@ export default function Home() {
 
       if (res.ok) {
         await loadData();
-
-        const updated = [...highlights];
-        const emptyIdx = updated.findIndex(h => !h.playerId);
-        if (emptyIdx !== -1) updated[emptyIdx].playerId = data.player.id;
-        else updated.push({ playerId: data.player.id, notes: '' });
-        
-        setHighlights(updated);
+        if (editingHighlight) {
+          setEditingHighlight({ ...editingHighlight, player: { id: data.player.id, name: data.player.name } });
+        } else if (isAddHighlightOpen) {
+          setNewHighlightData({ ...newHighlightData, playerId: data.player.id });
+        }
         setIsNewPlayerOpen(false);
         setNewPlayerData({ name: '', clubId: '', position: 'Center Midfielder' });
         showToast(`Atleta "${data.player.name}" criado com sucesso!`);
@@ -428,7 +478,7 @@ export default function Home() {
             <div className="grid gap-3">
               {matches.map((match) => {
                 const isExpanded = expandedMatchId === match.id;
-                const isEditing = editingMatchId === match.id;
+                const isEditingContext = editingMatchId === match.id;
 
                 return (
                   <div key={match.id} className="bg-[#151c2c] border border-slate-800 rounded-xl overflow-hidden transition hover:border-slate-700">
@@ -458,23 +508,24 @@ export default function Home() {
                     {isExpanded && (
                       <div className="p-5 border-t border-slate-800 bg-[#111723] space-y-5">
                         
+                        {/* CABEÇALHO DO JOGO E BOTÃO DE CONTEXTO COLETIVO */}
                         <div className="flex justify-between items-center bg-[#0d131f] p-4 rounded-lg border border-slate-800 text-xs">
                           <div className="space-y-1">
                             <div><strong>Scout Observador:</strong> {match.scout}</div>
                             <div className="text-slate-400">Táticas: Casa ({match.homeTactic}) vs Visitante ({match.awayTactic})</div>
                           </div>
                           <button 
-                            onClick={() => startEditMatch(match)}
+                            onClick={() => startEditMatchContext(match)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/20 border border-blue-500/30 text-blue-400 rounded-lg font-medium hover:bg-blue-600/30 transition"
                           >
-                            <Edit3 size={14} /> {isEditing ? 'Fechar Edição' : 'Preencher / Editar Relatório'}
+                            <Edit3 size={14} /> {isEditingContext ? 'Fechar Edição' : 'Editar Métricas do Jogo'}
                           </button>
                         </div>
 
-                        {/* WORKSPACE PÓS-JOGO (DENTRO DO CARTÃO) */}
-                        {isEditing ? (
+                        {/* EDITAR APENAS MÉTRICAS E TÁTICAS COLETIVAS DA PARTIDA */}
+                        {isEditingContext && (
                           <div className="bg-[#0d131f] p-5 rounded-xl border border-blue-500/30 space-y-4 text-xs">
-                            <h4 className="font-bold text-blue-400 uppercase tracking-wider">Painel de Observação do Jogo (Pós-Jogo)</h4>
+                            <h4 className="font-bold text-blue-400 uppercase tracking-wider">Métricas & Táticas da Partida</h4>
                             
                             <div className="grid grid-cols-2 gap-4">
                               <div>
@@ -518,126 +569,121 @@ export default function Home() {
                               </div>
                             </div>
 
-                            {/* HIGHLIGHTS DOS ATLETAS */}
-                            <div className="pt-3 border-t border-slate-800 space-y-3">
-                              <div className="flex justify-between items-center">
-                                <span className="font-bold text-slate-300 uppercase">Avaliação Individual de Atletas (Highlights)</span>
-                                <div className="flex gap-2">
-                                  <button type="button" onClick={() => setIsNewPlayerOpen(true)} className="px-2.5 py-1 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-md font-medium text-[11px] flex items-center gap-1">
-                                    <UserPlus size={12} /> + Novo Atleta
-                                  </button>
-                                  <button type="button" onClick={addHighlightRow} className="px-2.5 py-1 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-md font-medium text-[11px] flex items-center gap-1">
-                                    <Plus size={12} /> + Avaliar Outro
-                                  </button>
-                                </div>
-                              </div>
-
-                              {highlights.map((h, idx) => (
-                                <div key={idx} className="bg-[#151c2c] p-3 rounded-lg border border-slate-800 space-y-2">
-                                  <div className="flex gap-2">
-                                    <select value={h.playerId} onChange={e => updateHighlightRow(idx, 'playerId', e.target.value)} className="flex-1 bg-[#0d131f] border border-slate-800 rounded p-2 text-slate-200">
-                                      <option value="">Selecionar Atleta da BD...</option>
-                                      {players.map(p => <option key={p.id} value={p.id}>{p.name} ({p.position} • {p.club})</option>)}
-                                    </select>
-                                    {highlights.length > 1 && <button type="button" onClick={() => removeHighlightRow(idx)} className="text-slate-500 hover:text-red-400 p-2"><Trash2 size={14} /></button>}
-                                  </div>
-                                  <textarea rows={2} placeholder="Análise individual..." value={h.notes} onChange={e => updateHighlightRow(idx, 'notes', e.target.value)} className="w-full bg-[#0d131f] border border-slate-800 rounded p-2 text-slate-200" />
-                                </div>
-                              ))}
-                            </div>
-
                             <div className="flex justify-end gap-2 pt-2">
                               <button type="button" onClick={() => setExpandedMatchEdit(null)} className="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg">Cancelar</button>
                               <button type="button" disabled={submittingReport} onClick={() => handleReportSubmit(match.id)} className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium flex items-center gap-2">
-                                {submittingReport ? <Loader2 size={14} className="animate-spin" /> : 'Submeter Relatório do Jogo'}
+                                {submittingReport ? <Loader2 size={14} className="animate-spin" /> : 'Guardar Dados do Jogo'}
                               </button>
                             </div>
                           </div>
-                        ) : (
-                          <>
-                            {/* CARTÕES UNIFICADOS COM BOTÃO EDITAR HIGHLIGHT INCORPORADO */}
-                            {match.highlightedPlayers && match.highlightedPlayers.length > 0 && (
-                              <div>
-                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Atletas Referenciados & Observações Individuais</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {match.highlightedPlayers.map((p: any, idx: number) => {
-                                    const fullP = players.find(player => (player.name || '').trim().toLowerCase() === (p.name || '').trim().toLowerCase()) || p;
+                        )}
 
-                                    return (
-                                      <div 
-                                        key={p.id || idx}
-                                        className="bg-[#151c2c] border border-slate-800 p-4 rounded-xl space-y-3 hover:border-slate-700 transition"
-                                      >
-                                        <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-                                          <div className="flex items-center gap-3">
-                                            {fullP.photo ? (
-                                              <img src={fullP.photo} alt={fullP.name} className="w-10 h-10 rounded-full object-cover border border-slate-700 shadow" />
-                                            ) : (
-                                              <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm">
-                                                {(fullP.name || 'J').charAt(0)}
-                                              </div>
-                                            )}
-                                            <div>
-                                              <h5 className="font-semibold text-white text-sm">{fullP.name}</h5>
-                                              <p className="text-xs text-slate-400 mt-0.5">
-                                                <span className="text-blue-400 font-medium">{fullP.position && fullP.position !== 'N/D' ? fullP.position : 'Atleta'}</span> • {fullP.club && fullP.club !== 'N/D' ? fullP.club : 'Clube N/D'}
-                                              </p>
-                                            </div>
+                        {/* SECÇÃO DE ATLETAS E AVALIAÇÕES INDIVIDUAIS */}
+                        <div>
+                          <div className="flex justify-between items-center mb-3">
+                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Atletas Referenciados & Observações Individuais</h4>
+                            <button 
+                              onClick={() => {
+                                setIsAddHighlightOpen({ matchId: match.id, matchName: match.matchName });
+                                setNewHighlightData({ playerId: '', notes: '' });
+                              }}
+                              className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-xs font-medium rounded-lg transition flex items-center gap-1"
+                            >
+                              <Plus size={14} /> + Adicionar Destaque a este Jogo
+                            </button>
+                          </div>
+
+                          {match.highlightedPlayers && match.highlightedPlayers.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {match.highlightedPlayers.map((p: any, idx: number) => {
+                                const fullP = players.find(player => (player.name || '').trim().toLowerCase() === (p.name || '').trim().toLowerCase()) || p;
+
+                                return (
+                                  <div 
+                                    key={p.id || idx}
+                                    className="bg-[#151c2c] border border-slate-800 p-4 rounded-xl space-y-3 hover:border-slate-700 transition"
+                                  >
+                                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                                      <div className="flex items-center gap-3">
+                                        {fullP.photo ? (
+                                          <img src={fullP.photo} alt={fullP.name} className="w-10 h-10 rounded-full object-cover border border-slate-700 shadow" />
+                                        ) : (
+                                          <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm">
+                                            {(fullP.name || 'J').charAt(0)}
                                           </div>
-
-                                          <div className="flex items-center gap-2">
-                                            <button 
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                startEditMatch(match);
-                                              }}
-                                              className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-xs font-medium rounded-lg transition flex items-center gap-1"
-                                            >
-                                              <Edit3 size={12} /> Editar Highlight
-                                            </button>
-                                            <button 
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedPlayer(fullP);
-                                                setProfileTab('timeline');
-                                              }}
-                                              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition border border-slate-700 flex items-center gap-1"
-                                            >
-                                              Ver Perfil <ExternalLink size={12} />
-                                            </button>
-                                          </div>
-                                        </div>
-
-                                        <div className="text-xs text-slate-300 leading-relaxed bg-[#0d131f] p-3 rounded-lg border border-slate-800/80 font-sans whitespace-pre-line">
-                                          {p.note || 'Sem nota registada.'}
+                                        )}
+                                        <div>
+                                          <h5 className="font-semibold text-white text-sm">{fullP.name}</h5>
+                                          <p className="text-xs text-slate-400 mt-0.5">
+                                            <span className="text-blue-400 font-medium">{fullP.position && fullP.position !== 'N/D' ? fullP.position : 'Atleta'}</span> • {fullP.club && fullP.club !== 'N/D' ? fullP.club : 'Clube N/D'}
+                                          </p>
                                         </div>
                                       </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
-                              <div className="bg-[#151c2c] p-3 rounded-lg border border-slate-800/60">
-                                 <span className="flex items-center gap-1.5 text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1"><Zap size={12}/> Ritmo de Jogo</span>
-                                 <span className="text-sm font-medium text-white">{match.tempo}</span>
-                              </div>
-                              <div className="bg-[#151c2c] p-3 rounded-lg border border-slate-800/60">
-                                 <span className="flex items-center gap-1.5 text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1"><Activity size={12}/> Intensidade Física</span>
-                                 <span className="text-sm font-medium text-white">{match.intensity}</span>
-                              </div>
-                              <div className="bg-[#151c2c] p-3 rounded-lg border border-slate-800/60">
-                                 <span className="flex items-center gap-1.5 text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1"><Crosshair size={12}/> Qualidade Técnica</span>
-                                 <span className="text-sm font-medium text-white">{match.technical}</span>
-                              </div>
-                              <div className="bg-[#151c2c] p-3 rounded-lg border border-slate-800/60">
-                                 <span className="flex items-center gap-1.5 text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1"><BrainCircuit size={12}/> Pressão Mental</span>
-                                 <span className="text-sm font-medium text-white">{match.pressure}</span>
-                              </div>
+                                      <div className="flex items-center gap-2">
+                                        {/* EDIÇÃO FOCADA APENAS NO HIGHLIGHT DESTE JOGADOR */}
+                                        <button 
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingHighlight({
+                                              matchId: match.id,
+                                              matchName: match.matchName,
+                                              player: fullP,
+                                              highlightId: p.highlightId || null,
+                                              notes: p.note && p.note !== 'Sem notas registadas.' ? p.note : ''
+                                            });
+                                          }}
+                                          className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-xs font-medium rounded-lg transition flex items-center gap-1"
+                                        >
+                                          <Edit3 size={12} /> Editar Highlight
+                                        </button>
+
+                                        <button 
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedPlayer(fullP);
+                                            setProfileTab('timeline');
+                                          }}
+                                          className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition border border-slate-700 flex items-center gap-1"
+                                        >
+                                          Ver Perfil <ExternalLink size={12} />
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    <div className="text-xs text-slate-300 leading-relaxed bg-[#0d131f] p-3 rounded-lg border border-slate-800/80 font-sans whitespace-pre-line">
+                                      {p.note || 'Sem nota registada.'}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
-                          </>
-                        )}
+                          ) : (
+                            <div className="text-xs text-slate-500 bg-[#0d131f] p-4 rounded-lg border border-slate-800 text-center">
+                              Ainda não existem atletas destacados para este jogo.
+                            </div>
+                          )}
+                        </div>
+
+                        {/* MÉTRICAS VISUAIS */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+                          <div className="bg-[#151c2c] p-3 rounded-lg border border-slate-800/60">
+                             <span className="flex items-center gap-1.5 text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1"><Zap size={12}/> Ritmo de Jogo</span>
+                             <span className="text-sm font-medium text-white">{match.tempo}</span>
+                          </div>
+                          <div className="bg-[#151c2c] p-3 rounded-lg border border-slate-800/60">
+                             <span className="flex items-center gap-1.5 text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1"><Activity size={12}/> Intensidade Física</span>
+                             <span className="text-sm font-medium text-white">{match.intensity}</span>
+                          </div>
+                          <div className="bg-[#151c2c] p-3 rounded-lg border border-slate-800/60">
+                             <span className="flex items-center gap-1.5 text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1"><Crosshair size={12}/> Qualidade Técnica</span>
+                             <span className="text-sm font-medium text-white">{match.technical}</span>
+                          </div>
+                          <div className="bg-[#151c2c] p-3 rounded-lg border border-slate-800/60">
+                             <span className="flex items-center gap-1.5 text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1"><BrainCircuit size={12}/> Pressão Mental</span>
+                             <span className="text-sm font-medium text-white">{match.pressure}</span>
+                          </div>
+                        </div>
 
                       </div>
                     )}
@@ -704,6 +750,106 @@ export default function Home() {
         )}
 
       </div>
+
+      {/* MODAL FOCADO EM EDITAR O HIGHLIGHT DE UM UNICO JOGADOR */}
+      {editingHighlight && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#151c2c] border border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl p-6 space-y-4">
+            <div className="flex justify-between items-start border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                {editingHighlight.player.photo ? (
+                  <img src={editingHighlight.player.photo} alt={editingHighlight.player.name} className="w-12 h-12 rounded-full object-cover border border-slate-700" />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-base">
+                    {(editingHighlight.player.name || 'J').charAt(0)}
+                  </div>
+                )}
+                <div>
+                  <h3 className="font-bold text-white text-base">Editar Highlight: {editingHighlight.player.name}</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">{editingHighlight.matchName}</p>
+                </div>
+              </div>
+              <button onClick={() => setEditingHighlight(null)} className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSingleHighlight} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1.5">Observação Técnico/Tática Individual</label>
+                <textarea 
+                  rows={6} required
+                  placeholder="Escreve aqui a avaliação específica sobre o desempenho do atleta nesta partida..."
+                  value={editingHighlight.notes} 
+                  onChange={e => setEditingHighlight({ ...editingHighlight, notes: e.target.value })}
+                  className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-blue-500 font-sans leading-relaxed"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <button type="button" onClick={() => setEditingHighlight(null)} className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl">Cancelar</button>
+                <button type="submit" disabled={savingHighlight} className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium flex items-center gap-2">
+                  {savingHighlight ? <Loader2 size={14} className="animate-spin" /> : 'Guardar Alterações'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ADICIONAR NOVO HIGHLIGHT DE ATLETA A UM JOGO */}
+      {isAddHighlightOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#151c2c] border border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl p-6 space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="font-bold text-white text-sm">Adicionar Destaque de Atleta</h3>
+                <p className="text-xs text-slate-400 mt-0.5">{isAddHighlightOpen.matchName}</p>
+              </div>
+              <button onClick={() => setIsAddHighlightOpen(null)} className="text-slate-400 hover:text-white">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddHighlightSubmit} className="space-y-3 text-xs">
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-slate-400 font-semibold">Atleta da BD</label>
+                  <button 
+                    type="button" 
+                    onClick={() => setIsNewPlayerOpen(true)}
+                    className="text-emerald-400 hover:underline flex items-center gap-1 font-medium"
+                  >
+                    <UserPlus size={12} /> + Criar Novo Atleta
+                  </button>
+                </div>
+                <select 
+                  required value={newHighlightData.playerId} 
+                  onChange={e => setNewHighlightData({ ...newHighlightData, playerId: e.target.value })}
+                  className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-slate-200"
+                >
+                  <option value="">Selecionar Atleta...</option>
+                  {players.map(p => <option key={p.id} value={p.id}>{p.name} ({p.position} • {p.club})</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">Observação Individual</label>
+                <textarea 
+                  rows={4} required placeholder="Análise individual do atleta neste jogo..."
+                  value={newHighlightData.notes} onChange={e => setNewHighlightData({ ...newHighlightData, notes: e.target.value })}
+                  className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-slate-200 font-sans"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                <button type="button" onClick={() => setIsAddHighlightOpen(null)} className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl">Cancelar</button>
+                <button type="submit" className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium">Guardar Destaque</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MODAL PRÉ-JOGO */}
       {isRegisterOpen && (

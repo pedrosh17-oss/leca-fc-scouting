@@ -50,17 +50,19 @@ export async function GET() {
   try {
     const headers = { Authorization: `Bearer ${TOKEN}` };
 
-    const [resMatches, resComps, resScouts, resPlayers] = await Promise.all([
+    const [resMatches, resComps, resScouts, resPlayers, resHighlights] = await Promise.all([
       fetch(`https://api.airtable.com/v0/${BASE_ID}/Matches?pageSize=100`, { headers, cache: 'no-store' }),
       fetch(`https://api.airtable.com/v0/${BASE_ID}/Competition?pageSize=100`, { headers, cache: 'no-store' }),
       fetch(`https://api.airtable.com/v0/${BASE_ID}/Scouts?pageSize=100`, { headers, cache: 'no-store' }),
-      fetch(`https://api.airtable.com/v0/${BASE_ID}/Players?pageSize=100`, { headers, cache: 'no-store' })
+      fetch(`https://api.airtable.com/v0/${BASE_ID}/Players?pageSize=100`, { headers, cache: 'no-store' }),
+      fetch(`https://api.airtable.com/v0/${BASE_ID}/Highlights?pageSize=100`, { headers, cache: 'no-store' }).catch(() => null)
     ]);
 
     const dataMatches = await resMatches.json();
     const dataComps = await resComps.json();
     const dataScouts = await resScouts.json();
     const dataPlayers = await resPlayers.json();
+    const dataHighlights = resHighlights ? await resHighlights.json() : { records: [] };
 
     const compMap: Record<string, string> = {};
     const competitionsList: Array<{ id: string; name: string }> = [];
@@ -85,7 +87,7 @@ export async function GET() {
 
       const pObj = {
         id: r.id,
-        name: f['Player Name'] || 'Sem Nome',
+        name: f['Player Name'] ? f['Player Name'].trim() : 'Sem Nome',
         photo: photoUrl,
         position: f['Position'] || 'N/D',
         club: f['Team name'] || f['Current Team'] || 'Sem Clube',
@@ -94,6 +96,25 @@ export async function GET() {
 
       if (f['Player Name']) playerByNameMap[f['Player Name'].trim().toLowerCase()] = pObj;
       playerByIdMap[r.id] = pObj;
+    });
+
+    // Mapeamento direto de registos na tabela Highlights
+    const highlightsByMatch: Record<string, any[]> = {};
+    (dataHighlights.records || []).forEach((hRec: any) => {
+      const hf = hRec.fields || {};
+      const matchIds = Array.isArray(hf['Match']) ? hf['Match'] : [];
+      const playerIds = Array.isArray(hf['Player']) ? hf['Player'] : [];
+      const noteText = hf['Escreve aqui'] || '';
+
+      matchIds.forEach((mId: string) => {
+        if (!highlightsByMatch[mId]) highlightsByMatch[mId] = [];
+        highlightsByMatch[mId].push({
+          highlightId: hRec.id,
+          playerId: playerIds[0] || null,
+          playerName: hf['New Player'] || null,
+          note: noteText
+        });
+      });
     });
 
     let matches = (dataMatches.records || []).map((r: any) => {
@@ -120,6 +141,7 @@ export async function GET() {
 
       const playerList: any[] = [];
       const rawPlayers = f['Players from Highlights'];
+      const matchDirectHighlights = highlightsByMatch[r.id] || [];
 
       if (Array.isArray(rawPlayers)) {
         rawPlayers.forEach((item: string) => {
@@ -128,23 +150,38 @@ export async function GET() {
             pObj = { id: item, name: item, position: 'N/D', club: 'N/D' };
           }
           if (pObj) {
+            const directH = matchDirectHighlights.find(dh => dh.playerId === pObj.id || (dh.playerName && dh.playerName.toLowerCase() === pObj.name.toLowerCase()));
             const foundNote = parsedHighlights.find(ph => ph.name.toLowerCase() === pObj.name.toLowerCase());
-            playerList.push({ ...pObj, note: foundNote ? foundNote.text : 'Sem notas registadas.' });
+            playerList.push({ 
+              ...pObj, 
+              note: directH ? directH.note : (foundNote ? foundNote.text : 'Sem notas registadas.'),
+              highlightId: directH ? directH.highlightId : null
+            });
           }
         });
       } else if (typeof rawPlayers === 'string') {
         rawPlayers.split(',').forEach((nameStr) => {
           const cleanName = nameStr.trim();
           let pObj = playerByNameMap[cleanName.toLowerCase()] || { id: cleanName, name: cleanName, position: 'N/D', club: 'N/D' };
+          const directH = matchDirectHighlights.find(dh => dh.playerId === pObj.id || (dh.playerName && dh.playerName.toLowerCase() === cleanName.toLowerCase()));
           const foundNote = parsedHighlights.find(ph => ph.name.toLowerCase() === cleanName.toLowerCase());
-          playerList.push({ ...pObj, note: foundNote ? foundNote.text : 'Sem notas registadas.' });
+          playerList.push({ 
+            ...pObj, 
+            note: directH ? directH.note : (foundNote ? foundNote.text : 'Sem notas registadas.'),
+            highlightId: directH ? directH.highlightId : null
+          });
         });
       }
 
-      if (playerList.length === 0 && parsedHighlights.length > 0) {
-        parsedHighlights.forEach((ph) => {
-          const matchP = playerByNameMap[ph.name.toLowerCase()] || { id: ph.name, name: ph.name, position: 'N/D', club: 'N/D' };
-          playerList.push({ ...matchP, note: ph.text });
+      if (playerList.length === 0 && matchDirectHighlights.length > 0) {
+        matchDirectHighlights.forEach((dh) => {
+          const pObj = dh.playerId ? playerByIdMap[dh.playerId] : (dh.playerName ? playerByNameMap[dh.playerName.toLowerCase()] : null);
+          const finalP = pObj || { id: dh.playerId || dh.playerName, name: dh.playerName || 'Atleta', position: 'N/D', club: 'N/D' };
+          playerList.push({
+            ...finalP,
+            note: dh.note,
+            highlightId: dh.highlightId
+          });
         });
       }
 
@@ -167,7 +204,6 @@ export async function GET() {
       };
     });
 
-    // Tipagem explícita (a: any, b: any) para passar a validação estrita do build
     matches.sort((a: any, b: any) => parseDateToTimestamp(b.gameDate) - parseDateToTimestamp(a.gameDate));
 
     return NextResponse.json({ total: matches.length, matches, competitions: competitionsList });
@@ -210,6 +246,7 @@ export async function POST(req: Request) {
   }
 }
 
+// ATUALIZAÇÃO APENAS DAS MÉTRICAS COLETIVAS DA PARTIDA
 export async function PATCH(req: Request) {
   if (!BASE_ID || !TOKEN) return NextResponse.json({ error: 'Faltam credenciais' }, { status: 500 });
 
@@ -236,27 +273,6 @@ export async function PATCH(req: Request) {
 
     if (!resMatch.ok) {
       return NextResponse.json({ error: resMatchData.error?.message || 'Erro no Airtable' }, { status: 422 });
-    }
-
-    if (Array.isArray(body.highlights) && body.highlights.length > 0) {
-      for (const h of body.highlights) {
-        if (!h.notes) continue;
-
-        const highlightFields: Record<string, any> = {
-          'Match': [body.matchId],
-          'Escreve aqui': h.notes,
-        };
-
-        if (h.playerId) {
-          highlightFields['Player'] = [h.playerId];
-        }
-
-        await fetch(`https://api.airtable.com/v0/${BASE_ID}/Highlights`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fields: highlightFields }),
-        });
-      }
     }
 
     return NextResponse.json({ success: true });
