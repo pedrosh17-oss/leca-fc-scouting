@@ -3,12 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Trophy, Shield, Search, Plus, ChevronDown, ChevronUp, Calendar, 
-  UserCheck, X, Activity, Ruler, FileText, BarChart3, Briefcase, TrendingUp, Flag, ShieldAlert
+  UserCheck, X, Activity, Ruler, FileText, BarChart3, Briefcase, Flag, ShieldAlert, Building2
 } from 'lucide-react';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'players' | 'matches' | 'scouts'>('players');
+  const [activeTab, setActiveTab] = useState<'players' | 'teams' | 'matches' | 'scouts'>('players');
   const [players, setPlayers] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
   const [matches, setMatches] = useState<any[]>([]);
   const [scouts, setScouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,24 +17,27 @@ export default function Home() {
   
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<any | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState<any | null>(null);
   
-  // Abas internas do Perfil do Jogador
   const [profileTab, setProfileTab] = useState<'timeline' | 'algo' | 'market'>('timeline');
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [resP, resM, resS] = await Promise.all([
-          fetch('/api/players'),
-          fetch('/api/matches'),
-          fetch('/api/scouts')
+        const [resP, resT, resM, resS] = await Promise.all([
+          fetch('/api/players').catch(() => ({ json: () => ({ players: [] }) })),
+          fetch('/api/teams').catch(() => ({ json: () => ({ teams: [] }) })),
+          fetch('/api/matches').catch(() => ({ json: () => ({ matches: [] }) })),
+          fetch('/api/scouts').catch(() => ({ json: () => ({ scouts: [] }) }))
         ]);
         
         const dataP = await resP.json();
+        const dataT = await resT.json();
         const dataM = await resM.json();
         const dataS = await resS.json();
 
         if (dataP.players) setPlayers(dataP.players);
+        if (dataT.teams) setTeams(dataT.teams);
         if (dataM.matches) setMatches(dataM.matches);
         if (dataS.scouts) setScouts(dataS.scouts);
       } catch (err) {
@@ -48,17 +52,22 @@ export default function Home() {
   const toggleMatch = (id: string) => setExpandedMatchId(expandedMatchId === id ? null : id);
 
   const filteredPlayers = players.filter(p => {
-    const name = p.name || '';
-    const club = p.club || '';
-    const pos = p.position || '';
     const query = search.toLowerCase();
-    return name.toLowerCase().includes(query) || club.toLowerCase().includes(query) || pos.toLowerCase().includes(query);
+    return (p.name || '').toLowerCase().includes(query) || 
+           (p.club || '').toLowerCase().includes(query) || 
+           (p.position || '').toLowerCase().includes(query);
+  });
+
+  const filteredTeams = teams.filter(t => {
+    const query = search.toLowerCase();
+    return (t.name || '').toLowerCase().includes(query) || 
+           (t.competition || '').toLowerCase().includes(query);
   });
 
   return (
     <main className="min-h-screen bg-[#0d131f] text-slate-100 p-6 font-sans">
       
-      {/* Header da App */}
+      {/* Header */}
       <header className="max-w-6xl mx-auto flex justify-between items-center mb-8 bg-[#151c2c] p-6 rounded-xl border border-slate-800">
         <div>
           <span className="text-xs font-semibold tracking-wider text-slate-400 uppercase">Departamento de Scouting & Prospecção</span>
@@ -71,14 +80,24 @@ export default function Home() {
       </header>
 
       {/* Tabs Principais */}
-      <div className="max-w-6xl mx-auto mb-6 flex gap-3">
-        <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Users size={16} /> Base de Jogadores ({players.length})</button>
-        <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Trophy size={16} /> Matches ({matches.length})</button>
-        <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Shield size={16} /> Equipa de Scouts ({scouts.length})</button>
+      <div className="max-w-6xl mx-auto mb-6 flex flex-wrap gap-3">
+        <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}>
+          <Users size={16} /> Base de Jogadores ({players.length})
+        </button>
+        <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}>
+          <Building2 size={16} /> Equipas ({teams.length})
+        </button>
+        <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}>
+          <Trophy size={16} /> Matches ({matches.length})
+        </button>
+        <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}>
+          <Shield size={16} /> Equipa de Scouts ({scouts.length})
+        </button>
       </div>
 
       <div className="max-w-6xl mx-auto">
-        {/* TAB PLAYERS */}
+        
+        {/* TAB 1: PLAYERS */}
         {activeTab === 'players' && (
           <div>
             <div className="relative mb-6">
@@ -91,11 +110,11 @@ export default function Home() {
                 <div key={player.id} className="bg-[#151c2c] border border-slate-800/80 rounded-xl p-4 flex items-center justify-between hover:border-slate-700 transition">
                   <div className="flex items-center gap-4">
                     {player.photo ? (
-                        <img src={player.photo} alt={player.name} className="w-10 h-10 rounded-full object-cover border border-slate-700" />
+                      <img src={player.photo} alt={player.name} className="w-10 h-10 rounded-full object-cover border border-slate-700" />
                     ) : (
-                        <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm">
-                          {player.name.charAt(0)}
-                        </div>
+                      <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm">
+                        {player.name.charAt(0)}
+                      </div>
                     )}
                     <div>
                       <h3 className="font-semibold text-white text-base">{player.name}</h3>
@@ -128,11 +147,57 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB MATCHES EXPANDIDA */}
+        {/* TAB 2: TEAMS */}
+        {activeTab === 'teams' && (
+          <div>
+            <div className="relative mb-6">
+              <Search className="absolute left-4 top-3.5 text-slate-500" size={18} />
+              <input type="text" placeholder="Pesquisar por nome da equipa ou competição..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-[#151c2c] border border-slate-800 rounded-xl py-3 pl-11 pr-4 text-sm text-slate-200 focus:outline-none focus:border-blue-500" />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredTeams.map((team) => {
+                const teamPlayers = players.filter(p => p.club.toLowerCase() === team.name.toLowerCase());
+
+                return (
+                  <div key={team.id} className="bg-[#151c2c] border border-slate-800 rounded-xl p-5 flex items-center justify-between hover:border-slate-700 transition">
+                    <div className="flex items-center gap-4">
+                      {team.logo ? (
+                        <img src={team.logo} alt={team.name} className="w-12 h-12 object-contain p-1 bg-slate-900 rounded-lg border border-slate-800" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold">
+                          <Building2 size={22} />
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="font-semibold text-white text-lg">{team.name}</h3>
+                        <p className="text-xs text-slate-400 mt-0.5">{team.competition} • {team.country}</p>
+                        <div className="flex items-center gap-3 mt-2 text-xs">
+                          <span className="text-emerald-400 font-medium">{team.totalWatchedMatches} Jogos Vistos</span>
+                          <span>•</span>
+                          <span className="text-blue-400 font-medium">{teamPlayers.length} Jogadores na BD</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={() => setSelectedTeam(team)}
+                      className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg transition border border-slate-700"
+                    >
+                      Ver Equipa
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: MATCHES */}
         {activeTab === 'matches' && (
           <div className="grid gap-4">
             <div className="flex justify-between items-center mb-4">
-              <p className="text-sm text-slate-400">Jogos observados e volume de atletas identificados.</p>
+              <p className="text-sm text-slate-400">Histórico de partidas observadas e atletas referenciados.</p>
               <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
                 <Plus size={16} /> Registar Jogo
               </button>
@@ -165,9 +230,9 @@ export default function Home() {
                       </div>
 
                       <div className="flex items-center gap-6">
-                        <div className="text-right hidden sm:block">
-                          <span className="block text-xs font-semibold text-emerald-400">{match.playersCount} Jogadores</span>
-                          <span className="text-[10px] text-slate-500 uppercase">Destacados</span>
+                        <div className="text-right">
+                          <span className="block text-sm font-bold text-emerald-400">{match.playersCount} Jogadores</span>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Destacados</span>
                         </div>
                         <div className="text-slate-400">
                           {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -177,9 +242,9 @@ export default function Home() {
 
                     {isExpanded && (
                       <div className="p-5 border-t border-slate-800 bg-[#111723] space-y-4">
-                        <div className="flex items-center justify-between text-xs text-slate-400 bg-[#0d131f] p-3 rounded-lg border border-slate-800">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 bg-[#0d131f] p-3 rounded-lg border border-slate-800">
                           <span><strong>Scout Observador:</strong> {match.scout}</span>
-                          <span><strong>Atletas Referenciados:</strong> {match.playersCount}</span>
+                          <span><strong>Atletas Referenciados:</strong> {match.playersList}</span>
                         </div>
 
                         <div>
@@ -197,28 +262,27 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB SCOUTS */}
+        {/* TAB 4: SCOUTS */}
         {activeTab === 'scouts' && (
           <div className="grid gap-3">
-             {scouts.map((scout) => (
-               <div key={scout.id} className="bg-[#151c2c] border border-slate-800 rounded-xl p-4 flex items-center gap-4">
-                  <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400"><UserCheck size={20} /></div>
-                  <div>
-                    <h3 className="font-semibold text-white">{scout.name || 'Scout'}</h3>
-                    <p className="text-xs text-slate-400">Jogos: {scout.totalMatches} (Live: {scout.liveMatches} | Stream: {scout.streamMatches})</p>
-                  </div>
-               </div>
-             ))}
+            {scouts.map((scout) => (
+              <div key={scout.id} className="bg-[#151c2c] border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+                <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400"><UserCheck size={20} /></div>
+                <div>
+                  <h3 className="font-semibold text-white">{scout.name || 'Scout'}</h3>
+                  <p className="text-xs text-slate-400">Jogos Observados: {scout.totalMatches} (Live: {scout.liveMatches} | Stream: {scout.streamMatches})</p>
+                </div>
+              </div>
+            ))}
           </div>
         )}
+
       </div>
 
-      {/* MODAL MACRO: PERFIL COMPLETO DO JOGADOR */}
+      {/* MODAL PERFIL DO JOGADOR */}
       {selectedPlayer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            
-            {/* 1. Header do Modal */}
             <div className="sticky top-0 z-20 bg-[#151c2c]/95 backdrop-blur border-b border-slate-800 p-6 pb-0">
               <div className="flex justify-between items-start mb-6">
                 <div className="flex items-center gap-5">
@@ -233,8 +297,6 @@ export default function Home() {
                     <h2 className="text-2xl font-bold text-white mb-1.5">{selectedPlayer.name}</h2>
                     <div className="flex flex-wrap items-center gap-2.5 text-xs">
                       <span className="bg-blue-600/20 border border-blue-500/30 text-blue-400 px-3 py-1 rounded-full font-semibold">{selectedPlayer.position}</span>
-                      
-                      {/* Símbolo + Nome do Clube */}
                       <div className="flex items-center gap-1.5 bg-slate-800 px-3 py-1 rounded-full border border-slate-700 text-slate-200 font-medium">
                         {selectedPlayer.clubLogo ? (
                           <img src={selectedPlayer.clubLogo} alt={selectedPlayer.club} className="w-4 h-4 object-contain" />
@@ -243,23 +305,17 @@ export default function Home() {
                         )}
                         <span>{selectedPlayer.club}</span>
                       </div>
-
                       <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full font-medium flex items-center gap-1.5">
                         <Activity size={12} /> {selectedPlayer.status}
                       </span>
                     </div>
                   </div>
                 </div>
-
-                <button 
-                  onClick={() => setSelectedPlayer(null)} 
-                  className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition"
-                >
+                <button onClick={() => setSelectedPlayer(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition">
                   <X size={20} />
                 </button>
               </div>
 
-              {/* Specs Rápidas */}
               <div className="grid grid-cols-4 gap-3 mb-6">
                 <div className="bg-[#0d131f] p-3 rounded-xl border border-slate-800/80">
                   <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider block mb-0.5">Idade</span>
@@ -279,97 +335,99 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 2. Navegação por Abas Internas */}
               <div className="flex gap-6 border-b border-slate-800 text-sm font-medium">
-                <button
-                  onClick={() => setProfileTab('timeline')}
-                  className={`pb-3 flex items-center gap-2 border-b-2 transition ${
-                    profileTab === 'timeline' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-white'
-                  }`}
-                >
+                <button onClick={() => setProfileTab('timeline')} className={`pb-3 flex items-center gap-2 border-b-2 transition ${profileTab === 'timeline' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-white'}`}>
                   <FileText size={16} /> Relatórios & Timeline
                 </button>
-                <button
-                  onClick={() => setProfileTab('algo')}
-                  className={`pb-3 flex items-center gap-2 border-b-2 transition ${
-                    profileTab === 'algo' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-white'
-                  }`}
-                >
+                <button onClick={() => setProfileTab('algo')} className={`pb-3 flex items-center gap-2 border-b-2 transition ${profileTab === 'algo' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-white'}`}>
                   <BarChart3 size={16} /> Análise & Algoritmo
                 </button>
-                <button
-                  onClick={() => setProfileTab('market')}
-                  className={`pb-3 flex items-center gap-2 border-b-2 transition ${
-                    profileTab === 'market' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-white'
-                  }`}
-                >
+                <button onClick={() => setProfileTab('market')} className={`pb-3 flex items-center gap-2 border-b-2 transition ${profileTab === 'market' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-white'}`}>
                   <Briefcase size={16} /> Mercado & Decisão
                 </button>
               </div>
             </div>
 
-            {/* 3. Conteúdo da Aba Selecionada */}
             <div className="p-6">
-              
-              {/* ABA 1: RELATÓRIOS & TIMELINE */}
               {profileTab === 'timeline' && (
                 <div>
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Histórico Cronológico de Observação</h3>
-                  {selectedPlayer.report !== 'Sem observações registadas.' ? (
-                    <div className="bg-[#0d131f] p-5 rounded-xl border border-slate-800 text-sm text-slate-300 leading-relaxed whitespace-pre-line font-sans shadow-inner">
-                      {selectedPlayer.report}
-                    </div>
-                  ) : (
-                    <div className="bg-slate-800/20 border border-slate-800/60 border-dashed p-8 rounded-xl text-center">
-                      <p className="text-slate-500 text-sm">Nenhum relatório técnico registado para este atleta até ao momento.</p>
-                    </div>
-                  )}
+                  <div className="bg-[#0d131f] p-5 rounded-xl border border-slate-800 text-sm text-slate-300 leading-relaxed whitespace-pre-line font-sans">
+                    {selectedPlayer.report}
+                  </div>
                 </div>
               )}
-
-              {/* ABA 2: ANÁLISE & ALGORITMO (Espaço preparado) */}
               {profileTab === 'algo' && (
-                <div className="space-y-4">
-                  <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-semibold text-blue-400">Integração Looker Studio / Algoritmo</h4>
-                      <p className="text-xs text-slate-400 mt-0.5">Espaço reservado para carregamento de dados via Excel e cálculo de Ratings.</p>
-                    </div>
-                    <span className="text-xs font-bold bg-blue-600 text-white px-3 py-1 rounded-lg">Em Breve</span>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800 text-center">
-                      <span className="text-xs text-slate-500 block mb-1">Rating Algorítmico</span>
-                      <span className="text-2xl font-bold text-slate-400">-- / 100</span>
-                    </div>
-                    <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800 text-center">
-                      <span className="text-xs text-slate-500 block mb-1">Perfil Tático</span>
-                      <span className="text-sm font-semibold text-slate-400">Pendente de Upload</span>
-                    </div>
-                    <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800 text-center">
-                      <span className="text-xs text-slate-500 block mb-1">Potencial Relativo</span>
-                      <span className="text-sm font-semibold text-slate-400">--</span>
-                    </div>
-                  </div>
+                <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-blue-400 text-sm">
+                  Espaço reservado para visualização dos relatórios de algoritmo.
                 </div>
               )}
-
-              {/* ABA 3: MERCADO & DECISÃO (Direção Desportiva) */}
               {profileTab === 'market' && (
-                <div className="space-y-4">
-                  <div className="bg-[#0d131f] p-5 rounded-xl border border-slate-800">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Notas da Direção Desportiva & Mercado</h4>
-                    <textarea 
-                      placeholder="Espaço exclusivo do Diretor Desportivo / Head Scout para registar valores de contrato, contactos de empresários e decisões de mercado..."
-                      className="w-full bg-[#151c2c] border border-slate-800 rounded-lg p-3 text-sm text-slate-200 focus:outline-none focus:border-blue-500 min-h-[100px]"
-                      disabled
-                    />
-                    <p className="text-[11px] text-slate-500 mt-2">A edição destas notas estará ativa após a implementação do sistema de Logins (RBAC).</p>
-                  </div>
+                <div className="bg-[#0d131f] p-5 rounded-xl border border-slate-800 text-sm text-slate-300">
+                  Notas de Mercado & Direção Desportiva.
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
 
+      {/* MODAL PERFIL DA EQUIPA */}
+      {selectedTeam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#151c2c] border border-slate-800 w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl shadow-2xl p-6">
+            <div className="flex justify-between items-start mb-6">
+              <div className="flex items-center gap-4">
+                {selectedTeam.logo ? (
+                  <img src={selectedTeam.logo} alt={selectedTeam.name} className="w-16 h-16 object-contain p-1.5 bg-slate-900 rounded-xl border border-slate-800" />
+                ) : (
+                  <div className="w-16 h-16 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold">
+                    <Building2 size={28} />
+                  </div>
+                )}
+                <div>
+                  <h2 className="text-2xl font-bold text-white">{selectedTeam.name}</h2>
+                  <p className="text-xs text-slate-400 mt-1">{selectedTeam.competition} • {selectedTeam.country}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedTeam(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
+                <span className="text-xs text-slate-500 block mb-1">Jogos Vistos do Clube</span>
+                <span className="text-xl font-bold text-emerald-400">{selectedTeam.totalWatchedMatches} Partidas</span>
+              </div>
+              <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
+                <span className="text-xs text-slate-500 block mb-1">Estatuto de Observação</span>
+                <span className="text-xl font-bold text-blue-400">{selectedTeam.status}</span>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-bold text-white mb-3">Atletas de Interesse Pertencentes ao Clube</h3>
+              <div className="space-y-2">
+                {players.filter(p => p.club.toLowerCase() === selectedTeam.name.toLowerCase()).map(p => (
+                  <div key={p.id} className="bg-[#0d131f] p-3 rounded-lg border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <span className="text-white text-sm font-medium">{p.name}</span>
+                      <span className="text-xs text-slate-400 ml-2">({p.position})</span>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        setSelectedTeam(null);
+                        setSelectedPlayer(p);
+                        setProfileTab('timeline');
+                      }}
+                      className="text-xs text-blue-400 hover:underline"
+                    >
+                      Ver Perfil
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

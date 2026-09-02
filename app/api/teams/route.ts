@@ -11,16 +11,8 @@ function safeText(val: any, fallback: string = 'N/D'): string {
     const clean = val.filter((item) => typeof item === 'string' && !item.startsWith('rec'));
     return clean.length > 0 ? clean.join(', ') : fallback;
   }
-  if (typeof val === 'object' && val.name) return val.name;
   const str = String(val);
   return str.startsWith('rec') ? fallback : str;
-}
-
-function countPlayers(val: any): number {
-  if (!val) return 0;
-  if (Array.isArray(val)) return val.length;
-  if (typeof val === 'string') return val.split(',').filter(Boolean).length;
-  return 0;
 }
 
 export async function GET() {
@@ -34,7 +26,7 @@ export async function GET() {
     const isDev = process.env.NODE_ENV === 'development';
 
     do {
-      const url = `https://api.airtable.com/v0/${BASE_ID}/Matches?pageSize=100${
+      const url = `https://api.airtable.com/v0/${BASE_ID}/Teams?pageSize=100${
         offset ? `&offset=${offset}` : ''
       }`;
       const res = await fetch(url, {
@@ -50,28 +42,22 @@ export async function GET() {
       if (isDev) break;
     } while (offset);
 
-    const matches = allRecords.map((r: any) => {
+    const teams = allRecords.map((r: any) => {
       const f = r.fields || {};
-      const highlightedPlayers = f['Players from Highlights'];
+      const logoUrl = Array.isArray(f['Logo']) && f['Logo'][0]?.url ? f['Logo'][0].url : null;
 
       return {
         id: r.id,
-        matchName: safeText(f['Match'], 'Jogo sem Título'),
-        gameDate: safeText(f['Game Date'], 'Data N/D'),
-        competition: safeText(f['Competition'], 'Liga / Competição'),
-        scout: safeText(f['Scouts'], 'Scout Não Atribuído'),
-        type: safeText(f['Type'], 'Live / Stream'),
-        playersCount: countPlayers(highlightedPlayers),
-        playersList: safeText(highlightedPlayers, 'Nenhum atleta associado'),
-        notes: safeText(f['Notes'], ''),
-        highlightsReport: safeText(
-          f['Highlights Report'] || f['Notes'],
-          'Sem destaques registados para este jogo.'
-        ),
+        name: safeText(f['Team Name'], 'Equipa Sem Nome'),
+        logo: logoUrl,
+        country: safeText(f['Country'], 'Portugal'),
+        competition: safeText(f['Competition'], 'N/D'),
+        totalWatchedMatches: f['Total watched matches'] ?? 0,
+        status: safeText(f['Status'], '⚪ Unobserved'),
       };
     });
 
-    return NextResponse.json({ total: matches.length, matches });
+    return NextResponse.json({ total: teams.length, teams });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
