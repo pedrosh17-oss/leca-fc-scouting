@@ -639,8 +639,9 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
         const newAlgoData: Record<string, { tag: string; row: any }[]> = {};
 
         rawData.forEach((row) => {
-          const rawPlayerStr = row.Player || '';
-          const teamStr = row.Team_Calc || '';
+          // A GRANDE CORREÇÃO: Apanha todas as variações possíveis de colunas no teu Excel!
+          const rawPlayerStr = row.Player || row.Player_ID || '';
+          const teamStr = row.Team_Calc || row.Team || row.Equipa || '';
           const cleanName = extractPlayerBaseName(rawPlayerStr);
           const cleanTeam = extractPlayerBaseName(teamStr);
           
@@ -669,12 +670,10 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
             const isGK = (row.Position || row.Setor_Avaliacao || '').toLowerCase().includes('gk');
             const posSuffix = isGK ? '_gk' : '_field';
 
-            // Chave única (Nome + Clube)
             const uniqueKeyWithTeam = `${cleanName}_${cleanTeam}${posSuffix}`;
             if (!newAlgoData[uniqueKeyWithTeam]) newAlgoData[uniqueKeyWithTeam] = [];
             newAlgoData[uniqueKeyWithTeam].push({ tag, row: cleanRow });
 
-            // Chave por Nome (Fallback)
             const genericKey = `${cleanName}${posSuffix}`;
             if (!newAlgoData[genericKey]) newAlgoData[genericKey] = [];
             newAlgoData[genericKey].push({ tag, row: cleanRow });
@@ -698,7 +697,7 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
 
         if (error) throw error;
 
-        showToast("Ficheiro processado! Atletas diferenciados por clube.");
+        showToast("Ficheiro processado com sucesso! Todos os atletas foram lidos.");
       } catch (error: any) {
         console.error("Erro no upload:", error);
         showToast("Erro ao sincronizar dados.");
@@ -1171,27 +1170,65 @@ const uniqueBirthYears: string[] = Array.from(new Set(
 
         {/* TAB STATS & COMPARADOR H2H */}
         {activeTab === 'stats' && (() => {
-          const algoOptions = Object.entries(algorithmData)
-            .filter(([key]) => !key.endsWith('_gk'))
-            .map(([key, items]) => {
-              const row = items[0]?.row || {};
-              const pName = row.Player || row.Player_ID || key;
-              const pTeam = row.Team_Calc || row.Team || '';
-              return {
-                value: key,
-                label: pTeam ? `${pName} (${pTeam})` : pName
-              };
-            })
-            .sort((a, b) => a.label.localeCompare(b.label));
+          const algoOptions = (() => {
+            const optionsMap = new Map<string, { value: string; label: string; row: any }>();
 
-          const itemsA = comparePlayerKeyA ? algorithmData[comparePlayerKeyA] : null;
-          const itemsB = comparePlayerKeyB ? algorithmData[comparePlayerKeyB] : null;
+            Object.entries(algorithmData).forEach(([key, items]) => {
+              if (!items || key.endsWith('_gk')) return;
 
-          const rowA = itemsA?.[0]?.row;
-          const rowB = itemsB?.[0]?.row;
+              items.forEach((item, seasonIdx) => {
+                const row = item.row || {};
+                const pName = row.Player || row.Player_ID || key;
+                const pTeam = row.Team_Calc || row.Team || row.Equipa || '';
+                const seasonTag = item.tag || extractContextTag(row) || 'Atual';
+                
+                // Limpar nome para remover ID em parentesis e ter o visual clean
+                const cleanName = pName.replace(/\s*\([^)]*\)/g, '').trim();
+
+                let label = cleanName;
+                if (pTeam && seasonTag) {
+                  label += ` (${pTeam} - ${seasonTag})`;
+                } else if (pTeam) {
+                  label += ` (${pTeam})`;
+                } else if (seasonTag) {
+                  label += ` (${seasonTag})`;
+                }
+
+                const optionValue = `${key}___${seasonIdx}`;
+                // Chave para evitar duplicados exatos (Mesmo jogador, mesma época, mesmo clube)
+                const dedupKey = `${cleanName}_${pTeam}_${seasonTag}`.toLowerCase();
+
+                if (!optionsMap.has(dedupKey)) {
+                  optionsMap.set(dedupKey, {
+                    value: optionValue,
+                    label: label,
+                    row: row
+                  });
+                }
+              });
+            });
+
+            return Array.from(optionsMap.values()).sort((a, b) => a.label.localeCompare(b.label));
+          })();
+
+          const getRowFromOptionValue = (optValue: string) => {
+            if (!optValue) return null;
+            const parts = optValue.split('___');
+            const key = parts[0];
+            const idx = Number(parts[1]);
+            if (key && algorithmData[key] && algorithmData[key][idx]) {
+              return algorithmData[key][idx].row;
+            }
+            return null;
+          };
+
+          const rowA = getRowFromOptionValue(comparePlayerKeyA);
+          const rowB = getRowFromOptionValue(comparePlayerKeyB);
 
           const nameA = rowA?.Player || rowA?.Player_ID || 'Jogador A';
           const nameB = rowB?.Player || rowB?.Player_ID || 'Jogador B';
+          const cleanNameA = nameA.replace(/\s*\([^)]*\)/g, '').trim();
+          const cleanNameB = nameB.replace(/\s*\([^)]*\)/g, '').trim();
 
           const pillars = [
             { axis: 'Defesa', key: 'Defesa' },
@@ -1223,7 +1260,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                     </p>
                   </div>
                   <span className="text-xs bg-blue-500/20 text-blue-400 font-bold px-3 py-1 rounded-xl border border-blue-500/30">
-                    {algoOptions.length} Atletas Disponíveis
+                    {algoOptions.length} Opções Disponíveis
                   </span>
                 </div>
 
@@ -1260,8 +1297,8 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                 {comparePlayerKeyA || comparePlayerKeyB ? (
                   <div className={`${themeInnerCard} p-6 rounded-2xl border flex flex-col items-center justify-center min-h-[380px]`}>
                     <RadarChart 
-                      playerAName={nameA}
-                      playerBName={nameB}
+                      playerAName={cleanNameA}
+                      playerBName={cleanNameB}
                       colorA="#3b82f6"
                       colorB="#ec4899"
                       data={chartData}
