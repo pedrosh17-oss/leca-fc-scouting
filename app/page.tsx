@@ -383,7 +383,7 @@ export default function Home() {
     
       // SINCRONIZAÇÃO VIA SUPABASE STORAGE
       try {
-        const { data } = supabase.storage.from('scouting').getPublicUrl('algo-data.json');
+        const { data } = supabase.storage.from('Scouting').getPublicUrl('algo-data.json');
         if (data?.publicUrl) {
           const resAlgo = await fetch(`${data.publicUrl}?t=${Date.now()}`);
           if (resAlgo.ok) {
@@ -471,7 +471,7 @@ export default function Home() {
         const jsonBlob = new Blob([jsonString], { type: 'application/json' });
 
         const { error } = await supabase.storage
-          .from('scouting')
+          .from('Scouting')
           .upload('algo-data.json', jsonBlob, {
             contentType: 'application/json',
             upsert: true,
