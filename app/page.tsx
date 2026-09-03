@@ -2506,49 +2506,21 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                             </h3>
                           </div>
                         </div>
-
-                        {/* BOTÃO PARA SINCRONIZAR/ATUALIZAR DADOS DO AIRTABLE */}
-                        <button
-                          onClick={async () => {
-                            try {
-                              const res = await fetch('/api/players');
-                              const data = await res.json();
-                              if (data?.players) {
-                                setPlayers(data.players);
-                                if (selectedPlayer?.id) {
-                                  const updated = data.players.find((p: any) => p.id === selectedPlayer.id);
-                                  if (updated) setSelectedPlayer(updated);
-                                }
-                                showToast("Relatório sincronizado com o Airtable!");
-                              }
-                            } catch (err) {
-                              console.error(err);
-                              showToast("Erro ao sincronizar relatório.");
-                            }
-                          }}
-                          className="flex items-center gap-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-xl shadow-md transition"
-                        >
-                          <Sparkles className="w-3.5 h-3.5" />
-                          <span>Atualizar Relatório</span>
-                        </button>
                       </div>
 
                       {(() => {
-                        const rep = selectedPlayer.finalReport || selectedPlayer.report;
-                        const reportText = typeof rep === 'object' && rep !== null ? (rep.value || rep.text || '') : String(rep || '');
-                        const isAiReport = Boolean(selectedPlayer.finalReport);
+                        const rep = selectedPlayer.finalReport;
+                        const reportText = typeof rep === 'string' ? rep : '';
+                        const isValid = reportText && reportText !== 'N/D' && reportText !== 'Sem observações registadas.' && reportText !== '[object Object]';
 
-                        return isAiReport && reportText && reportText !== 'Sem observações registadas.' ? (
+                        return isValid ? (
                           <div className={`${themeInnerCard} p-5 md:p-6 rounded-xl border border-slate-700/40 text-xs md:text-sm`}>
                             {renderFormattedMarkdown(reportText)}
                           </div>
                         ) : (
-                          <div className={`text-center py-10 ${themeInnerCard} rounded-xl border border-dashed text-xs md:text-sm space-y-3`}>
-                            <Info className="w-6 h-6 text-slate-400 mx-auto" />
-                            <p className="font-bold">Relatório executivo ainda não gerado.</p>
-                            <p className={`${themeTextMuted} text-xs`}>
-                              Clica em <strong>Run agent</strong> na coluna <em>Final Report</em> no Airtable e depois pressiona o botão <strong>Atualizar Relatório</strong> acima.
-                            </p>
+                          <div className={`text-center py-12 ${themeInnerCard} rounded-xl border border-dashed text-xs md:text-sm space-y-2`}>
+                            <Info className="w-6 h-6 text-slate-500 mx-auto" />
+                            <p className="font-bold text-slate-400">Sem report</p>
                           </div>
                         );
                       })()}
