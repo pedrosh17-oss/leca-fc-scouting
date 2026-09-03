@@ -381,7 +381,7 @@ export default function Home() {
     e.preventDefault(); if (!editingHighlight) return; setSavingHighlight(true);
     try {
       const res = await fetch('/api/highlights', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ matchId: editingHighlight.matchId, playerId: editingHighlight.player.id !== editingHighlight.player.name ? editingHighlight.player.id : null, highlightId: editingHighlight.highlightId, notes: editingHighlight.notes, }), });
-      if (res.ok) { setEditingHighlight(null); await loadData(); showToast(`Highlight atualizado com sucesso!`); }
+      if (res.ok) { setEditingHighlight(null); await loadData(); showToast(`Avaliação atualizada com sucesso!`); }
     } catch (err) { console.error(err); } finally { setSavingHighlight(false); }
   };
 
@@ -389,7 +389,7 @@ export default function Home() {
     e.preventDefault(); if (!isAddHighlightOpen) return;
     try {
       const res = await fetch('/api/highlights', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ matchId: isAddHighlightOpen.matchId, playerId: newHighlightData.playerId, notes: newHighlightData.notes, }), });
-      if (res.ok) { setIsAddHighlightOpen(null); setNewHighlightData({ playerId: '', notes: '' }); await loadData(); showToast("Novo destaque adicionado!"); }
+      if (res.ok) { setIsAddHighlightOpen(null); setNewHighlightData({ playerId: '', notes: '' }); await loadData(); showToast("Nova avaliação adicionada!"); }
     } catch (err) { console.error(err); }
   };
 
@@ -849,7 +849,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 3: MATCHES */}
+        {/* TAB 3: MATCHES (MATCH CENTER) */}
         {activeTab === 'matches' && (
           <div className="animate-in fade-in duration-300">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5 md:mb-6">
@@ -894,6 +894,7 @@ export default function Home() {
                     {isExpanded && (
                       <div className="p-4 md:p-5 border-t border-slate-800 bg-[#0d131f] md:bg-[#111723] space-y-6 md:space-y-5">
                         
+                        {/* MATCH HEADER & METRICS */}
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#151c2c] md:bg-[#0d131f] p-4 rounded-xl border border-slate-800 text-xs md:text-sm gap-4">
                           <div className="space-y-2 md:space-y-1.5 w-full md:w-auto">
                             <div className="flex items-center gap-2 text-slate-300"><Shield className="w-4 h-4 text-slate-500"/> <strong>Táticas:</strong> {match.homeTactic} / {match.awayTactic}</div>
@@ -906,6 +907,7 @@ export default function Home() {
                           )}
                         </div>
 
+                        {/* MATCH CONTEXT EDITOR */}
                         {isEditingContext && canEditMatches && (
                           <div className="bg-[#151c2c] md:bg-[#0d131f] p-4 md:p-5 rounded-xl border border-blue-500/30 space-y-4 text-xs md:text-sm shadow-inner animate-in fade-in slide-in-from-top-2">
                             <h4 className="font-bold text-blue-400 uppercase tracking-wider mb-2">Editor de Métricas do Jogo</h4>
@@ -934,6 +936,7 @@ export default function Home() {
                           </div>
                         )}
 
+                        {/* HIGHLIGHTS SECTION */}
                         <div>
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                             <h4 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider">Avaliações Individuais (Highlights)</h4>
@@ -1012,6 +1015,7 @@ export default function Home() {
                           )}
                         </div>
 
+                        {/* MÉTRICAS VISUAIS */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
                           <div className="bg-[#151c2c] p-3 md:p-4 rounded-xl border border-slate-800/60">
                              <span className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 uppercase tracking-wider font-bold mb-1"><Zap className="w-3.5 h-3.5"/> Ritmo</span>
@@ -1077,10 +1081,6 @@ export default function Home() {
                   <div className="flex-1 border-r border-slate-800">
                     <span className="block text-lg font-bold text-emerald-400">{getScoutMatches(scout.name).length}</span>
                     <span className="block text-[8px] md:text-[9px] text-slate-500 uppercase font-bold mt-0.5">Jogos</span>
-                  </div>
-                  <div className="flex-1 border-r border-slate-800">
-                    <span className="block text-lg font-bold text-white">{scout.playersCount || 0}</span>
-                    <span className="block text-[8px] md:text-[9px] text-slate-500 uppercase font-bold mt-0.5">Relatórios</span>
                   </div>
                   <div className="flex-1 text-[10px] text-slate-400 space-y-0.5 flex flex-col justify-center">
                     <div><span className="text-blue-400 font-bold">{scout.liveMatches || 0}</span> Live</div>
@@ -1193,14 +1193,10 @@ export default function Home() {
               </div>
 
               {/* KPIS DO SCOUT */}
-              <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="grid grid-cols-2 gap-3 text-center">
                 <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
                   <span className="text-xs text-slate-500 block mb-1 font-semibold">Jogos Observados</span>
                   <span className="text-2xl font-black text-emerald-400">{scoutMatches.length}</span>
-                </div>
-                <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
-                  <span className="text-xs text-slate-500 block mb-1 font-semibold">Destaques Criados</span>
-                  <span className="text-2xl font-black text-white">{selectedScout.playersCount || 0}</span>
                 </div>
                 <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
                   <span className="text-xs text-slate-500 block mb-1 font-semibold">Live vs Stream</span>
@@ -1271,7 +1267,7 @@ export default function Home() {
 
             <form onSubmit={handleSaveSingleHighlight} className="space-y-4 text-xs md:text-sm">
               <div>
-                <label className="block text-slate-400 font-bold mb-2">Relatório Individual</label>
+                <label className="block text-slate-400 font-bold mb-2">Avaliação Individual</label>
                 <textarea 
                   rows={6} required placeholder="Escreve a tua avaliação técnica/tática..."
                   value={editingHighlight.notes} onChange={e => setEditingHighlight({ ...editingHighlight, notes: e.target.value })}
@@ -1318,7 +1314,7 @@ export default function Home() {
               </div>
 
               <div>
-                <label className="block text-slate-400 font-bold mb-1.5">Relatório</label>
+                <label className="block text-slate-400 font-bold mb-1.5">Avaliação</label>
                 <textarea 
                   rows={4} required placeholder="Análise individual do atleta..."
                   value={newHighlightData.notes} onChange={e => setNewHighlightData({ ...newHighlightData, notes: e.target.value })}
@@ -1335,7 +1331,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL PRÉ-JOGO */}
+      {/* MODAL PRÉ-JOGO (COM LISTA DE SCOUTS FILTRADA) */}
       {isRegisterOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-xl rounded-2xl shadow-2xl p-5 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
@@ -1382,7 +1378,7 @@ export default function Home() {
                   options={displayScouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
                   selectedIds={preGameData.scoutIds} 
                   onChange={ids => setPreGameData({ ...preGameData, scoutIds: ids })} 
-                  placeholder="Selecionar Scouts..." 
+                  placeholder="Selecionar Scouts que acompanharam o jogo..." 
                 />
               </div>
 
@@ -1466,7 +1462,7 @@ export default function Home() {
               </div>
 
               <div className="flex gap-4 md:gap-8 border-b border-slate-800 text-xs md:text-sm font-bold mb-6 overflow-x-auto no-scrollbar pb-1">
-                <button onClick={() => setProfileTab('timeline')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'timeline' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}><FileText className="w-4 h-4" /> Relatórios & Timeline</button>
+                <button onClick={() => setProfileTab('timeline')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'timeline' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}><FileText className="w-4 h-4" /> Observações & Timeline</button>
                 <button onClick={() => setProfileTab('algo')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'algo' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}><BarChart3 className="w-4 h-4" /> Looker Studio (Algoritmo)</button>
                 {canSeeMarket && (
                   <button onClick={() => setProfileTab('market')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'market' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}>
@@ -1496,7 +1492,7 @@ export default function Home() {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-12 bg-[#151c2c] rounded-2xl border border-slate-800 border-dashed"><FileText className="w-8 h-8 mx-auto text-slate-600 mb-3" /><p className="text-sm text-slate-400 font-medium">Ainda não existem relatórios de jogo para este atleta.</p><p className="text-xs text-slate-500 mt-1">As observações individuais feitas no Match Center aparecerão aqui.</p></div>
+                    <div className="text-center py-12 bg-[#151c2c] rounded-2xl border border-slate-800 border-dashed"><FileText className="w-8 h-8 mx-auto text-slate-600 mb-3" /><p className="text-sm text-slate-400 font-medium">Ainda não existem observações de jogo para este atleta.</p><p className="text-xs text-slate-500 mt-1">As avaliações individuais feitas no Match Center aparecerão aqui.</p></div>
                   )}
                 </div>
               )}
