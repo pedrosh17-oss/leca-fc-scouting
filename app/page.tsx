@@ -2510,9 +2510,20 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                         {/* BOTÃO PARA SINCRONIZAR/ATUALIZAR DADOS DO AIRTABLE */}
                         <button
                           onClick={async () => {
-                            if (typeof fetchPlayers === 'function') {
-                              await fetchPlayers();
-                              showToast("Relatório sincronizado com o Airtable!");
+                            try {
+                              const res = await fetch('/api/players');
+                              const data = await res.json();
+                              if (data?.players) {
+                                setPlayers(data.players);
+                                if (selectedPlayer?.id) {
+                                  const updated = data.players.find((p: any) => p.id === selectedPlayer.id);
+                                  if (updated) setSelectedPlayer(updated);
+                                }
+                                showToast("Relatório sincronizado com o Airtable!");
+                              }
+                            } catch (err) {
+                              console.error(err);
+                              showToast("Erro ao sincronizar relatório.");
                             }
                           }}
                           className="flex items-center gap-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-xl shadow-md transition"
