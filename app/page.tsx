@@ -92,73 +92,74 @@ function getPlayerAlgoEntries(player: any, algorithmData: Record<string, any[]>)
   const cleanClub = extractPlayerBaseName(player.club || '');
   const playerAge = Number(player.age);
 
+  const targetClubWords = cleanClub.split(/\s+/).filter(w => w.length > 2);
   const nameParts = cleanName.split(/\s+/).filter(Boolean);
-  const firstName = nameParts[0] || '';
-  const lastName = nameParts[nameParts.length - 1] || '';
+  const targetLastName = nameParts[nameParts.length - 1] || '';
+  const targetFirstInitial = nameParts[0]?.[0] || '';
 
-  const clubWords = cleanClub.split(/\s+/).filter(w => w.length > 1);
+  let bestEntries: any[] = [];
+  let maxScore = -1;
 
-  const candidates: { entries: any[]; score: number }[] = [];
-
-  for (const [key, entries] of Object.entries(algorithmData)) {
+  for (const entries of Object.values(algorithmData)) {
     if (!entries || entries.length === 0) continue;
 
-    const sampleRow = entries[0].row;
-    const rowName = extractPlayerBaseName(sampleRow.Player || sampleRow.Player_ID || key.split('_')[0]);
-    const rowClub = extractPlayerBaseName(sampleRow.Team_Calc || sampleRow.Team || '');
-    const rowAge = Number(sampleRow.Age);
+    // Filtra LINHA A LINHA para garantir que apenas pertencem ao mesmo atleta e clube
+    const matchingRows = entries.filter(e => {
+      const rowName = extractPlayerBaseName(e.row?.Player || e.row?.Player_ID || '');
+      const rowClub = extractPlayerBaseName(e.row?.Team_Calc || e.row?.Team || '');
+      const rowAge = Number(e.row?.Age);
 
-    // 1. CORRESPONDÊNCIA DE NOME (Exato, Substring ou Inicial+Apelido)
-    let isNameMatch = false;
-    if (rowName === cleanName || rowName.includes(cleanName) || cleanName.includes(rowName)) {
-      isNameMatch = true;
-    } else if (firstName && lastName) {
-      const rParts = rowName.split(/\s+/).filter(Boolean);
-      const rFirst = rParts[0] || '';
-      const rLast = rParts[rParts.length - 1] || '';
-      if (rLast === lastName && rFirst[0] === firstName[0]) {
+      // 1. COMPATIBILIDADE DE NOME (Exato, Substring ou Inicial+Apelido)
+      let isNameMatch = false;
+      if (rowName === cleanName || rowName.includes(cleanName) || cleanName.includes(rowName)) {
         isNameMatch = true;
-      }
-    }
-
-    if (!isNameMatch) continue;
-
-    // 2. VALIDAÇÃO ESTRITA DE CLUBE (Evita juntar homónimos de clubes diferentes)
-    const rowClubWords = rowClub.split(/\s+/).filter(w => w.length > 2);
-    const targetClubWords = clubWords.filter(w => w.length > 2);
-
-    let clubScore = 0;
-    if (cleanClub && rowClub) {
-      if (cleanClub === rowClub || cleanClub.includes(rowClub) || rowClub.includes(cleanClub)) {
-        clubScore = 10;
-      } else {
-        const commonWords = targetClubWords.filter(w => rowClubWords.includes(w));
-        clubScore = commonWords.length * 4;
-        
-        // Se ambos têm clubes definidos mas NENHUMA palavra bate certo, descarta (são pessoas diferentes)
-        if (commonWords.length === 0 && targetClubWords.length > 0 && rowClubWords.length > 0) {
-          continue; 
+      } else if (targetLastName && targetFirstInitial) {
+        const rParts = rowName.split(/\s+/).filter(Boolean);
+        const rLast = rParts[rParts.length - 1] || '';
+        const rInitial = rParts[0]?.[0] || '';
+        if (rLast === targetLastName && rInitial === targetFirstInitial) {
+          isNameMatch = true;
         }
       }
-    }
 
-    // 3. VALIDAÇÃO DE IDADE
-    let ageScore = 0;
-    if (!isNaN(playerAge) && !isNaN(rowAge)) {
-      const diff = Math.abs(playerAge - rowAge);
-      if (diff === 0) ageScore = 5;
-      else if (diff <= 1) ageScore = 2;
-      else continue; // Descarte se a idade diferir em mais de 1 ano
-    }
+      if (!isNameMatch) return false;
 
-    candidates.push({ entries, score: clubScore + ageScore });
+      // 2. SEPARAÇÃO ESTRITA DE CLUBES (Se tiverem clubes diferentes sem palavras em comum, REJEITA)
+      if (cleanClub && rowClub) {
+        const rClubWords = rowClub.split(/\s+/).filter(w => w.length > 2);
+        const commonWords = targetClubWords.filter(w => rClubWords.includes(w));
+        
+        // Exemplo: "vitoria sc b" vs "mirandela" -> 0 palavras em comum -> Linha Descartada!
+        if (commonWords.length === 0 && targetClubWords.length > 0 && rClubWords.length > 0) {
+          return false;
+        }
+      }
+
+      // 3. IDADE (Margem de 1 ano)
+      if (!isNaN(playerAge) && !isNaN(rowAge) && Math.abs(playerAge - rowAge) > 1) {
+        return false;
+      }
+
+      return true;
+    });
+
+    if (matchingRows.length > 0) {
+      const sample = matchingRows[0].row;
+      const rClub = extractPlayerBaseName(sample?.Team_Calc || sample?.Team || '');
+      
+      let score = matchingRows.length; // Dá prioridade a ter mais épocas correspondentes
+      if (cleanClub && rClub && (cleanClub.includes(rClub) || rClub.includes(cleanClub))) {
+        score += 20; // Bónus alto para o clube correto
+      }
+
+      if (score > maxScore) {
+        maxScore = score;
+        bestEntries = matchingRows;
+      }
+    }
   }
 
-  if (candidates.length === 0) return [];
-
-  // Devolve apenas o perfil do clube com maior pontuação de compatibilidade
-  candidates.sort((a, b) => b.score - a.score);
-  return candidates[0].entries;
+  return bestEntries;
 }
 
 const PILLAR_METRICS_MAP: Record<string, { label: string; statKey: string; pctKey: string; weight: string }[]> = {
