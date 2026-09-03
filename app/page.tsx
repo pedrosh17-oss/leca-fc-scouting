@@ -13,6 +13,8 @@ import * as XLSX from 'xlsx';
 import localforage from 'localforage';
 import { createClient } from '@supabase/supabase-js';
 
+import RadarChart from './components/RadarChart';
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://zlvakhbqskmsubxmyvvr.supabase.co';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_TBhrZLVa7hAP3EPrDrAbiQ_mI2v_egy';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -1257,8 +1259,39 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                 ))}
               </div>
             </div>
+
+            {/* COMPONENTES DE TESTE: COMPARADOR RADAR H2H */}
+            <div className={`${themeCard} p-6 rounded-2xl border border-blue-500/30 shadow-xl space-y-4`}>
+              <div className="flex items-center justify-between border-b border-slate-700/40 pb-3">
+                <h3 className="text-xs md:text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-blue-500" /> Comparador H2H Interativo (Demo)
+                </h3>
+                <span className="text-[10px] bg-blue-500/20 text-blue-400 font-bold px-2 py-0.5 rounded border border-blue-500/30">
+                  Visualização Radar
+                </span>
+              </div>
+
+              <RadarChart 
+                playerAName="Lucas Moreira"
+                playerBName="Rodrigo Silva"
+                colorA="#3b82f6"
+                colorB="#ec4899"
+                data={[
+                  { axis: 'Defesa', A: 22.4, B: 71.2 },
+                  { axis: 'Jogo Aéreo', A: 59.3, B: 45.3 },
+                  { axis: 'Construção', A: 26.9, B: 53.3 },
+                  { axis: 'Criação', A: 59.6, B: 61.1 },
+                  { axis: 'Cruzamento', A: 36.7, B: 59.3 },
+                  { axis: '1v1', A: 57.2, B: 66.4 },
+                  { axis: 'Profundidade', A: 54.6, B: 51.9 },
+                  { axis: 'Finalização', A: 48.0, B: 39.3 },
+                ]}
+              />
+            </div>
           </div>
         )}
+
+        
 
 {/* TAB 1: PLAYERS (COM NOVOS FILTROS) */}
         {/* TAB 1: PLAYERS (COM FILTROS AVANÇADOS REFINADOS) */}
