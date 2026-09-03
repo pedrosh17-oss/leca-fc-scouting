@@ -2248,12 +2248,13 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                   <div className="space-y-6 animate-in fade-in duration-300">
                     {sortedEntry.length > 0 && playerAlgo ? (
                       <>
-                        {sortedEntry.length > 1 && (
-                          <div className={`flex items-center gap-3 ${themeCard} p-3.5 rounded-2xl border border-purple-500/30`}>
+                        {/* BARRA DE CONTEXTO E FONTE EXCEL (SUBTIL) */}
+                        <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${themeCard} p-3.5 rounded-2xl border border-purple-500/30`}>
+                          <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
                             <span className="text-xs font-bold text-purple-500 uppercase tracking-wider flex items-center gap-1.5 flex-shrink-0">
-                              <Calendar className="w-4 h-4 text-purple-500" /> Contexto / Épocas:
+                              <Calendar className="w-4 h-4 text-purple-500" /> Contexto:
                             </span>
-                            <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                            <div className="flex gap-2">
                               {sortedEntry.map((item, idx) => (
                                 <button
                                   key={idx}
@@ -2269,7 +2270,18 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                               ))}
                             </div>
                           </div>
-                        )}
+
+                          {/* BOTAO/INDICADOR SUBTIL DA FONTE DO EXCEL */}
+                          <div 
+                            title="Registo exato mapeado no ficheiro Excel"
+                            className="text-[10px] text-slate-500 bg-slate-800/40 hover:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700/50 font-mono opacity-60 hover:opacity-100 transition cursor-help flex items-center gap-1.5 self-start sm:self-auto flex-shrink-0"
+                          >
+                            <Info className="w-3 h-3 text-purple-400" />
+                            <span className="truncate max-w-[200px] md:max-w-[280px]">
+                              {playerAlgo.Player_ID || playerAlgo.Player || 'Sem ID'}
+                            </span>
+                          </div>
+                        </div>
 
                         <div className={`${themeCard} p-4 rounded-2xl border grid grid-cols-2 gap-3 text-center`}>
                           <div className={`${themeInnerCard} p-3.5 rounded-xl border`}>
@@ -2291,8 +2303,15 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                           const notaMedian = notaMedianRaw ? parseFloat(notaMedianRaw) : null;
                           const notaDelta = (notaVal !== null && notaMedian !== null) ? (notaVal - notaMedian) : null;
                           
-                          const top5Str = playerAlgo.Top_5_Atributos || playerAlgo.Top_5_Attributes || playerAlgo.Top_Attributes;
-                          const top5List = top5Str ? String(top5Str).split(',').map(s => s.trim()).filter(Boolean) : [];
+                          // Extração estruturada dos Top 5 Atributos com Percentil
+                          const top5Attrs = [];
+                          for (let i = 1; i <= 5; i++) {
+                            const name = playerAlgo[`Top_Attr_${i}_Name`];
+                            const val = playerAlgo[`Top_Attr_${i}_Val`];
+                            if (name) {
+                              top5Attrs.push({ name, val });
+                            }
+                          }
 
                           return (
                             <div className="space-y-4">
@@ -2316,17 +2335,26 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                                 </div>
                               </div>
 
-                              {top5List.length > 0 && (
-                                <div className={`${themeInnerCard} p-4 md:p-5 rounded-2xl border`}>
-                                  <h4 className={`text-xs font-bold ${themeTextMuted} uppercase tracking-wider mb-3 flex items-center gap-2`}>
-                                    <Star className="w-4 h-4 text-amber-500"/> Top 5 Atributos
+                              {/* BLOCO TOP 5 ATRIBUTOS COM PERCENTIS */}
+                              {top5Attrs.length > 0 && (
+                                <div className={`${themeInnerCard} p-4 md:p-5 rounded-2xl border space-y-3`}>
+                                  <h4 className={`text-xs font-bold ${themeTextMuted} uppercase tracking-wider flex items-center gap-2`}>
+                                    <Star className="w-4 h-4 text-amber-500"/> Top 5 Atributos em Destaque
                                   </h4>
-                                  <div className="flex flex-wrap gap-2">
-                                    {top5List.map((attr, i) => (
-                                      <span key={i} className={`text-[11px] md:text-xs font-bold px-3 py-1.5 rounded-lg border ${isDarkMode ? 'bg-slate-800/80 border-slate-700 text-slate-200' : 'bg-white border-slate-300 text-slate-800'} shadow-sm`}>
-                                        {attr}
-                                      </span>
-                                    ))}
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                                    {top5Attrs.map((attr, i) => {
+                                      const numVal = attr.val !== undefined && attr.val !== null ? parseFloat(attr.val) : null;
+                                      return (
+                                        <div key={i} className={`flex items-center justify-between p-3 rounded-xl border ${isDarkMode ? 'bg-slate-800/80 border-slate-700/80' : 'bg-white border-slate-200'} shadow-sm`}>
+                                          <span className="text-xs font-bold truncate pr-2">{attr.name}</span>
+                                          {numVal !== null && (
+                                            <span className="text-xs font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 font-mono flex-shrink-0">
+                                              {numVal.toFixed(1)} Pct
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 </div>
                               )}
