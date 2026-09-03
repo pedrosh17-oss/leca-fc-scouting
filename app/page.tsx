@@ -12,6 +12,12 @@ import {
 import * as XLSX from 'xlsx';
 import localforage from 'localforage';
 
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://zlvakhbqskmsubxmyvvr.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_TBhrZLVa7hAP3EPrDrAbiQ_mI2v_egy';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 
 const TACTICS_OPTIONS = [
   '1-4-3-3', '1-4-4-2', '1-4-2-4', '1-4-1-3-2', '1-4-1-4-1', '1-4-2-3-1', 
@@ -374,11 +380,19 @@ export default function Home() {
       if (dataM.matches) setMatches(dataM.matches);
       if (dataM.competitions) setCompetitions(dataM.competitions);
       
-      // SINCRONIZAÇÃO SERVIDOR / API CENTRAL
-      if (dataAlgo.algoData && Object.keys(dataAlgo.algoData).length > 0) {
-        setAlgorithmData(dataAlgo.algoData);
-        localforage.setItem('leca_algo_data', dataAlgo.algoData);
-      } else {
+    
+      // SINCRONIZAÇÃO VIA SUPABASE STORAGE
+      try {
+        const { data } = supabase.storage.from('scouting').getPublicUrl('algo-data.json');
+        if (data?.publicUrl) {
+          const resAlgo = await fetch(`${data.publicUrl}?t=${Date.now()}`);
+          if (resAlgo.ok) {
+            const remoteAlgoData = await resAlgo.json();
+            setAlgorithmData(remoteAlgoData);
+            await localforage.setItem('leca_algo_data', remoteAlgoData);
+          }
+        }
+      } catch (err) {
         // Fallback para memória local do browser
         localforage.getItem('leca_algo_data').then((savedAlgo) => {
           if (savedAlgo) setAlgorithmData(savedAlgo as Record<string, any>);
@@ -448,40 +462,26 @@ export default function Home() {
           }
         });
 
+        // Atualiza no PC imediatamente
         setAlgorithmData(newAlgoData);
         await localforage.setItem('leca_algo_data', newAlgoData);
 
-        // 1. Pedir token de autorização assinado ao servidor
-        const tokenRes = await fetch('/api/algo', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'blob.generate-client-token',
-            payload: { pathname: 'algo-data.xlsx', clientPayload: null, multipart: false },
-          }),
-        });
+        // Converter para JSON e enviar para o Supabase
+        const jsonString = JSON.stringify(newAlgoData);
+        const jsonBlob = new Blob([jsonString], { type: 'application/json' });
 
-        if (!tokenRes.ok) throw new Error('Falha ao obter token');
-        const { clientToken } = await tokenRes.json();
+        const { error } = await supabase.storage
+          .from('scouting')
+          .upload('algo-data.json', jsonBlob, {
+            contentType: 'application/json',
+            upsert: true,
+          });
 
-        // 2. Enviar 7 MB diretamente do Browser com fetch nativo (sem bibliotecas externas)
-        const uploadRes = await fetch('https://blob.vercel-storage.com/algo-data.xlsx', {
-          method: 'PUT',
-          headers: {
-            'x-api-version': '7',
-            'authorization': `Bearer ${clientToken}`,
-            'content-type': file.type || 'application/octet-stream',
-          },
-          body: file,
-        });
+        if (error) throw error;
 
-        if (uploadRes.ok) {
-          showToast(`Ficheiro de 7MB sincronizado na Cloud! Telemóveis atualizados.`);
-        } else {
-          showToast(`Guardado no PC local.`);
-        }
+        showToast("Ficheiro sincronizado na Cloud! Telemóveis atualizados.");
       } catch (error) {
-        console.error(error);
+        console.error("Erro no Supabase:", error);
         showToast("Guardado no PC local.");
       } finally {
         setUploadingExcel(false);
