@@ -1512,7 +1512,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
 
                         {fields['Motivo da Contratação'] && (
                           <p className={`text-xs ${themeTextMuted} italic bg-slate-900/30 p-3 rounded-lg border border-slate-800 line-clamp-2`}>
-                            "{fields['Motivo da Contratação']}"
+                           &quot;{fields['Motivo da Contratação']}&quot;
                           </p>
                         )}
 
@@ -1539,7 +1539,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                   <Briefcase className="w-8 h-8 text-slate-500 mx-auto" />
                   <p className="font-bold text-slate-300">Sem oportunidades registadas</p>
                   <p className={`${themeTextMuted} text-xs`}>
-                    Clica em "Nova Oportunidade" para associar o primeiro atleta a este mercado.
+                  Clica em &quot;Nova Oportunidade&quot;
                   </p>
                 </div>
               )}
