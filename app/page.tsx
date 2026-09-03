@@ -2249,10 +2249,11 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                   <div className={`${themeCard} p-4 rounded-2xl border flex flex-col justify-center items-center md:items-start text-center md:text-left bg-blue-900/10 border-blue-900/30`}><span className="text-blue-500/70 text-[10px] uppercase font-bold tracking-widest block mb-1">Jogos Vistos</span><span className="text-blue-500 text-2xl font-black">{getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length}</span></div>
                 </div>
 
-                {/* TABS DO PERFIL (RENOMEADO PARA "Ratings") */}
+                {/* TABS DO PERFIL */}
                 <div className={`flex gap-4 md:gap-8 border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} text-xs md:text-sm font-bold mb-6 overflow-x-auto no-scrollbar pb-1`}>
                   <button onClick={() => setProfileTab('timeline')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'timeline' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-400 hover:text-slate-200'}`}><FileText className="w-4 h-4" /> Observações & Timeline</button>
                   <button onClick={() => setProfileTab('algo')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'algo' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-400 hover:text-slate-200'}`}><BarChart3 className="w-4 h-4" /> Ratings</button>
+                  <button onClick={() => setProfileTab('reports')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'reports' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-400 hover:text-slate-200'}`}><BrainCircuit className="w-4 h-4" /> Relatórios & Análise</button>
                   {canSeeMarket && (
                     <button onClick={() => setProfileTab('market')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'market' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
                       <Briefcase className="w-4 h-4" /> Mercado & Decisão
@@ -2291,7 +2292,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                   <div className="space-y-6 animate-in fade-in duration-300">
                     {sortedEntry.length > 0 && playerAlgo ? (
                       <>
-                        {/* BARRA DE CONTEXTO E FONTE EXCEL (SUBTIL) */}
+                        {/* BARRA DE CONTEXTO E FONTE EXCEL */}
                         <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${themeCard} p-3.5 rounded-2xl border border-purple-500/30`}>
                           <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
                             <span className="text-xs font-bold text-purple-500 uppercase tracking-wider flex items-center gap-1.5 flex-shrink-0">
@@ -2314,7 +2315,6 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                             </div>
                           </div>
 
-                          {/* BOTAO/INDICADOR SUBTIL DA FONTE DO EXCEL */}
                           <div 
                             title="Registo exato mapeado no ficheiro Excel"
                             className="text-[10px] text-slate-500 bg-slate-800/40 hover:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700/50 font-mono opacity-60 hover:opacity-100 transition cursor-help flex items-center gap-1.5 self-start sm:self-auto flex-shrink-0"
@@ -2346,7 +2346,6 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                           const notaMedian = notaMedianRaw ? parseFloat(notaMedianRaw) : null;
                           const notaDelta = (notaVal !== null && notaMedian !== null) ? (notaVal - notaMedian) : null;
                           
-                          // Extração estruturada dos Top 5 Atributos com Percentil
                           const top5Attrs = [];
                           for (let i = 1; i <= 5; i++) {
                             const name = playerAlgo[`Top_Attr_${i}_Name`];
@@ -2357,7 +2356,8 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                           }
 
                           return (
-                            <div className="space-y-4">
+                            <div className="space-y-6">
+                              {/* NOTA PRINCIPAL E PERFIL */}
                               <div className={`${themeCard} p-6 rounded-2xl border border-purple-500/30 relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4`}>
                                 <div className="space-y-1 text-center md:text-left">
                                   <span className="text-[10px] uppercase font-bold tracking-widest text-purple-500 flex items-center gap-1 justify-center md:justify-start">
@@ -2378,7 +2378,47 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                                 </div>
                               </div>
 
-                              {/* BLOCO TOP 5 ATRIBUTOS COM PERCENTIS */}
+                              {/* PILARES DE DESEMPENHO (EM CIMA) */}
+                              <div className={`${themeCard} p-6 rounded-2xl border space-y-4`}>
+                                <div className="flex justify-between items-center">
+                                  <h4 className={`text-xs font-bold ${themeTextMuted} uppercase tracking-wider flex items-center gap-2`}>
+                                    <Award className="w-4 h-4 text-blue-500"/> Pilares de Desempenho
+                                  </h4>
+                                  <span className={`text-[10px] ${themeTextMuted} font-medium`}>Clica num pilar para ver os detalhes</span>
+                                </div>
+
+                                <div className={`grid grid-cols-2 ${isGK ? 'md:grid-cols-2' : 'md:grid-cols-4'} gap-3`}>
+                                  {pillarList.map((pilar, idx) => {
+                                    const val = playerAlgo[pilar.key];
+                                    const numVal = val ? parseFloat(val) : 0;
+                                    
+                                    const medianLiga = playerAlgo[`${pilar.title}_Median_Liga`];
+                                    const numMedian = medianLiga ? parseFloat(medianLiga) : null;
+                                    const delta = numMedian !== null ? numVal - numMedian : null;
+
+                                    return (
+                                      <button 
+                                        key={idx} 
+                                        onClick={() => setSelectedPillarDetail(pilar.title)}
+                                        className={`${themeInnerCard} p-3.5 rounded-xl border hover:border-blue-500/50 transition text-left group flex flex-col justify-between`}
+                                      >
+                                        <span className={`block text-[10px] ${themeTextMuted} font-bold mb-1 group-hover:text-blue-500 transition`}>{pilar.title}</span>
+                                        <div className="flex items-center justify-between mt-1">
+                                          <span className="text-lg font-bold">{val ? numVal.toFixed(1) : '--'}</span>
+                                          
+                                          {delta !== null && (
+                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${delta >= 0 ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
+                                              {delta >= 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* TOP 5 ATRIBUTOS EM DESTAQUE (EM BAIXO) */}
                               {top5Attrs.length > 0 && (
                                 <div className={`${themeInnerCard} p-4 md:p-5 rounded-2xl border space-y-3`}>
                                   <h4 className={`text-xs font-bold ${themeTextMuted} uppercase tracking-wider flex items-center gap-2`}>
@@ -2404,45 +2444,6 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                             </div>
                           );
                         })()}
-
-                        <div className={`${themeCard} p-6 rounded-2xl border space-y-4`}>
-                          <div className="flex justify-between items-center">
-                            <h4 className={`text-xs font-bold ${themeTextMuted} uppercase tracking-wider flex items-center gap-2`}>
-                              <Award className="w-4 h-4 text-blue-500"/> Pilares de Desempenho
-                            </h4>
-                            <span className={`text-[10px] ${themeTextMuted} font-medium`}>Clica num pilar para ver os detalhes</span>
-                          </div>
-
-                          <div className={`grid grid-cols-2 ${isGK ? 'md:grid-cols-2' : 'md:grid-cols-4'} gap-3`}>
-                            {pillarList.map((pilar, idx) => {
-                              const val = playerAlgo[pilar.key];
-                              const numVal = val ? parseFloat(val) : 0;
-                              
-                              const medianLiga = playerAlgo[`${pilar.title}_Median_Liga`];
-                              const numMedian = medianLiga ? parseFloat(medianLiga) : null;
-                              const delta = numMedian !== null ? numVal - numMedian : null;
-
-                              return (
-                                <button 
-                                  key={idx} 
-                                  onClick={() => setSelectedPillarDetail(pilar.title)}
-                                  className={`${themeInnerCard} p-3.5 rounded-xl border hover:border-blue-500/50 transition text-left group flex flex-col justify-between`}
-                                >
-                                  <span className={`block text-[10px] ${themeTextMuted} font-bold mb-1 group-hover:text-blue-500 transition`}>{pilar.title}</span>
-                                  <div className="flex items-center justify-between mt-1">
-                                    <span className="text-lg font-bold">{val ? numVal.toFixed(1) : '--'}</span>
-                                    
-                                    {delta !== null && (
-                                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${delta >= 0 ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
-                                        {delta >= 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)}
-                                      </span>
-                                    )}
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
                       </>
                     ) : (
                       <div className={`flex flex-col items-center justify-center py-20 ${themeCard} rounded-2xl border border-dashed text-center px-4`}>
@@ -2453,6 +2454,62 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                         </p>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* VISTA RELATÓRIOS & ANÁLISE */}
+                {profileTab === 'reports' && (
+                  <div className="space-y-6 animate-in fade-in duration-300">
+                    {/* RELATÓRIO EXECUTIVO DE PROSPEÇÃO (GERADO VIA AIRTABLE / AI) */}
+                    <div className={`${themeCard} p-6 md:p-8 rounded-2xl border border-blue-500/30 shadow-xl space-y-4`}>
+                      <div className="flex items-center justify-between border-b border-slate-700/40 pb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2.5 bg-blue-600/20 text-blue-400 rounded-xl border border-blue-500/30">
+                            <BrainCircuit className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h3 className="text-sm md:text-base font-bold uppercase tracking-wider">
+                              Relatório Consolidado de Prospeção
+                            </h3>
+                            <p className={`text-xs ${themeTextMuted}`}>
+                              Síntese técnica automatizada com base no histórico de observações
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] bg-blue-500/10 text-blue-400 font-bold px-2.5 py-1 rounded-md border border-blue-500/20">
+                          Sintetizado
+                        </span>
+                      </div>
+
+                      {selectedPlayer.report && selectedPlayer.report !== 'Sem observações registadas.' ? (
+                        <div className={`text-xs md:text-sm leading-relaxed font-sans whitespace-pre-wrap ${themeInnerCard} p-5 rounded-xl border border-slate-700/40`}>
+                          {selectedPlayer.report}
+                        </div>
+                      ) : (
+                        <div className={`text-center py-10 ${themeInnerCard} rounded-xl border border-dashed text-xs md:text-sm space-y-2`}>
+                          <Info className="w-6 h-6 text-slate-400 mx-auto" />
+                          <p className="font-bold">Relatório executivo ainda não gerado no Airtable.</p>
+                          <p className={`${themeTextMuted} text-xs`}>
+                            Para gerar este relatório, executa o agente AI na coluna <strong>Final Report</strong> do Airtable.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* RELATÓRIO INDIVIDUAL DE OBSERVADOR (MÓDULO FUTURO) */}
+                    <div className={`${themeCard} p-6 md:p-8 rounded-2xl border border-dashed space-y-3 opacity-80`}>
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs md:text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-purple-400" /> Relatório Individual de Observador
+                        </h3>
+                        <span className="text-[10px] bg-purple-500/20 text-purple-400 font-bold px-2.5 py-1 rounded border border-purple-500/30">
+                          Em Breve
+                        </span>
+                      </div>
+                      <p className={`text-xs ${themeTextMuted}`}>
+                        Espaço reservado para inserção de proformas técnicas, matrizes de observação pontuais e formulários de scouting individualizados.
+                      </p>
+                    </div>
                   </div>
                 )}
 
