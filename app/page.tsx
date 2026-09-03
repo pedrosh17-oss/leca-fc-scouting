@@ -3172,6 +3172,24 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                                     </div>
                                   )}
 
+                                  {/* PONTOS FORTES E FRACOS */}
+                                  {(f['Pontos Fortes'] || f['Pontos Fracos']) && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                                      {f['Pontos Fortes'] && (
+                                        <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl space-y-1">
+                                          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Pontos Fortes</span>
+                                          <p className="text-xs text-slate-200 leading-relaxed">{f['Pontos Fortes']}</p>
+                                        </div>
+                                      )}
+                                      {f['Pontos Fracos'] && (
+                                        <div className="bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl space-y-1">
+                                          <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider block">Pontos Fracos</span>
+                                          <p className="text-xs text-slate-200 leading-relaxed">{f['Pontos Fracos']}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
                                   {status === 'Vetado' && (
                                     <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl space-y-2">
                                       <span className="text-xs font-bold text-red-400 uppercase tracking-wider block">Detalhes do Veto</span>
