@@ -6,7 +6,7 @@ import {
   UserCheck, X, Activity, FileText, BarChart3, Briefcase, Flag, Building2,
   Zap, Crosshair, BrainCircuit, ExternalLink, Globe, Loader2, UserPlus, LogOut, CheckCircle2,
   Menu, LayoutDashboard, ArrowRight, Star, Edit3, Lock, Sliders, Settings, CheckSquare, Target,
-  Upload, Award, TrendingUp, Cpu, Info
+  Upload, Award, TrendingUp, Cpu, Info, Clock
 } from 'lucide-react';
 
 import * as XLSX from 'xlsx';
@@ -79,67 +79,68 @@ function extractContextTag(row: any): string {
   return 'Atual';
 }
 
-const PILLAR_METRICS_MAP: Record<string, { label: string; statKey: string; weight: string }[]> = {
+// Mapeamento com Chaves de Estatística Bruta + Percentil + Peso
+const PILLAR_METRICS_MAP: Record<string, { label: string; statKey: string; pctKey: string; weight: string }[]> = {
   'GK Defesa': [
-    { label: 'GK xG Prevented / 90', statKey: 'GK xG Prevented per 90', weight: '40%' },
-    { label: 'GK Save Rate %', statKey: 'GK Save Rate %', weight: '25%' },
-    { label: 'Aerial Duels Won %', statKey: 'Aerial Duels Won %', weight: '15%' },
-    { label: 'GK Exits / 90', statKey: 'GK Exits per 90', weight: '10%' },
-    { label: 'GK Conceded / 90', statKey: 'GK Conceded per 90', weight: '10%' },
+    { label: 'GK xG Prevented / 90', statKey: 'GK xG Prevented per 90', pctKey: 'GK xG Prevented per 90 Pct', weight: '40%' },
+    { label: 'GK Save Rate %', statKey: 'GK Save Rate %', pctKey: 'GK Save Rate % Pct', weight: '25%' },
+    { label: 'Aerial Duels Won %', statKey: 'Aerial Duels Won %', pctKey: 'Aerial Duels Won % Pct', weight: '15%' },
+    { label: 'GK Exits / 90', statKey: 'GK Exits per 90', pctKey: 'GK Exits per 90 Pct', weight: '10%' },
+    { label: 'GK Conceded / 90', statKey: 'GK Conceded per 90', pctKey: 'GK Conceded per 90 Pct', weight: '10%' },
   ],
   'GK Distribuicao': [
-    { label: 'Passes Accuracy %', statKey: 'Passes Accuracy %', weight: '45%' },
-    { label: 'Long Passes Accuracy %', statKey: 'Long Passes Accuracy %', weight: '30%' },
-    { label: 'Passes / 90', statKey: 'Passes per 90', weight: '25%' },
+    { label: 'Passes Accuracy %', statKey: 'Passes Accuracy %', pctKey: 'Passes Accuracy % Pct', weight: '45%' },
+    { label: 'Long Passes Accuracy %', statKey: 'Long Passes Accuracy %', pctKey: 'Long Passes Accuracy % Pct', weight: '30%' },
+    { label: 'Passes / 90', statKey: 'Passes per 90', pctKey: 'Passes per 90 Pct', weight: '25%' },
   ],
   'Jogo Aéreo': [
-    { label: 'Aerial Duels Won %', statKey: 'Aerial Duels Won %', weight: '65%' },
-    { label: 'Aerial Duels / 90', statKey: 'Aerial Duels per 90', weight: '35%' },
+    { label: 'Aerial Duels Won %', statKey: 'Aerial Duels Won %', pctKey: 'Aerial Duels Won % Pct', weight: '65%' },
+    { label: 'Aerial Duels / 90', statKey: 'Aerial Duels per 90', pctKey: 'Aerial Duels per 90 Pct', weight: '35%' },
   ],
   'Defesa': [
-    { label: 'Defensive Duels Won %', statKey: 'Defensive Duels Won %', weight: '35%' },
-    { label: 'Interceptions PAdj', statKey: 'Interceptions PAdj', weight: '25%' },
-    { label: 'Successful Defensive Actions / 90', statKey: 'Successful Defensive Actions per 90', weight: '20%' },
-    { label: 'Defensive Duels / 90', statKey: 'Defensive Duels per 90', weight: '15%' },
-    { label: 'Sliding Tackles PAdj', statKey: 'Sliding Tackles PAdj', weight: '5%' },
+    { label: 'Defensive Duels Won %', statKey: 'Defensive Duels Won %', pctKey: 'Defensive Duels Won % Pct', weight: '35%' },
+    { label: 'Interceptions PAdj', statKey: 'Interceptions PAdj', pctKey: 'Interceptions PAdj Pct', weight: '25%' },
+    { label: 'Successful Defensive Actions / 90', statKey: 'Successful Defensive Actions per 90', pctKey: 'Successful Defensive Actions per 90 Pct', weight: '20%' },
+    { label: 'Defensive Duels / 90', statKey: 'Defensive Duels per 90', pctKey: 'Defensive Duels per 90 Pct', weight: '15%' },
+    { label: 'Sliding Tackles PAdj', statKey: 'Sliding Tackles PAdj', pctKey: 'Sliding Tackles PAdj Pct', weight: '5%' },
   ],
   'Construção': [
-    { label: 'Passes Accuracy %', statKey: 'Passes Accuracy %', weight: '25%' },
-    { label: 'Passes / 90', statKey: 'Passes per 90', weight: '20%' },
-    { label: 'Progressive Passes Accuracy %', statKey: 'Progressive Passes Accuracy %', weight: '20%' },
-    { label: 'Progressive Passes / 90', statKey: 'Progressive Passes per 90', weight: '15%' },
-    { label: 'Forward Passes / 90', statKey: 'Forward Passes per 90', weight: '10%' },
-    { label: 'Long Passes Accuracy %', statKey: 'Long Passes Accuracy %', weight: '10%' },
+    { label: 'Passes Accuracy %', statKey: 'Passes Accuracy %', pctKey: 'Passes Accuracy % Pct', weight: '25%' },
+    { label: 'Passes / 90', statKey: 'Passes per 90', pctKey: 'Passes per 90 Pct', weight: '20%' },
+    { label: 'Progressive Passes Accuracy %', statKey: 'Progressive Passes Accuracy %', pctKey: 'Progressive Passes Accuracy % Pct', weight: '20%' },
+    { label: 'Progressive Passes / 90', statKey: 'Progressive Passes per 90', pctKey: 'Progressive Passes per 90 Pct', weight: '15%' },
+    { label: 'Forward Passes / 90', statKey: 'Forward Passes per 90', pctKey: 'Forward Passes per 90 Pct', weight: '10%' },
+    { label: 'Long Passes Accuracy %', statKey: 'Long Passes Accuracy %', pctKey: 'Long Passes Accuracy % Pct', weight: '10%' },
   ],
   'Criação': [
-    { label: 'xA / 90', statKey: 'xA per 90', weight: '25%' },
-    { label: 'Key Passes / 90', statKey: 'Key Passes per 90', weight: '25%' },
-    { label: 'Passes to Final Third / 90', statKey: 'Passes to Final Third per 90', weight: '20%' },
-    { label: 'Passes to Penalty Area / 90', statKey: 'Passes to Penalty Area per 90', weight: '15%' },
-    { label: 'Progressive Passes / 90', statKey: 'Progressive Passes per 90', weight: '10%' },
-    { label: 'Smart Passes / 90', statKey: 'Smart Passes per 90', weight: '5%' },
+    { label: 'xA / 90', statKey: 'xA per 90', pctKey: 'xA per 90 Pct', weight: '25%' },
+    { label: 'Key Passes / 90', statKey: 'Key Passes per 90', pctKey: 'Key Passes per 90 Pct', weight: '25%' },
+    { label: 'Passes to Final Third / 90', statKey: 'Passes to Final Third per 90', pctKey: 'Passes to Final Third per 90 Pct', weight: '20%' },
+    { label: 'Passes to Penalty Area / 90', statKey: 'Passes to Penalty Area per 90', pctKey: 'Passes to Penalty Area per 90 Pct', weight: '15%' },
+    { label: 'Progressive Passes / 90', statKey: 'Progressive Passes per 90', pctKey: 'Progressive Passes per 90 Pct', weight: '10%' },
+    { label: 'Smart Passes / 90', statKey: 'Smart Passes per 90', pctKey: 'Smart Passes per 90 Pct', weight: '5%' },
   ],
   'Cruzamento': [
-    { label: 'Crosses Accuracy %', statKey: 'Crosses Accuracy %', weight: '60%' },
-    { label: 'Crosses / 90', statKey: 'Crosses per 90', weight: '40%' },
+    { label: 'Crosses Accuracy %', statKey: 'Crosses Accuracy %', pctKey: 'Crosses Accuracy % Pct', weight: '60%' },
+    { label: 'Crosses / 90', statKey: 'Crosses per 90', pctKey: 'Crosses per 90 Pct', weight: '40%' },
   ],
   'Capacidade 1v1': [
-    { label: 'Dribbles Success %', statKey: 'Dribbles Success %', weight: '30%' },
-    { label: 'Offensive Duels Won %', statKey: 'Offensive Duels Won %', weight: '25%' },
-    { label: 'Dribbles / 90', statKey: 'Dribbles per 90', weight: '20%' },
-    { label: 'Offensive Duels / 90', statKey: 'Offensive Duels per 90', weight: '15%' },
-    { label: 'Progressive Runs / 90', statKey: 'Progressive Runs per 90', weight: '10%' },
+    { label: 'Dribbles Success %', statKey: 'Dribbles Success %', pctKey: 'Dribbles Success % Pct', weight: '30%' },
+    { label: 'Offensive Duels Won %', statKey: 'Offensive Duels Won %', pctKey: 'Offensive Duels Won % Pct', weight: '25%' },
+    { label: 'Dribbles / 90', statKey: 'Dribbles per 90', pctKey: 'Dribbles per 90 Pct', weight: '20%' },
+    { label: 'Offensive Duels / 90', statKey: 'Offensive Duels per 90', pctKey: 'Offensive Duels per 90 Pct', weight: '15%' },
+    { label: 'Progressive Runs / 90', statKey: 'Progressive Runs per 90', pctKey: 'Progressive Runs per 90 Pct', weight: '10%' },
   ],
   'Profundidade': [
-    { label: 'Received Through Passes / 90', statKey: 'Received Through Passes per 90', weight: '40%' },
-    { label: 'Accelerations / 90', statKey: 'Accelerations per 90', weight: '35%' },
-    { label: 'Touches in Box / 90', statKey: 'Touches in Box per 90', weight: '25%' },
+    { label: 'Received Through Passes / 90', statKey: 'Received Through Passes per 90', pctKey: 'Received Through Passes per 90 Pct', weight: '40%' },
+    { label: 'Accelerations / 90', statKey: 'Accelerations per 90', pctKey: 'Accelerations per 90 Pct', weight: '35%' },
+    { label: 'Touches in Box / 90', statKey: 'Touches in Box per 90', pctKey: 'Touches in Box per 90 Pct', weight: '25%' },
   ],
   'Finalização': [
-    { label: 'Non-Penalty Goals / 90', statKey: 'Non-Penalty Goals per 90', weight: '40%' },
-    { label: 'xG / 90', statKey: 'xG per 90', weight: '25%' },
-    { label: 'Shots on Target %', statKey: 'Shots on Target %', weight: '20%' },
-    { label: 'Head Goals / 90', statKey: 'Head Goals per 90', weight: '15%' },
+    { label: 'Non-Penalty Goals / 90', statKey: 'Non-Penalty Goals per 90', pctKey: 'Non-Penalty Goals per 90 Pct', weight: '40%' },
+    { label: 'xG / 90', statKey: 'xG per 90', pctKey: 'xG per 90 Pct', weight: '25%' },
+    { label: 'Shots on Target %', statKey: 'Shots on Target %', pctKey: 'Shots on Target % Pct', weight: '20%' },
+    { label: 'Head Goals / 90', statKey: 'Head Goals per 90', pctKey: 'Head Goals per 90 Pct', weight: '15%' },
   ],
 };
 
@@ -846,7 +847,7 @@ export default function Home() {
 
       <div className="max-w-6xl mx-auto px-4 md:px-0 mt-4 md:mt-0">
         
-        {/* TAB 0: DASHBOARD / INÍCIO */}
+        {/* TAB 0: DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
@@ -1048,7 +1049,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 3: MATCHES (MATCH CENTER) */}
+        {/* TAB 3: MATCH CENTER */}
         {activeTab === 'matches' && (
           <div className="animate-in fade-in duration-300">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5 md:mb-6">
@@ -1110,7 +1111,7 @@ export default function Home() {
                             <h4 className="font-bold text-blue-400 uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">Editar Detalhes do Jogo</h4>
                             
                             <div className="mb-4">
-                              <label className="block text-slate-400 mb-1.5 font-bold">Scouts Observadores (Podes adicionar ou remover)</label>
+                              <label className="block text-slate-400 mb-1.5 font-bold">Scouts Observadores</label>
                               <CustomMultiSelect 
                                 options={displayScouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
                                 selectedIds={reportData.scoutIds} 
@@ -1522,7 +1523,7 @@ export default function Home() {
         );
       })()}
 
-      {/* MODAL PARA EXIBIR PARÂMETROS DO PILAR SELECIONADO */}
+      {/* MODAL PARA EXIBIR PARÂMETROS DO PILAR SELECIONADO COM VALOR BRUTO + PERCENTIL (% PCT) */}
       {selectedPillarDetail && selectedPlayer && (() => {
         const playerCleanName = extractPlayerBaseName(selectedPlayer.name);
         const isGK = (selectedPlayer.position || '').toLowerCase().includes('goalkeeper') || (selectedPlayer.position || '').toLowerCase().includes('gk');
@@ -1558,14 +1559,19 @@ export default function Home() {
               <div className="space-y-3">
                 {metrics.map((m, idx) => {
                   const rawVal = playerAlgo ? playerAlgo[m.statKey] : null;
+                  const pctVal = playerAlgo ? playerAlgo[m.pctKey] : null;
 
                   return (
                     <div key={idx} className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800/80 flex items-center justify-between">
                       <div>
-                        <span className="block text-xs font-bold text-slate-200">{m.label}</span>
-                        <span className="text-[11px] text-slate-500">Valor Bruto: <strong className="text-slate-300">{rawVal !== undefined && rawVal !== null ? parseFloat(rawVal).toFixed(2) : 'N/D'}</strong></span>
+                        <span className="block text-xs font-bold text-slate-200 mb-0.5">{m.label}</span>
+                        <div className="flex items-center gap-3 text-[11px] text-slate-400">
+                          <span>Bruto: <strong className="text-white font-bold">{rawVal !== undefined && rawVal !== null ? parseFloat(rawVal).toFixed(2) : 'N/D'}</strong></span>
+                          <span>•</span>
+                          <span>Percentil: <strong className="text-emerald-400 font-bold">{pctVal !== undefined && pctVal !== null ? `${parseFloat(pctVal).toFixed(1)}%` : 'N/D'}</strong></span>
+                        </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex-shrink-0">
                         <span className="text-xs font-bold text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/20">Peso: {m.weight}</span>
                       </div>
                     </div>
@@ -1782,7 +1788,6 @@ export default function Home() {
         
         const rawEntry = algorithmData[`${playerCleanName}${posKey}`] || algorithmData[playerCleanName] || [];
         
-        // Ordena para que "Atual" fique sempre na posição 0 por defeito
         const sortedEntry = [...rawEntry].sort((a, b) => {
           if (a.tag === 'Atual') return -1;
           if (b.tag === 'Atual') return 1;
@@ -1898,6 +1903,24 @@ export default function Home() {
                           </div>
                         )}
 
+                        {/* NOVO BLOCO: VOLUME DE JOGO NO EXCEL (JOGOS E MINUTOS) */}
+                        <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800 grid grid-cols-3 gap-3 text-center">
+                          <div className="bg-[#0d131f] p-3 rounded-xl border border-slate-800/80">
+                            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-0.5">Jogos Disputados</span>
+                            <span className="text-xl font-black text-emerald-400">{playerAlgo['Matches played'] || '--'}</span>
+                          </div>
+                          <div className="bg-[#0d131f] p-3 rounded-xl border border-slate-800/80">
+                            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-0.5 flex items-center justify-center gap-1">
+                              <Clock className="w-3 h-3 text-blue-400"/> Minutos Jogados
+                            </span>
+                            <span className="text-xl font-black text-blue-400">{playerAlgo['Minutes'] ? `${playerAlgo['Minutes']}'` : '--'}</span>
+                          </div>
+                          <div className="bg-[#0d131f] p-3 rounded-xl border border-slate-800/80">
+                            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-0.5">Obs. Leça FC</span>
+                            <span className="text-xl font-black text-purple-400">{getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length}</span>
+                          </div>
+                        </div>
+
                         {/* CARTÃO DE NOTA BRUTA DO PERFIL TOP 1 */}
                         <div className="bg-[#151c2c] p-6 rounded-2xl border border-purple-500/30 relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4">
                           <div className="space-y-1 text-center md:text-left">
@@ -1920,7 +1943,7 @@ export default function Home() {
                             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                               <Award className="w-4 h-4 text-blue-400"/> Pilares de Desempenho
                             </h4>
-                            <span className="text-[10px] text-slate-500 font-medium">Clica num pilar para ver a distribuição de pesos</span>
+                            <span className="text-[10px] text-slate-500 font-medium">Clica num pilar para ver os valores brutos e percentis</span>
                           </div>
 
                           <div className={`grid grid-cols-2 ${isGK ? 'md:grid-cols-2' : 'md:grid-cols-4'} gap-3`}>
