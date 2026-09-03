@@ -230,7 +230,6 @@ export default function Home() {
   const [preGameData, setPreGameData] = useState({ homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutIds: [] as string[], type: '' });
 
   const [submittingReport, setSubmittingReport] = useState(false);
-  // Adicionado scoutIds ao estado de edição do jogo
   const [reportData, setReportData] = useState({ homeTactic: '', awayTactic: '', tempo: '', intensity: '', technical: '', pressure: '', notes: '', scoutIds: [] as string[] });
 
   const [editingHighlight, setEditingHighlight] = useState<{ matchId: string; matchName: string; player: any; highlightId: string | null; notes: string; } | null>(null);
@@ -274,7 +273,6 @@ export default function Home() {
       
       if (dataS.scouts) {
         setScouts(dataS.scouts);
-        // Initialize Auth from local storage if scouts are loaded
         const savedAuthId = localStorage.getItem('leca_scout_auth');
         if (savedAuthId) {
           const user = dataS.scouts.find((s: any) => s.id === savedAuthId);
@@ -330,7 +328,8 @@ export default function Home() {
   // REGRAS DE PERMISSÕES RBAC
   const canCreateMatches = userRole === 'ADMIN' || userRole === 'SCOUT';
   const canEditMatches = userRole === 'ADMIN' || userRole === 'SCOUT';
-  const canSeeMarket = userRole === 'ADMIN' || userRole === 'DIRECTOR' || userRole === 'EXECUTIVE';
+  // ATUALIZAÇÃO: Todos os perfis autenticados podem ver a aba Mercado (em Leitura ou Edição)
+  const canSeeMarket = true;
   const canEditMarket = userRole === 'ADMIN' || userRole === 'DIRECTOR';
   const isAdmin = userRole === 'ADMIN';
 
@@ -365,7 +364,6 @@ export default function Home() {
   const toggleMatch = (id: string) => setExpandedMatchId(expandedMatchId === id ? null : id);
 
   const startEditMatchContext = (match: any) => {
-    // Cruza os nomes em texto que vêm do match com os IDs reais do sistema para a Dropdown Multipla
     const scoutNames = match.scout ? match.scout.split(',').map((s: string) => s.trim()) : [];
     const matchedScoutIds = scouts.filter(s => scoutNames.includes(s.name)).map(s => s.id);
 
@@ -377,7 +375,7 @@ export default function Home() {
       technical: match.technical && match.technical !== '-' ? match.technical : '',
       pressure: match.pressure && match.pressure !== '-' ? match.pressure : '',
       notes: match.notes || '',
-      scoutIds: matchedScoutIds // Campo recém-adicionado
+      scoutIds: matchedScoutIds
     });
     setExpandedMatchEdit(editingMatchId === match.id ? null : match.id);
   };
@@ -505,7 +503,6 @@ export default function Home() {
     </button>
   );
 
-  // ECRÃ DE CARREGAMENTO INICIAL
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0d131f] flex flex-col items-center justify-center text-slate-400">
@@ -515,7 +512,6 @@ export default function Home() {
     );
   }
 
-  // ECRÃ DE LOGIN
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#0d131f] flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
@@ -1188,7 +1184,7 @@ export default function Home() {
                   </h3>
                   <span className="text-[10px] bg-purple-500/20 text-purple-300 font-bold px-2 py-0.5 rounded border border-purple-500/30">Módulo em Estruturação</span>
                 </div>
-                <p className="text-xs text-slate-400">Espaço reservado para envio de diretivas de observação individuais (ex: "Acompanhar atleta X no próximo fim de semana").</p>
+                <p className="text-xs text-slate-400">Espaço reservado para envio de diretivas de observação individuais (ex: &quot;Acompanhar atleta X no próximo fim de semana&quot;).</p>
               </div>
 
               {/* MÓDULO 3: GESTÃO DE MERCADOS PRIORITÁRIOS DA SAD */}
@@ -1435,7 +1431,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL PRÉ-JOGO (COM LISTA DE SCOUTS FILTRADA) */}
+      {/* MODAL PRÉ-JOGO */}
       {isRegisterOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-xl rounded-2xl shadow-2xl p-5 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
