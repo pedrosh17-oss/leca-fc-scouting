@@ -653,8 +653,15 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
       
       if (res.ok) {
         setIsMarketModalOpen(false);
-        setMarketFormData({ name: '', club: '', position: '', foot: '', birthDate: '', marketTarget: '', scout: '', viability: '', confLiga3: '', confLiga2: '', contract: '', utilization: '', strengths: '', weaknesses: '', reason: '', similarity: '', mental: '' });
-        await loadData(); // Recarrega os dados para puxar o novo jogador
+        setMarketFormData({ 
+          playerId: '',
+          name: '', club: '', position: '', foot: '', birthDate: '',
+          offerDate: new Date().toISOString().split('T')[0],
+          marketTarget: '', scout: '', viability: '', confLiga3: '', confLiga2: '',
+          contract: '', utilization: '', strengths: '', weaknesses: '', reason: '',
+          similarity: '', mental: '' 
+        });
+        await loadData();
         showToast("Oportunidade registada com sucesso!");
       } else {
         showToast("Erro ao gravar no Airtable.");
