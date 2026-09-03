@@ -617,11 +617,28 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
   const [isMarketModalOpen, setIsMarketModalOpen] = useState(false);
   const [submittingMarket, setSubmittingMarket] = useState(false);
   const [marketFormData, setMarketFormData] = useState({
+    playerId: '',
     name: '', club: '', position: '', foot: '', birthDate: '',
+    offerDate: new Date().toISOString().split('T')[0], // Data de hoje por defeito
     marketTarget: '', scout: '', viability: '', confLiga3: '', confLiga2: '',
     contract: '', utilization: '', strengths: '', weaknesses: '', reason: '',
     similarity: '', mental: ''
   });
+
+  const handleSelectExistingPlayerForMarket = (selectedId: string) => {
+    const p = players.find(item => item.id === selectedId);
+    if (p) {
+      setMarketFormData(prev => ({
+        ...prev,
+        playerId: p.id,
+        name: p.name,
+        club: p.club || '',
+        position: p.position || '',
+        foot: p.foot || '',
+        birthDate: p.birthDate || p.birth_date || ''
+      }));
+    }
+  };
 
   const handleMarketSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -3245,23 +3262,79 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                 
                 {/* BLOCO 1: IDENTIFICAÇÃO DO ATLETA */}
                 <div className={`${themeInnerCard} p-5 rounded-2xl border space-y-4`}>
-                  <h3 className="text-xs font-bold text-pink-500 uppercase tracking-wider mb-2 flex items-center gap-2"><UserCheck className="w-4 h-4"/> Dados Básicos do Atleta</h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                    <h3 className="text-xs font-bold text-pink-500 uppercase tracking-wider flex items-center gap-2">
+                      <UserCheck className="w-4 h-4"/> Dados do Atleta
+                    </h3>
+                    {marketFormData.playerId && (
+                      <button
+                        type="button"
+                        onClick={() => setMarketFormData({ ...marketFormData, playerId: '', name: '', club: '', position: '', foot: '', birthDate: '' })}
+                        className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20 font-bold self-start sm:self-auto"
+                      >
+                        Limpar Seleção (Atleta Novo)
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Seletor de Atleta Existente */}
+                  <div>
+                    <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Procurar na Base de Dados (Atleta Existente)</label>
+                    <CustomSelect
+                      options={players.map(p => ({ value: p.id, label: `${p.name} (${p.club || 'S/ Clube'})`, image: p.photo }))}
+                      value={marketFormData.playerId}
+                      onChange={handleSelectExistingPlayerForMarket}
+                      placeholder="Pesquisar atleta na BD do Leça..."
+                      searchable={true}
+                      isDarkMode={isDarkMode}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
                     <div>
                       <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Nome Completo *</label>
-                      <input type="text" required value={marketFormData.name} onChange={e => setMarketFormData({...marketFormData, name: e.target.value})} className={`w-full border rounded-xl p-3 text-sm focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} placeholder="Ex: João Silva" />
+                      <input 
+                        type="text" 
+                        required 
+                        value={marketFormData.name} 
+                        onChange={e => setMarketFormData({...marketFormData, name: e.target.value, playerId: ''})} 
+                        className={`w-full border rounded-xl p-3 text-sm focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} 
+                        placeholder="Ex: João Silva" 
+                      />
                     </div>
                     <div>
                       <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Clube Atual *</label>
-                      <input type="text" required value={marketFormData.club} onChange={e => setMarketFormData({...marketFormData, club: e.target.value})} className={`w-full border rounded-xl p-3 text-sm focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} placeholder="Ex: FC Penafiel" />
+                      <input 
+                        type="text" 
+                        required 
+                        value={marketFormData.club} 
+                        onChange={e => setMarketFormData({...marketFormData, club: e.target.value})} 
+                        className={`w-full border rounded-xl p-3 text-sm focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} 
+                        placeholder="Ex: FC Penafiel" 
+                      />
+                    </div>
+                    <div>
+                      <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Data da Oferta / Entrada *</label>
+                      <input 
+                        type="date" 
+                        required 
+                        value={marketFormData.offerDate} 
+                        onChange={e => setMarketFormData({...marketFormData, offerDate: e.target.value})} 
+                        className={`w-full border rounded-xl p-3 text-sm focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} 
+                      />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Data de Nascimento *</label>
-                      <input type="date" required value={marketFormData.birthDate} onChange={e => setMarketFormData({...marketFormData, birthDate: e.target.value})} className={`w-full border rounded-xl p-3 text-sm focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} />
+                      <input 
+                        type="date" 
+                        required 
+                        value={marketFormData.birthDate} 
+                        onChange={e => setMarketFormData({...marketFormData, birthDate: e.target.value})} 
+                        className={`w-full border rounded-xl p-3 text-sm focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} 
+                      />
                     </div>
                     <div>
                       <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Posição *</label>

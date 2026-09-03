@@ -43,6 +43,7 @@ export async function POST(request: Request) {
       position,
       foot,
       birthDate,
+      offerDate,
       marketTarget,
       scout,
       status,
@@ -129,6 +130,10 @@ export async function POST(request: Request) {
     if (vetoDate) {
       marketFields['Data do Veto'] = vetoDate;
     }
+
+    if (offerDate) {
+        marketFields['Data da Oferta'] = offerDate;
+      }
 
     if (targetPlayerId) {
       marketFields['Jogador'] = [targetPlayerId];
