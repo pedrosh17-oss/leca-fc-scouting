@@ -7,11 +7,16 @@ const TOKEN = process.env.AIRTABLE_PAT;
 
 function safeText(val: any, fallback: string = 'N/D'): string {
   if (!val) return fallback;
+  if (typeof val === 'string') return val;
   if (Array.isArray(val)) {
-    const clean = val.filter((item) => typeof item === 'string' && !item.startsWith('rec'));
+    const clean = val.map((item) => safeText(item, '')).filter((item) => item && !item.startsWith('rec'));
     return clean.length > 0 ? clean.join(', ') : fallback;
   }
-  if (typeof val === 'object' && val.name) return val.name;
+  if (typeof val === 'object') {
+    if (val.value && typeof val.value === 'string') return val.value;
+    if (val.text && typeof val.text === 'string') return val.text;
+    if (val.name) return val.name;
+  }
   const str = String(val);
   return str.startsWith('rec') ? fallback : str;
 }
@@ -37,7 +42,6 @@ export async function GET() {
       const photoUrl = Array.isArray(f['Photo']) && f['Photo'][0]?.url ? f['Photo'][0].url : null;
       const clubLogoUrl = Array.isArray(f['Club Logo']) && f['Club Logo'][0]?.url ? f['Club Logo'][0].url : null;
       
-      // Mapeamento da coluna de nascimento do Airtable
       const rawBirth = safeText(f['Date of Birth'] || f['Date of birth'] || f['Data de Nascimento'], '');
 
       return {
@@ -53,7 +57,8 @@ export async function GET() {
         club: safeText(f['Team name'] || f['Current Team'], 'Sem Clube'),
         clubLogo: clubLogoUrl,
         status: safeText(f['Status'], '⚪ No Activity'),
-        report: safeText(f['Report '] || f['Final Report'], 'Sem observações registadas.'),
+        report: safeText(f['Report '] || f['Report'], 'Sem observações registadas.'),
+        finalReport: safeText(f['Final Report'], ''),
       };
     });
 

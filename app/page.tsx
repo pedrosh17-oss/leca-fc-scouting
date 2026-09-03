@@ -413,7 +413,7 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
   const [selectedTeam, setSelectedTeam] = useState<any | null>(null);
   const [selectedScout, setSelectedScout] = useState<any | null>(null);
   const [profileTab, setProfileTab] = useState<'timeline' | 'algo' | 'market' | 'reports'>('timeline');
-  
+
   // ALGORITMO
   const [selectedPillarDetail, setSelectedPillarDetail] = useState<string | null>(null);
   const [algorithmData, setAlgorithmData] = useState<Record<string, { tag: string; row: any }[]>>({});
@@ -2457,10 +2457,9 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                   </div>
                 )}
 
-                {/* VISTA RELATÓRIOS & ANÁLISE */}
+               {/* VISTA RELATÓRIOS & ANÁLISE */}
                 {profileTab === 'reports' && (
                   <div className="space-y-6 animate-in fade-in duration-300">
-                    {/* RELATÓRIO EXECUTIVO DE PROSPEÇÃO (GERADO VIA AIRTABLE / AI) */}
                     <div className={`${themeCard} p-6 md:p-8 rounded-2xl border border-blue-500/30 shadow-xl space-y-4`}>
                       <div className="flex items-center justify-between border-b border-slate-700/40 pb-4">
                         <div className="flex items-center gap-3">
@@ -2472,7 +2471,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                               Relatório Consolidado de Prospeção
                             </h3>
                             <p className={`text-xs ${themeTextMuted}`}>
-                              Síntese técnica automatizada com base no histórico de observações
+                              Síntese técnica automatizada gerada por IA no Airtable
                             </p>
                           </div>
                         </div>
@@ -2481,22 +2480,27 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                         </span>
                       </div>
 
-                      {selectedPlayer.report && selectedPlayer.report !== 'Sem observações registadas.' ? (
-                        <div className={`text-xs md:text-sm leading-relaxed font-sans whitespace-pre-wrap ${themeInnerCard} p-5 rounded-xl border border-slate-700/40`}>
-                          {selectedPlayer.report}
-                        </div>
-                      ) : (
-                        <div className={`text-center py-10 ${themeInnerCard} rounded-xl border border-dashed text-xs md:text-sm space-y-2`}>
-                          <Info className="w-6 h-6 text-slate-400 mx-auto" />
-                          <p className="font-bold">Relatório executivo ainda não gerado no Airtable.</p>
-                          <p className={`${themeTextMuted} text-xs`}>
-                            Para gerar este relatório, executa o agente AI na coluna <strong>Final Report</strong> do Airtable.
-                          </p>
-                        </div>
-                      )}
+                      {(() => {
+                        const rep = selectedPlayer.finalReport || selectedPlayer.report;
+                        const reportText = typeof rep === 'object' && rep !== null ? (rep.value || rep.text || '') : String(rep || '');
+                        const isAiReport = Boolean(selectedPlayer.finalReport);
+
+                        return isAiReport && reportText && reportText !== 'Sem observações registadas.' ? (
+                          <div className={`text-xs md:text-sm leading-relaxed font-sans whitespace-pre-wrap ${themeInnerCard} p-5 rounded-xl border border-slate-700/40 font-mono`}>
+                            {reportText}
+                          </div>
+                        ) : (
+                          <div className={`text-center py-10 ${themeInnerCard} rounded-xl border border-dashed text-xs md:text-sm space-y-2`}>
+                            <Info className="w-6 h-6 text-slate-400 mx-auto" />
+                            <p className="font-bold">Relatório executivo ainda não gerado no Airtable.</p>
+                            <p className={`${themeTextMuted} text-xs`}>
+                              Para gerar este relatório, clica em <strong>Run agent</strong> na coluna <strong>Final Report</strong> no Airtable.
+                            </p>
+                          </div>
+                        );
+                      })()}
                     </div>
 
-                    {/* RELATÓRIO INDIVIDUAL DE OBSERVADOR (MÓDULO FUTURO) */}
                     <div className={`${themeCard} p-6 md:p-8 rounded-2xl border border-dashed space-y-3 opacity-80`}>
                       <div className="flex items-center justify-between">
                         <h3 className="text-xs md:text-sm font-bold uppercase tracking-wider flex items-center gap-2">
