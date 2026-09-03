@@ -91,65 +91,74 @@ function getPlayerAlgoEntries(player: any, algorithmData: Record<string, any[]>)
   const cleanName = extractPlayerBaseName(player.name);
   const cleanClub = extractPlayerBaseName(player.club || '');
   const playerAge = Number(player.age);
-  const isGK = (player.position || '').toLowerCase().includes('goalkeeper') || (player.position || '').toLowerCase().includes('gk');
-  const posSuffix = isGK ? '_gk' : '_field';
 
-  // 1. TENTATIVA DIRETA: Chave Única de Nome + Clube
-  const exactKey = `${cleanName}_${cleanClub}${posSuffix}`;
-  if (algorithmData[exactKey] && algorithmData[exactKey].length > 0) {
-    return algorithmData[exactKey];
-  }
-
-  // 2. TENTATIVA POR NOME BASE (Com validação estrita de Clube e Idade)
-  const genericKey = `${cleanName}${posSuffix}`;
-  const genericEntries = algorithmData[genericKey] || algorithmData[cleanName];
-
-  if (genericEntries && genericEntries.length > 0) {
-    const validEntries = genericEntries.filter(e => {
-      const rowClub = extractPlayerBaseName(e.row?.Team_Calc || e.row?.Team || '');
-      const rowAge = Number(e.row?.Age);
-
-      const isClubMatch = !cleanClub || !rowClub || rowClub.includes(cleanClub) || cleanClub.includes(rowClub);
-      const isAgeMatch = isNaN(playerAge) || isNaN(rowAge) || Math.abs(playerAge - rowAge) <= 1;
-
-      return isClubMatch && isAgeMatch;
-    });
-
-    if (validEntries.length > 0) return validEntries;
-  }
-
-  // 3. TENTATIVA DE ABREVIATURA ESTRITA (ex: "C. Niang" <-> "Cheikh Niang")
   const nameParts = cleanName.split(/\s+/).filter(Boolean);
-  const lastName = nameParts[nameParts.length - 1];
-  const firstInitial = nameParts[0]?.[0];
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts[nameParts.length - 1] || '';
 
-  if (lastName && lastName.length > 2) {
-    for (const [key, entries] of Object.entries(algorithmData)) {
-      if (!entries || entries.length === 0) continue;
-      
-      const row = entries[0].row;
-      const rawRowPlayer = extractPlayerBaseName(row.Player || '');
-      const rowParts = rawRowPlayer.split(/\s+/).filter(Boolean);
-      const rowLastName = rowParts[rowParts.length - 1];
-      const rowFirstInitial = rowParts[0]?.[0];
+  const clubWords = cleanClub.split(/\s+/).filter(w => w.length > 1);
 
-      // Exige que o APELIDO e a INICIAL sejam rigorosamente IGUAIS
-      if (rowLastName === lastName && rowFirstInitial === firstInitial) {
-        const rowClub = extractPlayerBaseName(row.Team_Calc || row.Team || '');
-        const rowAge = Number(row.Age);
+  const candidates: { entries: any[]; score: number }[] = [];
 
-        const isClubMatch = cleanClub && rowClub && (cleanClub.includes(rowClub) || rowClub.includes(cleanClub));
-        const isAgeMatch = !isNaN(playerAge) && !isNaN(rowAge) && Math.abs(playerAge - rowAge) <= 1;
+  for (const [key, entries] of Object.entries(algorithmData)) {
+    if (!entries || entries.length === 0) continue;
 
-        // Só aceita se o Clube OU a Idade confirmarem a identidade
-        if (isClubMatch || isAgeMatch) {
-          return entries;
+    const sampleRow = entries[0].row;
+    const rowName = extractPlayerBaseName(sampleRow.Player || sampleRow.Player_ID || key.split('_')[0]);
+    const rowClub = extractPlayerBaseName(sampleRow.Team_Calc || sampleRow.Team || '');
+    const rowAge = Number(sampleRow.Age);
+
+    // 1. CORRESPONDÊNCIA DE NOME (Exato, Substring ou Inicial+Apelido)
+    let isNameMatch = false;
+    if (rowName === cleanName || rowName.includes(cleanName) || cleanName.includes(rowName)) {
+      isNameMatch = true;
+    } else if (firstName && lastName) {
+      const rParts = rowName.split(/\s+/).filter(Boolean);
+      const rFirst = rParts[0] || '';
+      const rLast = rParts[rParts.length - 1] || '';
+      if (rLast === lastName && rFirst[0] === firstName[0]) {
+        isNameMatch = true;
+      }
+    }
+
+    if (!isNameMatch) continue;
+
+    // 2. VALIDAÇÃO ESTRITA DE CLUBE (Evita juntar homónimos de clubes diferentes)
+    const rowClubWords = rowClub.split(/\s+/).filter(w => w.length > 2);
+    const targetClubWords = clubWords.filter(w => w.length > 2);
+
+    let clubScore = 0;
+    if (cleanClub && rowClub) {
+      if (cleanClub === rowClub || cleanClub.includes(rowClub) || rowClub.includes(cleanClub)) {
+        clubScore = 10;
+      } else {
+        const commonWords = targetClubWords.filter(w => rowClubWords.includes(w));
+        clubScore = commonWords.length * 4;
+        
+        // Se ambos têm clubes definidos mas NENHUMA palavra bate certo, descarta (são pessoas diferentes)
+        if (commonWords.length === 0 && targetClubWords.length > 0 && rowClubWords.length > 0) {
+          continue; 
         }
       }
     }
+
+    // 3. VALIDAÇÃO DE IDADE
+    let ageScore = 0;
+    if (!isNaN(playerAge) && !isNaN(rowAge)) {
+      const diff = Math.abs(playerAge - rowAge);
+      if (diff === 0) ageScore = 5;
+      else if (diff <= 1) ageScore = 2;
+      else continue; // Descarte se a idade diferir em mais de 1 ano
+    }
+
+    candidates.push({ entries, score: clubScore + ageScore });
   }
 
-  return [];
+  if (candidates.length === 0) return [];
+
+  // Devolve apenas o perfil do clube com maior pontuação de compatibilidade
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0].entries;
 }
 
 const PILLAR_METRICS_MAP: Record<string, { label: string; statKey: string; pctKey: string; weight: string }[]> = {
