@@ -477,7 +477,7 @@ export default function Home() {
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'players' | 'teams' | 'matches' | 'scouts' | 'admin' | 'stats'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'players' | 'teams' | 'matches' | 'scouts' | 'admin' | 'stats' | 'market'>('dashboard');
   const [comparePlayerKeyA, setComparePlayerKeyA] = useState<string>('');
   const [comparePlayerKeyB, setComparePlayerKeyB] = useState<string>('');
   const [comparePlayerKeyC, setComparePlayerKeyC] = useState<string>(''); // ADICIONA ESTA LINHA
@@ -613,6 +613,7 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
   const lecaLogoUrl = "/logo.png";
 
   // ---------------- MERCADO ----------------
+  const [marketOpportunities, setMarketOpportunities] = useState<any[]>([]);
   const [isMarketModalOpen, setIsMarketModalOpen] = useState(false);
   const [submittingMarket, setSubmittingMarket] = useState(false);
   const [marketFormData, setMarketFormData] = useState({
@@ -658,22 +659,25 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
 
   const loadData = async () => {
     try {
-      const [resP, resT, resM, resS] = await Promise.all([
+      const [resP, resT, resM, resS, resMkt] = await Promise.all([
         fetch('/api/players').catch(() => ({ json: () => ({ players: [] }) })),
         fetch('/api/teams').catch(() => ({ json: () => ({ teams: [] }) })),
         fetch('/api/matches').catch(() => ({ json: () => ({ matches: [], competitions: [] }) })),
         fetch('/api/scouts').catch(() => ({ json: () => ({ scouts: [] }) })),
+        fetch('/api/market').catch(() => ({ json: () => ({ opportunities: [] }) })),
       ]);
       
       const dataP = await resP.json(); 
       const dataT = await resT.json(); 
       const dataM = await resM.json(); 
       const dataS = await resS.json();
+      const dataMkt = await resMkt.json();
       
       if (dataP.players) setPlayers(dataP.players);
       if (dataT.teams) setTeams(dataT.teams);
       if (dataM.matches) setMatches(dataM.matches);
       if (dataM.competitions) setCompetitions(dataM.competitions);
+      if (dataMkt.opportunities) setMarketOpportunities(dataMkt.opportunities);
 
       try {
         const { data } = supabase.storage.from('Scouting').getPublicUrl('algo-data.json.gz');
@@ -1246,6 +1250,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
 
           {renderMobileMenuButton('dashboard', <LayoutDashboard className="w-5 h-5"/>, 'Início / Painel')}
           {renderMobileMenuButton('stats', <BarChart3 className="w-5 h-5"/>, 'Stats & Comparador')}
+          {renderMobileMenuButton('market', <Briefcase className="w-5 h-5 text-pink-400"/>, 'Mercado & Alvos', marketOpportunities.length)}
           {renderMobileMenuButton('players', <Users className="w-5 h-5"/>, 'Base de Jogadores', players.length)}
           {renderMobileMenuButton('teams', <Building2 className="w-5 h-5"/>, 'Equipas', teams.length)}
           {renderMobileMenuButton('matches', <Trophy className="w-5 h-5"/>, 'Match Center', matches.length)}
@@ -1258,6 +1263,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
       <div className="hidden md:flex max-w-6xl mx-auto mb-6 flex-wrap gap-3 px-6 md:px-0">
         <button onClick={() => setActiveTab('dashboard')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><LayoutDashboard className="w-4 h-4" /> Início</button>
         <button onClick={() => setActiveTab('stats')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'stats' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><BarChart3 className="w-4 h-4" /> Stats</button>
+        <button onClick={() => setActiveTab('market')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'market' ? 'bg-pink-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-pink-400 hover:text-white border border-pink-500/30' : 'bg-white text-pink-600 hover:text-pink-800 border border-pink-200'}`}><Briefcase className="w-4 h-4" /> Mercado ({marketOpportunities.length})</button>
         <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><Users className="w-4 h-4" /> Base de Jogadores ({players.length})</button>
         <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><Building2 className="w-4 h-4" /> Equipas ({teams.length})</button>
         <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><Trophy className="w-4 h-4" /> Match Center ({matches.length})</button>
@@ -1442,6 +1448,104 @@ const uniqueBirthYears: string[] = Array.from(new Set(
             </div>
           );
         })()}
+
+{/* TAB 6: GLOBAL MERCADO & OPORTUNIDADES */}
+{activeTab === 'market' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className={`${themeCard} p-6 rounded-2xl border border-pink-500/30 shadow-xl space-y-6`}>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-700/40 pb-4 gap-4">
+                <div>
+                  <h2 className="text-base md:text-lg font-bold uppercase tracking-wider flex items-center gap-2">
+                    <Briefcase className="w-5 h-5 text-pink-500" /> Painel de Oportunidades de Mercado
+                  </h2>
+                  <p className={`text-xs ${themeTextMuted} mt-0.5`}>
+                    Mapeamento global de atletas oferecidos e em prospeção para as janelas de transferência.
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setIsMarketModalOpen(true)}
+                  className="px-4 py-2.5 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-pink-900/20 transition"
+                >
+                  <Plus className="w-4 h-4" /> Nova Oportunidade
+                </button>
+              </div>
+
+              {marketOpportunities.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {marketOpportunities.map((opp) => {
+                    const fields = opp.fields || {};
+                    const linkedPlayers = fields.Jogador || [];
+                    const playerRecord = players.find(p => linkedPlayers.includes(p.id));
+                    const status = fields['Status Negociação'] || 'Em Avaliação';
+
+                    let statusColor = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+                    if (status === 'Aprovado' || status === 'Concluído') statusColor = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+                    if (status === 'Vetado') statusColor = 'bg-red-500/20 text-red-400 border-red-500/30';
+                    if (status === 'Em Negociação') statusColor = 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+
+                    return (
+                      <div key={opp.id} className={`${themeInnerCard} p-5 rounded-xl border flex flex-col justify-between space-y-4 shadow-sm hover:border-pink-500/40 transition`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h3 className="font-bold text-base text-white">
+                              {playerRecord ? playerRecord.name : (fields['Nome do Jogador'] || 'Atleta sem nome')}
+                            </h3>
+                            <p className={`text-xs ${themeTextMuted} mt-0.5`}>
+                              <span className="text-pink-400 font-semibold">{playerRecord?.position || 'N/D'}</span> • {playerRecord?.club || 'Clube N/D'}
+                            </p>
+                          </div>
+                          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border uppercase tracking-wider ${statusColor}`}>
+                            {status}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/50">
+                            <span className={`block text-[9px] ${themeTextMuted} uppercase font-bold`}>Mercado Target</span>
+                            <span className="font-semibold text-slate-200">{fields['Mercado Target'] || 'N/D'}</span>
+                          </div>
+                          <div className="bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/50">
+                            <span className={`block text-[9px] ${themeTextMuted} uppercase font-bold`}>Viabilidade</span>
+                            <span className="font-semibold text-slate-200">{fields['Viabilidade Financeira'] || 'N/D'}</span>
+                          </div>
+                        </div>
+
+                        {fields['Motivo da Contratação'] && (
+                          <p className={`text-xs ${themeTextMuted} italic bg-slate-900/30 p-3 rounded-lg border border-slate-800 line-clamp-2`}>
+                            "{fields['Motivo da Contratação']}"
+                          </p>
+                        )}
+
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-700/40 text-[11px]">
+                          <span className={themeTextMuted}>Ref: <strong>{fields['Scout'] || 'Departamento'}</strong></span>
+                          {playerRecord && (
+                            <button
+                              onClick={() => {
+                                setSelectedPlayer(playerRecord);
+                                setProfileTab('market');
+                              }}
+                              className="text-pink-400 hover:underline font-bold flex items-center gap-1"
+                            >
+                              Ver no Perfil <ArrowRight className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className={`text-center py-16 ${themeInnerCard} rounded-2xl border border-dashed text-xs md:text-sm space-y-2`}>
+                  <Briefcase className="w-8 h-8 text-slate-500 mx-auto" />
+                  <p className="font-bold text-slate-300">Sem oportunidades registadas</p>
+                  <p className={`${themeTextMuted} text-xs`}>
+                    Clica em "Nova Oportunidade" para associar o primeiro atleta a este mercado.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* TAB 0: DASHBOARD */}
         {activeTab === 'dashboard' && (
@@ -2884,40 +2988,107 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                     </div>
                   </div>
                 )}
-                {profileTab === 'market' && canSeeMarket && (
-                  <div className={`${themeCard} p-6 md:p-8 rounded-2xl border border-blue-500/20 relative overflow-hidden`}>
-                    <div className="flex items-center justify-between mb-6 border-b border-slate-700/40 pb-4">
-                      <div>
-                        <h3 className="text-sm md:text-base font-bold uppercase tracking-wider flex items-center gap-2">
-                          <Briefcase className="w-5 h-5 text-blue-500" /> Direção Desportiva
-                        </h3>
-                        <p className={`text-xs ${themeTextMuted} mt-1`}>Informações confidenciais e notas de viabilidade de mercado.</p>
-                      </div>
-                      {!canEditMarket && (
-                        <div className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${themeTextMuted} flex items-center gap-1.5`}>
-                          <Lock className="w-3 h-3" /> Modo Leitura
-                        </div>
-                      )}
-                    </div>
+                {profileTab === 'market' && canSeeMarket && (() => {
+                  // Filtrar oportunidades ativas para este atleta
+                  const playerOpps = marketOpportunities.filter(opp => {
+                    const linked = opp.fields?.Jogador || [];
+                    return linked.includes(selectedPlayer.id);
+                  });
 
-                    <div className="space-y-5 relative z-10">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className={`block text-xs font-bold ${themeTextMuted} uppercase tracking-wider mb-2`}>Prioridade de Contratação</label>
-                          <input type="text" disabled={!canEditMarket} className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-blue-500 text-sm font-medium ${isDarkMode ? 'bg-[#0d131f] border-slate-800' : 'bg-slate-100 border-slate-300'}`} placeholder="Ex: Prioridade Máxima (Verão)" defaultValue="Em avaliação" />
+                  return (
+                    <div className="space-y-6 animate-in fade-in duration-300">
+                      <div className={`${themeCard} p-6 md:p-8 rounded-2xl border border-pink-500/20 relative overflow-hidden space-y-6`}>
+                        <div className="flex items-center justify-between border-b border-slate-700/40 pb-4">
+                          <div>
+                            <h3 className="text-sm md:text-base font-bold uppercase tracking-wider flex items-center gap-2">
+                              <Briefcase className="w-5 h-5 text-pink-500" /> Histórico de Mercado & Decisões
+                            </h3>
+                            <p className={`text-xs ${themeTextMuted} mt-1`}>
+                              Registo dinâmico de propostas, pareceres da direção e status de contratação.
+                            </p>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              setMarketFormData({ ...marketFormData, name: selectedPlayer.name, club: selectedPlayer.club || '', position: selectedPlayer.position || '' });
+                              setIsMarketModalOpen(true);
+                            }}
+                            className="px-3.5 py-2 bg-pink-600/20 border border-pink-500/30 text-pink-400 hover:bg-pink-600/30 text-xs font-bold rounded-xl transition flex items-center gap-1.5"
+                          >
+                            <Plus className="w-4 h-4" /> Registar Oportunidade
+                          </button>
                         </div>
-                        <div>
-                          <label className={`block text-xs font-bold ${themeTextMuted} uppercase tracking-wider mb-2`}>Valor de Mercado / Salário Base</label>
-                          <input type="text" disabled={!canEditMarket} className={`w-full border rounded-xl p-3.5 text-emerald-500 focus:outline-none focus:border-blue-500 text-sm font-bold ${isDarkMode ? 'bg-[#0d131f] border-slate-800' : 'bg-slate-100 border-slate-300'}`} placeholder="Ex: 50.000€" defaultValue="N/D" />
-                        </div>
-                      </div>
-                      <div>
-                        <label className={`block text-xs font-bold ${themeTextMuted} uppercase tracking-wider mb-2`}>Notas Confidenciais / Estado do Negócio</label>
-                        <textarea rows={4} disabled={!canEditMarket} className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-blue-500 text-sm resize-none ${isDarkMode ? 'bg-[#0d131f] border-slate-800' : 'bg-slate-100 border-slate-300'}`} placeholder="Notas..." defaultValue="Aguarda avaliação final do treinador." />
+
+                        {playerOpps.length > 0 ? (
+                          <div className="space-y-4">
+                            {playerOpps.map((opp) => {
+                              const f = opp.fields || {};
+                              const status = f['Status Negociação'] || 'Em Avaliação';
+                              
+                              let statusClass = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+                              if (status === 'Vetado') statusClass = 'bg-red-500/20 text-red-400 border-red-500/30';
+                              if (status === 'Aprovado' || status === 'Concluído') statusClass = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+
+                              return (
+                                <div key={opp.id} className={`${themeInnerCard} p-5 rounded-2xl border space-y-4`}>
+                                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/40 pb-3">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-bold text-white">{f['Mercado Target'] || 'Janela N/D'}</span>
+                                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${statusClass}`}>{status}</span>
+                                    </div>
+                                    <span className={`text-[11px] ${themeTextMuted}`}>Ref: <strong>{f['Scout'] || 'Departamento'}</strong></span>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                                    <div className="bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/40">
+                                      <span className={`block text-[9px] ${themeTextMuted} uppercase font-bold`}>Viabilidade</span>
+                                      <span className="font-semibold text-emerald-400">{f['Viabilidade Financeira'] || '-'}</span>
+                                    </div>
+                                    <div className="bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/40">
+                                      <span className={`block text-[9px] ${themeTextMuted} uppercase font-bold`}>Confiança L3 / L2</span>
+                                      <span className="font-semibold text-slate-200">{f['Confiança Liga 3'] || '-'}/3 • {f['Confiança Liga 2'] || '-'}/3</span>
+                                    </div>
+                                    <div className="bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/40">
+                                      <span className={`block text-[9px] ${themeTextMuted} uppercase font-bold`}>Contrato</span>
+                                      <span className="font-semibold text-slate-200">{f['Contrato'] || '-'}</span>
+                                    </div>
+                                    <div className="bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/40">
+                                      <span className={`block text-[9px] ${themeTextMuted} uppercase font-bold`}>Utilização</span>
+                                      <span className="font-semibold text-slate-200">{f['Utilização'] || '-'}</span>
+                                    </div>
+                                  </div>
+
+                                  {f['Motivo da Contratação'] && (
+                                    <div>
+                                      <span className={`block text-[10px] ${themeTextMuted} uppercase font-bold mb-1`}>Motivo da Referenciação</span>
+                                      <p className="text-xs text-slate-300 leading-relaxed">{f['Motivo da Contratação']}</p>
+                                    </div>
+                                  )}
+
+                                  {status === 'Vetado' && (
+                                    <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl space-y-2">
+                                      <span className="text-xs font-bold text-red-400 uppercase tracking-wider block">Detalhes do Veto</span>
+                                      {f['Data do Veto'] && <span className="text-[10px] text-red-300/80 block">Data: {f['Data do Veto']}</span>}
+                                      {f['Motivo do Veto'] && <p className="text-xs text-red-200"><strong>Motivo:</strong> {f['Motivo do Veto']}</p>}
+                                      {f['Opinião do Presidente'] && <p className="text-xs text-red-200"><strong>Opinião do Presidente:</strong> {f['Opinião do Presidente']}</p>}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className={`text-center py-12 ${themeInnerCard} rounded-xl border border-dashed text-xs md:text-sm space-y-2`}>
+                            <Info className="w-6 h-6 text-slate-500 mx-auto" />
+                            <p className="font-bold text-slate-400">Nenhum registo de mercado para este atleta</p>
+                            <p className={`${themeTextMuted} text-xs`}>
+                              Regista uma proposta ou oportunidade para guardar os valores e decisões no Airtable.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
               </div>
             </div>
