@@ -6,7 +6,7 @@ import {
   UserCheck, X, Activity, FileText, BarChart3, Briefcase, Flag, Building2,
   Zap, Crosshair, BrainCircuit, ExternalLink, Globe, Loader2, UserPlus, LogOut, CheckCircle2,
   Menu, LayoutDashboard, ArrowRight, Star, Edit3, Lock, Sliders, Settings, CheckSquare, Target,
-  Upload, Award, TrendingUp, Cpu
+  Upload, Award, TrendingUp, Cpu, Info
 } from 'lucide-react';
 
 import * as XLSX from 'xlsx';
@@ -58,6 +58,54 @@ function cleanPlayerName(str: string): string {
     .toLowerCase()
     .trim();
 }
+
+// Mapeamento dos parâmetros que contribuem para cada pilar ao clicar no cartão
+const PILLAR_METRICS_MAP: Record<string, { label: string; statKey: string; pctKey: string }[]> = {
+  'Jogo Aéreo': [
+    { label: 'Duelos Aéreos / 90', statKey: 'Aerial Duels per 90', pctKey: 'Aerial Duels per 90 Pct' },
+    { label: 'Duelos Aéreos Ganhos %', statKey: 'Aerial Duels Won %', pctKey: 'Aerial Duels Won % Pct' },
+    { label: 'Golos de Cabeça / 90', statKey: 'Head Goals per 90', pctKey: 'Head Goals per 90 Pct' },
+  ],
+  'Defesa': [
+    { label: 'Ações Defensivas Certas / 90', statKey: 'Successful Defensive Actions per 90', pctKey: 'Successful Defensive Actions per 90 Pct' },
+    { label: 'Duelos Defensivos / 90', statKey: 'Defensive Duels per 90', pctKey: 'Defensive Duels per 90 Pct' },
+    { label: 'Duelos Defensivos Ganhos %', statKey: 'Defensive Duels Won %', pctKey: 'Defensive Duels Won % Pct' },
+    { label: 'Interceções PAdj', statKey: 'Interceptions PAdj', pctKey: 'Interceptions PAdj Pct' },
+    { label: 'Desarmes PAdj', statKey: 'Sliding Tackles PAdj', pctKey: 'Sliding Tackles PAdj Pct' },
+  ],
+  'Construção': [
+    { label: 'Passes / 90', statKey: 'Passes per 90', pctKey: 'Passes per 90 Pct' },
+    { label: 'Eficácia de Passe %', statKey: 'Passes Accuracy %', pctKey: 'Passes Accuracy % Pct' },
+    { label: 'Passes para a Frente / 90', statKey: 'Forward Passes per 90', pctKey: 'Forward Passes per 90 Pct' },
+    { label: 'Passes Progressivos / 90', statKey: 'Progressive Passes per 90', pctKey: 'Progressive Passes per 90 Pct' },
+  ],
+  'Criação': [
+    { label: 'xA (Assistências Esperadas) / 90', statKey: 'xA per 90', pctKey: 'xA per 90 Pct' },
+    { label: 'Passes Chave / 90', statKey: 'Key Passes per 90', pctKey: 'Key Passes per 90 Pct' },
+    { label: 'Passes para o 1/3 Final / 90', statKey: 'Passes to Final Third per 90', pctKey: 'Passes to Final Third per 90 Pct' },
+    { label: 'Passes para a Área / 90', statKey: 'Passes to Penalty Area per 90', pctKey: 'Passes to Penalty Area per 90 Pct' },
+  ],
+  'Cruzamento': [
+    { label: 'Cruzamentos / 90', statKey: 'Crosses per 90', pctKey: 'Crosses per 90 Pct' },
+    { label: 'Precisão de Cruzamento %', statKey: 'Crosses Accuracy %', pctKey: 'Crosses Accuracy % Pct' },
+  ],
+  'Capacidade 1v1': [
+    { label: 'Dribles / 90', statKey: 'Dribbles per 90', pctKey: 'Dribbles per 90 Pct' },
+    { label: 'Sucesso no Drible %', statKey: 'Dribbles Success %', pctKey: 'Dribbles Success % Pct' },
+    { label: 'Duelos Ofensivos / 90', statKey: 'Offensive Duels per 90', pctKey: 'Offensive Duels per 90 Pct' },
+    { label: 'Duelos Ofensivos Ganhos %', statKey: 'Offensive Duels Won %', pctKey: 'Offensive Duels Won % Pct' },
+  ],
+  'Profundidade': [
+    { label: 'Corridas Progressivas / 90', statKey: 'Progressive Runs per 90', pctKey: 'Progressive Runs per 90 Pct' },
+    { label: 'Acelerações / 90', statKey: 'Accelerations per 90', pctKey: 'Accelerations per 90 Pct' },
+    { label: 'Toques na Área / 90', statKey: 'Touches in Box per 90', pctKey: 'Touches in Box per 90 Pct' },
+  ],
+  'Finalização': [
+    { label: 'Golos Sem Penálti / 90', statKey: 'Non-Penalty Goals per 90', pctKey: 'Non-Penalty Goals per 90 Pct' },
+    { label: 'xG (Golos Esperados) / 90', statKey: 'xG per 90', pctKey: 'xG per 90 Pct' },
+    { label: 'Remates no Alvo %', statKey: 'Shots on Target %', pctKey: 'Shots on Target % Pct' },
+  ],
+};
 
 function CustomSelect({
   options, value, onChange, placeholder = 'Selecionar...', searchable = false, className = '',
@@ -227,6 +275,9 @@ export default function Home() {
   const [selectedScout, setSelectedScout] = useState<any | null>(null);
   const [profileTab, setProfileTab] = useState<'timeline' | 'algo' | 'market'>('timeline');
 
+  // ESTADO DO PILAR SELECIONADO PARA VER PARÂMETROS
+  const [selectedPillarDetail, setSelectedPillarDetail] = useState<string | null>(null);
+
   // CACHE DO ALGORITMO
   const [algorithmData, setAlgorithmData] = useState<Record<string, any>>({});
   const [uploadingExcel, setUploadingExcel] = useState(false);
@@ -337,7 +388,10 @@ export default function Home() {
         rawData.forEach((row) => {
           const cleanName = cleanPlayerName(row.Player || '');
           if (cleanName) {
-            newAlgoData[cleanName] = row;
+            // Guarda chave por nome limpo + posição para evitar misturar GKs com Jogadores de Campo
+            const posKey = (row.Position || '').toLowerCase().includes('gk') || (row.Setor_Avaliacao || '').toLowerCase().includes('gk') ? '_gk' : '_field';
+            newAlgoData[`${cleanName}${posKey}`] = row;
+            newAlgoData[cleanName] = row; // Fallback generico
           }
         });
 
@@ -398,7 +452,6 @@ export default function Home() {
     showToast("Mercados atualizados para este Scout!");
   };
 
-  // MONTA A LISTA COM SÉRIES ESPECÍFICAS PARA A SELEÇÃO DE MERCADOS DO SCOUT
   const getScoutMarketOptions = () => {
     const seriesOptions = [
       { value: 'Liga 3 - Série A', label: 'Liga 3 - Série A' },
@@ -1201,7 +1254,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 5: PAINEL ADMIN (UPLOAD DE EXCEL E DEFINIÇÃO DE MERCADOS) */}
+        {/* TAB 5: PAINEL ADMIN (UPLOAD DE EXCEL) */}
         {activeTab === 'admin' && isAdmin && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div className="bg-[#151c2c] border border-purple-500/30 p-6 md:p-8 rounded-2xl shadow-xl relative overflow-hidden space-y-8">
@@ -1307,7 +1360,9 @@ export default function Home() {
 
       </div>
 
-      {/* MODAL DETALHADO DO SCOUT (COM SELEÇÃO DIRETA DE MERCADOS NO CARTÃO) */}
+      {/* --------------------- MODALS CENTRADOS --------------------- */}
+
+      {/* MODAL DETALHADO DO SCOUT */}
       {selectedScout && (() => {
         const scoutMatches = getScoutMatches(selectedScout.name);
         const assignedMarkets = scoutMarketAssignments[selectedScout.id] || [];
@@ -1335,7 +1390,6 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* KPIS DO SCOUT */}
               <div className="grid grid-cols-2 gap-3 text-center">
                 <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
                   <span className="text-xs text-slate-500 block mb-1 font-semibold">Jogos Observados</span>
@@ -1354,7 +1408,7 @@ export default function Home() {
                     <Globe className="w-3.5 h-3.5 text-blue-400" /> Mercados Atribuídos ({assignedMarkets.length})
                   </h3>
                   {isAdmin && (
-                    <span className="text-[10px] text-purple-400 font-bold uppercase">Edição de Admin</span>
+                    <span className="text-[10px] text-purple-400 font-bold uppercase">Edição do Head of Scout</span>
                   )}
                 </div>
 
@@ -1380,7 +1434,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* HISTÓRICO DE JOGOS OBSERVADOS POR ESTE SCOUT */}
               <div>
                 <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Histórico de Partidas Acompanhadas ({scoutMatches.length})</h3>
                 {scoutMatches.length > 0 ? (
@@ -1413,6 +1466,59 @@ export default function Home() {
                 )}
               </div>
 
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* MODAL PARA EXIBIR PARÂMETROS DO PILAR SELECIONADO */}
+      {selectedPillarDetail && selectedPlayer && (() => {
+        const playerCleanName = cleanPlayerName(selectedPlayer.name);
+        const isGK = (selectedPlayer.position || '').toLowerCase().includes('goalkeeper') || (selectedPlayer.position || '').toLowerCase().includes('gk');
+        const posKey = isGK ? '_gk' : '_field';
+        const playerAlgo = algorithmData[`${playerCleanName}${posKey}`] || algorithmData[playerCleanName];
+        const metrics = PILLAR_METRICS_MAP[selectedPillarDetail] || [];
+
+        return (
+          <div className="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="bg-[#151c2c] border border-blue-500/40 w-full max-w-lg rounded-2xl shadow-2xl p-5 md:p-6 space-y-5 animate-in fade-in zoom-in-95">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-blue-600/20 text-blue-400 rounded-lg border border-blue-500/30"><Info className="w-5 h-5"/></div>
+                  <div>
+                    <h3 className="font-bold text-white text-base">Desdobramento: {selectedPillarDetail}</h3>
+                    <p className="text-xs text-slate-400">{selectedPlayer.name}</p>
+                  </div>
+                </div>
+                <button onClick={() => setSelectedPillarDetail(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition"><X className="w-4 h-4"/></button>
+              </div>
+
+              <div className="space-y-3">
+                {metrics.map((m, idx) => {
+                  const rawVal = playerAlgo ? playerAlgo[m.statKey] : null;
+                  const pctVal = playerAlgo ? playerAlgo[m.pctKey] : null;
+
+                  return (
+                    <div key={idx} className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800/80 flex items-center justify-between">
+                      <div>
+                        <span className="block text-xs font-bold text-slate-200">{m.label}</span>
+                        <span className="text-[11px] text-slate-500">Valor Bruto: <strong className="text-slate-300">{rawVal !== undefined && rawVal !== null ? parseFloat(rawVal).toFixed(2) : 'N/D'}</strong></span>
+                      </div>
+                      {pctVal !== undefined && pctVal !== null && (
+                        <div className="text-right">
+                          <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">{parseFloat(pctVal).toFixed(1)}% Pct</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button onClick={() => setSelectedPillarDetail(null)} className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs">
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
         );
@@ -1612,7 +1718,11 @@ export default function Home() {
       {/* PERFIL DETALHADO DO JOGADOR */}
       {selectedPlayer && (() => {
         const playerCleanName = cleanPlayerName(selectedPlayer.name);
-        const playerAlgo = algorithmData[playerCleanName];
+        const isGK = (selectedPlayer.position || '').toLowerCase().includes('goalkeeper') || (selectedPlayer.position || '').toLowerCase().includes('gk');
+        const posKey = isGK ? '_gk' : '_field';
+        
+        // Tenta obter o registo correto por nome + posicao (evita misturar Diogo Silva GR com Diogo Silva de campo)
+        const playerAlgo = algorithmData[`${playerCleanName}${posKey}`] || algorithmData[playerCleanName];
 
         return (
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
@@ -1677,64 +1787,84 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* VISTA DO ALGORITMO */}
+                {/* VISTA DO ALGORITMO REESTRUTURADA */}
                 {profileTab === 'algo' && (
                   <div className="space-y-6 animate-in fade-in duration-300">
                     {playerAlgo ? (
                       <>
+                        {/* CARTÃO DE NOTA DO PERFIL TOP 1 (SIMPLIFICADO) */}
                         <div className="bg-[#151c2c] p-6 rounded-2xl border border-purple-500/30 relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4">
                           <div className="space-y-1 text-center md:text-left">
                             <span className="text-[10px] uppercase font-bold tracking-widest text-purple-400 flex items-center gap-1 justify-center md:justify-start">
-                              <Cpu className="w-3.5 h-3.5" /> Perfil de Elevado Encaixe (Top 1)
+                              <Cpu className="w-3.5 h-3.5" /> Perfil Top 1
                             </span>
                             <h3 className="text-2xl font-black text-white">{playerAlgo.Top_Profile_1_Name || playerAlgo.Melhor_Perfil || 'N/D'}</h3>
                             <p className="text-xs text-slate-400">Fase da Carreira: <span className="text-emerald-400 font-bold">{playerAlgo.Fase_Carreira || 'N/D'}</span> • Tier: <span className="text-purple-300 font-bold">{playerAlgo.Scout_Tier || 'N/D'}</span></p>
                           </div>
-                          <div className="flex gap-3">
-                            <div className="bg-[#0d131f] px-5 py-3 rounded-xl border border-slate-800 text-center">
-                              <span className="block text-[9px] text-slate-500 uppercase font-bold">Nota Bruta</span>
-                              <span className="text-2xl font-black text-white">{playerAlgo.Top_Profile_1_Score || playerAlgo.Nota_Melhor_Perfil || '0'}</span>
-                            </div>
-                            <div className="bg-purple-900/20 px-5 py-3 rounded-xl border border-purple-500/30 text-center">
-                              <span className="block text-[9px] text-purple-400 uppercase font-bold">Ajustada à Liga</span>
-                              <span className="text-2xl font-black text-purple-300">{playerAlgo.Top_Profile_1_Score_Adj || playerAlgo.Nota_Melhor_Perfil_Adj || '0'}</span>
-                            </div>
+                          
+                          {/* UNIFICADO APENAS EM "NOTA" BRUTA */}
+                          <div className="bg-purple-900/20 px-6 py-3.5 rounded-xl border border-purple-500/30 text-center min-w-[120px]">
+                            <span className="block text-[10px] text-purple-400 uppercase font-bold">Nota</span>
+                            <span className="text-3xl font-black text-purple-300">{playerAlgo.Top_Profile_1_Score || playerAlgo.Nota_Melhor_Perfil || '0'}</span>
                           </div>
                         </div>
 
+                        {/* OS 8 PILARES DO JOGADOR (COM DELTA DA MEDIANA DA LIGA E CLIQUE) */}
                         <div className="bg-[#151c2c] p-6 rounded-2xl border border-slate-800 space-y-4">
-                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                            <Award className="w-4 h-4 text-blue-400"/> Pilares de Desempenho (Ajustados)
-                          </h4>
+                          <div className="flex justify-between items-center">
+                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                              <Award className="w-4 h-4 text-blue-400"/> Pilares de Desempenho
+                            </h4>
+                            <span className="text-[10px] text-slate-500 font-medium">Clica num pilar para ver os parâmetros contribuintes</span>
+                          </div>
 
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             {[
-                              { title: 'Jogo Aéreo', val: playerAlgo['Jogo Aéreo_Adj'] },
-                              { title: 'Defesa', val: playerAlgo['Defesa_Adj'] },
-                              { title: 'Construção', val: playerAlgo['Construção_Adj'] },
-                              { title: 'Criação', val: playerAlgo['Criação_Adj'] },
-                              { title: 'Cruzamento', val: playerAlgo['Cruzamento_Adj'] },
-                              { title: 'Capacidade 1v1', val: playerAlgo['Capacidade 1v1_Adj'] },
-                              { title: 'Profundidade', val: playerAlgo['Profundidade_Adj'] },
-                              { title: 'Finalização', val: playerAlgo['Finalização_Adj'] },
-                            ].map((pilar, idx) => (
-                              <div key={idx} className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800/80">
-                                <span className="block text-[10px] text-slate-500 uppercase font-bold mb-1">{pilar.title}</span>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-lg font-bold text-white">{pilar.val ? parseFloat(pilar.val).toFixed(1) : '--'}</span>
-                                  <div className="w-12 bg-slate-800 h-2 rounded-full overflow-hidden">
-                                    <div className="bg-blue-500 h-full rounded-full" style={{ width: `${Math.min(100, (parseFloat(pilar.val || 0) / 80) * 100)}%` }}></div>
+                              { title: 'Jogo Aéreo', key: 'Jogo Aéreo_Adj' },
+                              { title: 'Defesa', key: 'Defesa_Adj' },
+                              { title: 'Construção', key: 'Construção_Adj' },
+                              { title: 'Criação', key: 'Criação_Adj' },
+                              { title: 'Cruzamento', key: 'Cruzamento_Adj' },
+                              { title: 'Capacidade 1v1', key: 'Capacidade 1v1_Adj' },
+                              { title: 'Profundidade', key: 'Profundidade_Adj' },
+                              { title: 'Finalização', key: 'Finalização_Adj' },
+                            ].map((pilar, idx) => {
+                              const val = playerAlgo[pilar.key] || playerAlgo[pilar.title];
+                              const numVal = val ? parseFloat(val) : 0;
+                              
+                              // Cálculo do Delta em relação à Mediana da Liga
+                              const medianLiga = playerAlgo[`${pilar.title}_Median_Liga`];
+                              const numMedian = medianLiga ? parseFloat(medianLiga) : null;
+                              const delta = numMedian !== null ? numVal - numMedian : null;
+
+                              return (
+                                <button 
+                                  key={idx} 
+                                  onClick={() => setSelectedPillarDetail(pilar.title)}
+                                  className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800/80 hover:border-blue-500/50 transition text-left group flex flex-col justify-between"
+                                >
+                                  <span className="block text-[10px] text-slate-400 font-bold mb-1 group-hover:text-blue-400 transition">{pilar.title}</span>
+                                  <div className="flex items-center justify-between mt-1">
+                                    <span className="text-lg font-bold text-white">{val ? numVal.toFixed(1) : '--'}</span>
+                                    
+                                    {delta !== null && (
+                                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${delta >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                                        {delta >= 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)}
+                                      </span>
+                                    )}
                                   </div>
-                                </div>
-                              </div>
-                            ))}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
 
+                        {/* TOP PERCENTIS (% PCT) */}
                         <div className="bg-[#151c2c] p-6 rounded-2xl border border-slate-800 space-y-3">
                           <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                            <TrendingUp className="w-4 h-4 text-emerald-400"/> Mapeamento de Destaques em Percentil (% Pct)
+                            <TrendingUp className="w-4 h-4 text-emerald-400"/> Destaques em Percentil (% Pct)
                           </h4>
+                          <p className="text-xs text-slate-500">Métricas onde o atleta se posiciona em relação à totalidade dos jogadores da liga (0-100%).</p>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
                             {[
                               { title: 'Duelos Aéreos Ganhos %', val: playerAlgo['Aerial Duels Won % Pct'] },
@@ -1746,7 +1876,7 @@ export default function Home() {
                             ].map((pct, idx) => (
                               <div key={idx} className="bg-[#0d131f] p-3 rounded-xl border border-slate-800/60 flex items-center justify-between">
                                 <span className="text-xs text-slate-300 font-medium">{pct.title}</span>
-                                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">{pct.val ? `${pct.val}%` : 'N/D'}</span>
+                                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">{pct.val ? `${parseFloat(pct.val).toFixed(1)}%` : 'N/D'}</span>
                               </div>
                             ))}
                           </div>
