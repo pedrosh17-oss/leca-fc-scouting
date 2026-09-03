@@ -285,45 +285,6 @@ function CustomMultiSelect({
   );
 }
 
-// FUNÇÃO AUXILIAR PARA O VERCEL BLOB
-const parseExcelBuffer = (arrayBuffer: ArrayBuffer) => {
-  const wb = XLSX.read(arrayBuffer, { type: 'array' });
-  const wsName = wb.SheetNames[0];
-  const ws = wb.Sheets[wsName];
-  const rawData: any[] = XLSX.utils.sheet_to_json(ws);
-
-  const parsedData: Record<string, { tag: string; row: any }[]> = {};
-
-  rawData.forEach((row) => {
-    const rawPlayerStr = row.Player || row.Player_ID || '';
-    const cleanName = extractPlayerBaseName(rawPlayerStr);
-    const tag = extractContextTag(row);
-
-    if (cleanName) {
-      const isGK = (row.Position || row.Setor_Avaliacao || '').toLowerCase().includes('gk');
-      const key = `${cleanName}${isGK ? '_gk' : '_field'}`;
-
-      if (!parsedData[key]) parsedData[key] = [];
-      const existingIdx = parsedData[key].findIndex(item => item.tag === tag);
-      if (existingIdx >= 0) {
-        parsedData[key][existingIdx] = { tag, row };
-      } else {
-        parsedData[key].push({ tag, row });
-      }
-
-      if (!parsedData[cleanName]) parsedData[cleanName] = [];
-      const fallbackIdx = parsedData[cleanName].findIndex(item => item.tag === tag);
-      if (fallbackIdx >= 0) {
-        parsedData[cleanName][fallbackIdx] = { tag, row };
-      } else {
-        parsedData[cleanName].push({ tag, row });
-      }
-    }
-  });
-
-  return parsedData;
-};
-
 export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authScoutId, setAuthScoutId] = useState<string | null>(null);
@@ -398,7 +359,7 @@ export default function Home() {
         fetch('/api/teams').catch(() => ({ json: () => ({ teams: [] }) })),
         fetch('/api/matches').catch(() => ({ json: () => ({ matches: [], competitions: [] }) })),
         fetch('/api/scouts').catch(() => ({ json: () => ({ scouts: [] }) })),
-        fetch('/api/algo').catch(() => ({ json: () => ({ url: null }) }))
+        fetch('/api/algo').catch(() => ({ json: () => ({ algoData: {} }) }))
       ]);
       
       const dataP = await resP.json(); 
@@ -412,20 +373,12 @@ export default function Home() {
       if (dataM.matches) setMatches(dataM.matches);
       if (dataM.competitions) setCompetitions(dataM.competitions);
       
-      // SINCRONIZAÇÃO COM VERCEL BLOB PARA TELEMÓVEIS
-      if (dataAlgo.url) {
-        try {
-          const excelRes = await fetch(dataAlgo.url, { cache: 'no-store' });
-          if (excelRes.ok) {
-            const arrayBuffer = await excelRes.arrayBuffer();
-            const parsedAlgo = parseExcelBuffer(arrayBuffer);
-            setAlgorithmData(parsedAlgo);
-            localforage.setItem('leca_algo_data', parsedAlgo);
-          }
-        } catch (e) {
-          console.error("Erro ao ler Excel da Cloud", e);
-        }
+      // SINCRONIZAÇÃO SERVIDOR / API CENTRAL
+      if (dataAlgo.algoData && Object.keys(dataAlgo.algoData).length > 0) {
+        setAlgorithmData(dataAlgo.algoData);
+        localforage.setItem('leca_algo_data', dataAlgo.algoData);
       } else {
+        // Fallback para memória local do browser
         localforage.getItem('leca_algo_data').then((savedAlgo) => {
           if (savedAlgo) setAlgorithmData(savedAlgo as Record<string, any>);
         });
@@ -459,43 +412,62 @@ export default function Home() {
     }
   }, []);
 
+  // UPLOAD DO EXCEL DE MULTI-DISPOSITIVOS
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
+  
     setUploadingExcel(true);
     const reader = new FileReader();
-
+  
     reader.onload = async (evt) => {
       try {
-        const arrayBuffer = evt.target?.result as ArrayBuffer;
-        const parsedAlgo = parseExcelBuffer(arrayBuffer);
-
-        setAlgorithmData(parsedAlgo);
-        localforage.setItem('leca_algo_data', parsedAlgo);
-
-        // Upload do ficheiro bruto para a Vercel
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsName = wb.SheetNames[0];
+        const ws = wb.Sheets[wsName];
+        const rawData: any[] = XLSX.utils.sheet_to_json(ws);
+  
+        const newAlgoData: Record<string, { tag: string; row: any }[]> = {};
+  
+        rawData.forEach((row) => {
+          const rawPlayerStr = row.Player || row.Player_ID || '';
+          const cleanName = extractPlayerBaseName(rawPlayerStr);
+          const tag = extractContextTag(row);
+  
+          if (cleanName) {
+            const isGK = (row.Position || row.Setor_Avaliacao || '').toLowerCase().includes('gk');
+            const key = `${cleanName}${isGK ? '_gk' : '_field'}`;
+  
+            if (!newAlgoData[key]) newAlgoData[key] = [];
+            newAlgoData[key].push({ tag, row });
+  
+            if (!newAlgoData[cleanName]) newAlgoData[cleanName] = [];
+            newAlgoData[cleanName].push({ tag, row });
+          }
+        });
+  
+        setAlgorithmData(newAlgoData);
+        await localforage.setItem('leca_algo_data', newAlgoData);
+  
         const formData = new FormData();
         formData.append('file', file);
-
-        const res = await fetch('/api/algo', {
-          method: 'POST',
-          body: formData
-        });
-
+  
+        const res = await fetch('/api/algo', { method: 'POST', body: formData });
+  
         if (res.ok) {
-          showToast(`Ficheiro sincronizado na Cloud! Todos os telemóveis têm agora acesso.`);
+          showToast(`Ficheiro sincronizado na Cloud! Telemóveis atualizados.`);
         } else {
-          showToast(`Carregado localmente. Erro ao sincronizar Cloud.`);
+          showToast(`Guardado no PC local.`);
         }
       } catch (error) {
-        showToast("Erro ao processar o ficheiro Excel.");
+        showToast("Erro ao processar ficheiro Excel.");
       } finally {
         setUploadingExcel(false);
       }
     };
-
-    reader.readAsArrayBuffer(file);
+  
+    reader.readAsBinaryString(file);
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -1085,7 +1057,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 3: MATCH CENTER */}
+        {/* TAB 3: MATCHES (MATCH CENTER) */}
         {activeTab === 'matches' && (
           <div className="animate-in fade-in duration-300">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5 md:mb-6">
@@ -1147,7 +1119,7 @@ export default function Home() {
                             <h4 className="font-bold text-blue-400 uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">Editar Detalhes do Jogo</h4>
                             
                             <div className="mb-4">
-                              <label className="block text-slate-400 mb-1.5 font-bold">Scouts Observadores (Podes adicionar ou remover)</label>
+                              <label className="block text-slate-400 mb-1.5 font-bold">Scouts Observadores</label>
                               <CustomMultiSelect 
                                 options={displayScouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
                                 selectedIds={reportData.scoutIds} 
@@ -1437,7 +1409,7 @@ export default function Home() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-400 font-medium">Versão da Intranet</span>
-                      <span className="text-purple-400 font-bold">Leça FC Scouting v2.8</span>
+                      <span className="text-purple-400 font-bold">Leça FC Scouting v2.7</span>
                     </div>
                   </div>
                 </div>
@@ -1566,12 +1538,16 @@ export default function Home() {
         const posKey = isGK ? '_gk' : '_field';
         
         const rawEntry = algorithmData[`${playerCleanName}${posKey}`] || algorithmData[playerCleanName] || [];
-        
-        const sortedEntry = [...rawEntry].sort((a, b) => {
-          if (a.tag === 'Atual') return -1;
-          if (b.tag === 'Atual') return 1;
-          return b.tag.localeCompare(a.tag);
-        });
+
+const safeArray = Array.isArray(rawEntry) 
+  ? rawEntry 
+  : (rawEntry && typeof rawEntry === 'object' && Object.keys(rawEntry).length > 0 ? [{ tag: 'Atual', row: rawEntry }] : []);
+
+const sortedEntry = [...safeArray].sort((a, b) => {
+  if (a.tag === 'Atual') return -1;
+  if (b.tag === 'Atual') return 1;
+  return (b.tag || '').localeCompare(a.tag || '');
+});
 
         const activeItem = sortedEntry[selectedSeasonIdx] || sortedEntry[0];
         const playerAlgo = activeItem?.row;
@@ -1604,6 +1580,7 @@ export default function Home() {
                         <div className="flex items-center gap-3 text-[11px] text-slate-400">
                           <span>Bruto: <strong className="text-white font-bold">{rawVal !== undefined && rawVal !== null ? parseFloat(rawVal).toFixed(2) : 'N/D'}</strong></span>
                           <span>•</span>
+                          {/* LIMPEZA DO SIMBOLO DE PERCENTAGEM */}
                           <span>Percentil: <strong className="text-emerald-400 font-bold">{pctVal !== undefined && pctVal !== null ? `${parseFloat(pctVal).toFixed(1)} Pct` : 'N/D'}</strong></span>
                         </div>
                       </div>
@@ -1816,7 +1793,286 @@ export default function Home() {
         </div>
       )}
 
-      {/* PERFIL DETALHADO DA EQUIPA */}
+      {/* PERFIL DETALHADO DO JOGADOR */}
+      {selectedPlayer && (() => {
+        const playerCleanName = extractPlayerBaseName(selectedPlayer.name);
+        const isGK = (selectedPlayer.position || '').toLowerCase().includes('goalkeeper') || (selectedPlayer.position || '').toLowerCase().includes('gk');
+        const posKey = isGK ? '_gk' : '_field';
+        
+        const rawEntry = algorithmData[`${playerCleanName}${posKey}`] || algorithmData[playerCleanName] || [];
+        
+        const sortedEntry = [...rawEntry].sort((a, b) => {
+          if (a.tag === 'Atual') return -1;
+          if (b.tag === 'Atual') return 1;
+          return b.tag.localeCompare(a.tag);
+        });
+
+        const activeItem = sortedEntry[selectedSeasonIdx] || sortedEntry[0];
+        const playerAlgo = activeItem?.row;
+
+        const pillarList = isGK ? [
+          { title: 'GK Defesa', key: 'GK Defesa' },
+          { title: 'GK Distribuicao', key: 'GK Distribuicao' },
+        ] : [
+          { title: 'Jogo Aéreo', key: 'Jogo Aéreo' },
+          { title: 'Defesa', key: 'Defesa' },
+          { title: 'Construção', key: 'Construção' },
+          { title: 'Criação', key: 'Criação' },
+          { title: 'Cruzamento', key: 'Cruzamento' },
+          { title: 'Capacidade 1v1', key: 'Capacidade 1v1' },
+          { title: 'Profundidade', key: 'Profundidade' },
+          { title: 'Finalização', key: 'Finalização' },
+        ];
+
+        return (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+            <div className="bg-[#151c2c] border border-slate-800 w-full max-w-4xl h-[90vh] flex flex-col rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+              
+              <div className="bg-[#151c2c] border-b border-slate-800 p-5 md:p-8 flex-shrink-0 relative">
+                <button onClick={() => setSelectedPlayer(null)} className="absolute top-4 right-4 md:top-6 md:right-6 p-2 md:p-2.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition z-10"><X className="w-5 h-5" /></button>
+                <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6 mt-2 md:mt-0">
+                  {selectedPlayer.photo ? <img src={selectedPlayer.photo} alt={selectedPlayer.name} className="w-20 h-20 md:w-28 md:h-28 rounded-2xl object-cover border-4 border-[#0d131f] shadow-xl bg-[#0d131f]" /> : <div className="w-20 h-20 md:w-28 md:h-28 rounded-2xl bg-[#0d131f] border-4 border-slate-800 flex items-center justify-center text-slate-400 font-bold text-3xl shadow-xl">{(selectedPlayer.name || 'J').charAt(0)}</div>}
+                  <div className="text-center md:text-left flex-1">
+                    <h2 className="text-xl md:text-3xl font-black text-white mb-2 tracking-tight">{selectedPlayer.name}</h2>
+                    <div className="flex flex-wrap justify-center md:justify-start items-center gap-2 md:gap-3 text-xs md:text-sm">
+                      <span className="bg-blue-600 text-white px-3 py-1 md:py-1.5 rounded-lg font-bold shadow-md shadow-blue-900/20">{selectedPlayer.position}</span>
+                      <div className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 md:py-1.5 rounded-lg border border-slate-700 text-slate-200 font-medium">{selectedPlayer.clubLogo ? <img src={selectedPlayer.clubLogo} alt={selectedPlayer.club} className="w-4 h-4 md:w-5 md:h-5 object-contain" /> : <Shield className="w-4 h-4 text-blue-400" />}<span className="truncate max-w-[120px] md:max-w-none">{selectedPlayer.club}</span></div>
+                      <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 md:py-1.5 rounded-lg font-bold uppercase tracking-wide flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> {selectedPlayer.status}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto bg-[#0d131f] p-4 md:p-8">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
+                  <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left"><span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Idade</span><span className="text-white text-lg font-black">{selectedPlayer.age !== 'N/D' ? `${selectedPlayer.age} anos` : '--'}</span></div>
+                  <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left"><span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Nacionalidade</span><span className="text-white text-base md:text-lg font-black flex items-center justify-center md:justify-start gap-1.5 truncate w-full"><Flag className="w-3.5 h-3.5 text-slate-400 flex-shrink-0"/> <span className="truncate">{selectedPlayer.nationality || '--'}</span></span></div>
+                  <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left"><span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Pé / Altura</span><span className="text-white text-lg font-black">{selectedPlayer.foot || '-'} • {selectedPlayer.height || '-'}</span></div>
+                  <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left bg-blue-900/10 border-blue-900/30"><span className="text-blue-500/70 text-[10px] uppercase font-bold tracking-widest block mb-1">Jogos Vistos</span><span className="text-blue-400 text-2xl font-black">{getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length}</span></div>
+                </div>
+
+                <div className="flex gap-4 md:gap-8 border-b border-slate-800 text-xs md:text-sm font-bold mb-6 overflow-x-auto no-scrollbar pb-1">
+                  <button onClick={() => setProfileTab('timeline')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'timeline' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}><FileText className="w-4 h-4" /> Observações & Timeline</button>
+                  <button onClick={() => setProfileTab('algo')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'algo' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}><BarChart3 className="w-4 h-4" /> Looker Studio (Algoritmo)</button>
+                  {canSeeMarket && (
+                    <button onClick={() => setProfileTab('market')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'market' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}>
+                      <Briefcase className="w-4 h-4" /> Mercado & Decisão
+                    </button>
+                  )}
+                </div>
+
+                {profileTab === 'timeline' && (
+                  <div className="space-y-6">
+                    {getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length > 0 ? (
+                      <div className="relative border-l-2 border-slate-800/80 ml-3 md:ml-4 space-y-8 pb-4">
+                        {getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).map((report, idx) => (
+                          <div key={idx} className="relative pl-6 md:pl-8">
+                            <div className="absolute w-4 h-4 bg-blue-500 rounded-full left-[-9px] top-1 border-4 border-[#0d131f] shadow-sm"></div>
+                            <div className="bg-[#151c2c] p-4 md:p-5 rounded-2xl border border-slate-800 shadow-sm">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-slate-800/60 pb-3">
+                                <div><h4 className="font-bold text-white text-sm md:text-base leading-tight">{report.matchName}</h4><div className="flex items-center gap-2 text-[10px] md:text-xs text-slate-400 mt-1"><span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {report.gameDate}</span></div></div>
+                                <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                                  <div className="bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50 flex items-center gap-1.5 text-[10px] md:text-xs font-medium text-slate-300"><UserCheck className="w-3 h-3 text-blue-400"/> Scout: {report.scout}</div>
+                                  <button onClick={() => navigateToMatch(report.matchId)} className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5">Ir para Jogo <ExternalLink className="w-3 h-3" /></button>
+                                </div>
+                              </div>
+                              <div className="text-xs md:text-sm text-slate-300 leading-relaxed font-sans whitespace-pre-wrap">{report.note}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 bg-[#151c2c] rounded-2xl border border-slate-800 border-dashed"><FileText className="w-8 h-8 mx-auto text-slate-600 mb-3" /><p className="text-sm text-slate-400 font-medium">Ainda não existem observações de jogo para este atleta.</p><p className="text-xs text-slate-500 mt-1">As avaliações individuais feitas no Match Center aparecerão aqui.</p></div>
+                    )}
+                  </div>
+                )}
+
+                {/* VISTA DO ALGORITMO */}
+                {profileTab === 'algo' && (
+                  <div className="space-y-6 animate-in fade-in duration-300">
+                    {sortedEntry.length > 0 && playerAlgo ? (
+                      <>
+                        {/* SELETOR DE ÉPOCA / CONTEXTO */}
+                        {sortedEntry.length > 1 && (
+                          <div className="flex items-center gap-3 bg-[#151c2c] p-3.5 rounded-2xl border border-purple-500/30">
+                            <span className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5 flex-shrink-0">
+                              <Calendar className="w-4 h-4 text-purple-400" /> Contexto / Épocas:
+                            </span>
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                              {sortedEntry.map((item, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => setSelectedSeasonIdx(idx)}
+                                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 ${
+                                    selectedSeasonIdx === idx
+                                      ? 'bg-purple-600 text-white shadow-md'
+                                      : 'bg-[#0d131f] text-slate-400 hover:text-white border border-slate-800'
+                                  }`}
+                                >
+                                  {item.tag}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 2. REMOÇÃO DA CAIXA OBS. INTRANET (AGORA APENAS 2 COLUNAS) */}
+                        <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800 grid grid-cols-2 gap-3 text-center">
+                          <div className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800/80">
+                            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-0.5">Jogos Disputados</span>
+                            <span className="text-xl font-black text-emerald-400">{playerAlgo['Matches played'] || '--'}</span>
+                          </div>
+                          <div className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800/80">
+                            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-0.5 flex items-center justify-center gap-1">
+                              <Clock className="w-3 h-3 text-blue-400"/> Minutos Jogados
+                            </span>
+                            <span className="text-xl font-black text-blue-400">{playerAlgo['Minutes'] ? `${playerAlgo['Minutes']}'` : '--'}</span>
+                          </div>
+                        </div>
+
+                        {/* CARTÃO DE NOTA BRUTA DO PERFIL TOP 1 */}
+                        <div className="bg-[#151c2c] p-6 rounded-2xl border border-purple-500/30 relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4">
+                          <div className="space-y-1 text-center md:text-left">
+                            <span className="text-[10px] uppercase font-bold tracking-widest text-purple-400 flex items-center gap-1 justify-center md:justify-start">
+                              <Cpu className="w-3.5 h-3.5" /> Perfil Principal {activeItem?.tag ? `(${activeItem.tag})` : ''}
+                            </span>
+                            <h3 className="text-2xl font-black text-white">{playerAlgo.Top_Profile_1_Name || playerAlgo.Melhor_Perfil || 'N/D'}</h3>
+                            <p className="text-xs text-slate-400">Fase da Carreira: <span className="text-emerald-400 font-bold">{playerAlgo.Fase_Carreira || 'N/D'}</span> • Tier: <span className="text-purple-300 font-bold">{playerAlgo.Scout_Tier || 'N/D'}</span></p>
+                          </div>
+                          
+                          <div className="bg-purple-900/20 px-6 py-3.5 rounded-xl border border-purple-500/30 text-center min-w-[120px]">
+                            <span className="block text-[10px] text-purple-400 uppercase font-bold">Nota</span>
+                            <span className="text-3xl font-black text-purple-300">{playerAlgo.Top_Profile_1_Score || playerAlgo.Nota_Melhor_Perfil || '0'}</span>
+                          </div>
+                        </div>
+
+                        {/* PILARES DE DESEMPENHO */}
+                        <div className="bg-[#151c2c] p-6 rounded-2xl border border-slate-800 space-y-4">
+                          <div className="flex justify-between items-center">
+                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                              <Award className="w-4 h-4 text-blue-400"/> Pilares de Desempenho
+                            </h4>
+                            <span className="text-[10px] text-slate-500 font-medium">Clica num pilar para ver os valores brutos e percentis</span>
+                          </div>
+
+                          <div className={`grid grid-cols-2 ${isGK ? 'md:grid-cols-2' : 'md:grid-cols-4'} gap-3`}>
+                            {pillarList.map((pilar, idx) => {
+                              const val = playerAlgo[pilar.key];
+                              const numVal = val ? parseFloat(val) : 0;
+                              
+                              const medianLiga = playerAlgo[`${pilar.title}_Median_Liga`];
+                              const numMedian = medianLiga ? parseFloat(medianLiga) : null;
+                              const delta = numMedian !== null ? numVal - numMedian : null;
+
+                              return (
+                                <button 
+                                  key={idx} 
+                                  onClick={() => setSelectedPillarDetail(pilar.title)}
+                                  className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800/80 hover:border-blue-500/50 transition text-left group flex flex-col justify-between"
+                                >
+                                  <span className="block text-[10px] text-slate-400 font-bold mb-1 group-hover:text-blue-400 transition">{pilar.title}</span>
+                                  <div className="flex items-center justify-between mt-1">
+                                    <span className="text-lg font-bold text-white">{val ? numVal.toFixed(1) : '--'}</span>
+                                    
+                                    {delta !== null && (
+                                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${delta >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                                        {delta >= 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)} vs Mediana
+                                      </span>
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* PONTOS FORTES / TOP ATRIBUTOS DO JOGADOR */}
+                        <div className="bg-[#151c2c] p-6 rounded-2xl border border-slate-800 space-y-3">
+                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-emerald-400"/> Pontos Fortes em Destaque (Top Atributos)
+                          </h4>
+                          <p className="text-xs text-slate-500">Métricas onde o atleta regista maior pontuação de acordo com o algoritmo.</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                            {[
+                              { name: playerAlgo['Top_Attr_1_Name'], val: playerAlgo['Top_Attr_1_Val'] },
+                              { name: playerAlgo['Top_Attr_2_Name'], val: playerAlgo['Top_Attr_2_Val'] },
+                              { name: playerAlgo['Top_Attr_3_Name'], val: playerAlgo['Top_Attr_3_Val'] },
+                              { name: playerAlgo['Top_Attr_4_Name'], val: playerAlgo['Top_Attr_4_Val'] },
+                              { name: playerAlgo['Top_Attr_5_Name'], val: playerAlgo['Top_Attr_5_Val'] },
+                            ].filter(a => a.name).map((attr, idx) => (
+                              <div key={idx} className="bg-[#0d131f] p-3 rounded-xl border border-slate-800/60 flex items-center justify-between">
+                                <span className="text-xs text-slate-300 font-medium">{attr.name}</span>
+                                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/20">
+                                  {attr.val ? parseFloat(attr.val).toFixed(1) : 'N/D'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-20 bg-[#151c2c] rounded-2xl border border-slate-800 border-dashed text-center px-4">
+                        <BarChart3 className="w-12 h-12 text-slate-600 mb-4" />
+                        <h3 className="text-lg font-bold text-white mb-2">Sem Dados de Algoritmo Registados</h3>
+                        <p className="text-sm text-slate-400 max-w-md">
+                          Este atleta ainda não foi associado a um ficheiro de métricas. Faça o upload do ficheiro Excel no <strong>Painel Admin</strong> para carregar automaticamente os ratings.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {profileTab === 'market' && canSeeMarket && (
+                  <div className="bg-[#151c2c] p-6 md:p-8 rounded-2xl border border-blue-500/20 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/5 rounded-full blur-3xl"></div>
+                    
+                    <div className="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
+                      <div>
+                        <h3 className="text-sm md:text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                          <Briefcase className="w-5 h-5 text-blue-400" /> Direção Desportiva
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1">Informações confidenciais e notas de viabilidade de mercado.</p>
+                      </div>
+                      {!canEditMarket && (
+                        <div className="bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-xs font-bold text-slate-400 flex items-center gap-1.5">
+                          <Lock className="w-3 h-3" /> Modo Leitura
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-5 relative z-10">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Prioridade de Contratação</label>
+                          <input type="text" disabled={!canEditMarket} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-white focus:outline-none focus:border-blue-500 disabled:opacity-70 text-sm font-medium" placeholder="Ex: Prioridade Máxima (Verão)" defaultValue="Em avaliação" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Valor de Mercado / Salário Base</label>
+                          <input type="text" disabled={!canEditMarket} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-emerald-400 focus:outline-none focus:border-blue-500 disabled:opacity-70 text-sm font-bold" placeholder="Ex: 50.000€" defaultValue="N/D" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Notas Confidenciais / Estado do Negócio</label>
+                        <textarea rows={4} disabled={!canEditMarket} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-70 text-sm resize-none" placeholder="Ex: Contacto inicial estabelecido com o agente. Jogador prefere continuar no estrangeiro." defaultValue="Aguarda avaliação final do treinador antes de prosseguir com contacto formal." />
+                      </div>
+                      {canEditMarket && (
+                        <div className="flex justify-end pt-2">
+                          <button className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 text-sm">
+                            Guardar Alterações de Mercado
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* MODAL PERFIL EQUIPA */}
       {selectedTeam && (() => {
         const teamPlayers = players.filter(p => (p.club || '').toLowerCase() === (selectedTeam.name || '').toLowerCase());
         const teamMatches = matches.filter(m => (m.matchName || '').toLowerCase().includes((selectedTeam.name || '').toLowerCase()));
