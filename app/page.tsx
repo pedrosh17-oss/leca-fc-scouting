@@ -131,43 +131,64 @@ function getPlayerAlgoEntries(player: any, algorithmData: Record<string, any[]>)
 
   const targetNameWords = cleanName.split(/\s+/).filter(Boolean);
   const targetLastName = targetNameWords[targetNameWords.length - 1] || '';
+  const targetFirstInitial = targetNameWords[0]?.[0] || '';
   const targetClubWords = currentClub.split(/\s+/).filter(w => w.length > 2);
 
-  // 1. PASSO 1: ENCONTRAR O REGISTO ÂNCORA NO EXCEL (Clube Atual + Nome Correto)
-  let anchorRow: any = null;
+  // 1. FUNÇÕES AUXILIARES BLINDADAS
+  const checkNameMatch = (rName: string) => {
+    if (rName === cleanName) return true;
+    
+    const rNameWords = rName.split(/\s+/).filter(Boolean);
+    const rLastName = rNameWords[rNameWords.length - 1] || '';
+    const rFirstInitial = rNameWords[0]?.[0] || '';
+    
+    // Check 1: Subset (ex: "Cheikh Niang" vs "Niang", mas rejeita "Niang" vs "Ni")
+    if (rNameWords.length > 0 && targetNameWords.length > 0) {
+      const isSubset = rNameWords.every(w => targetNameWords.includes(w)) || targetNameWords.every(w => rNameWords.includes(w));
+      if (isSubset) return true;
+    }
 
+    // Check 2: Inicial + Apelido (ex: "L. Moreira" vs "Lucas Moreira")
+    // Rejeita automaticamente "T. Moreira" ou "Tiago Moreira"
+    if (rLastName === targetLastName && rFirstInitial === targetFirstInitial && targetLastName.length > 2) {
+      return true;
+    }
+    
+    return false;
+  };
+
+  const checkClubMatch = (rClub: string) => {
+    if (!currentClub || !rClub) return false;
+    if (currentClub.includes(rClub) || rClub.includes(currentClub)) return true;
+    const rClubWords = rClub.split(/\s+/).filter(w => w.length > 2);
+    return targetClubWords.some(w => rClubWords.includes(w));
+  };
+
+  // 2. PASSO 1: ENCONTRAR O REGISTO ÂNCORA (Clube Atual + Nome Correto)
+  let anchorRow: any = null;
   for (const entries of Object.values(algorithmData)) {
     if (!entries) continue;
     for (const e of entries) {
       const rowName = extractPlayerBaseName(e.row?.Player || e.row?.Player_ID || '');
       const rowClub = extractPlayerBaseName(e.row?.Team_Calc || e.row?.Team || '');
 
-      // Nome Estrito: Tem de ser igual, ou as palavras do Excel têm de conter o Apelido do jogador
-      const rNameWords = rowName.split(/\s+/).filter(Boolean);
-      const isNameStrict = rowName === cleanName || rNameWords.includes(targetLastName) || targetNameWords.includes(rNameWords[rNameWords.length - 1]);
-
-      if (isNameStrict && currentClub && rowClub) {
-        const rClubWords = rowClub.split(/\s+/).filter(w => w.length > 2);
-        const commonWords = targetClubWords.filter(w => rClubWords.includes(w));
-        if (commonWords.length > 0 || currentClub.includes(rowClub) || rowClub.includes(currentClub)) {
-          anchorRow = e.row;
-          break;
-        }
+      if (checkNameMatch(rowName) && checkClubMatch(rowClub)) {
+        anchorRow = e.row;
+        break;
       }
     }
     if (anchorRow) break;
   }
 
-  // Refinar métricas pela Âncora (Biometria Real do Excel)
+  // Refinar métricas pela Âncora do Excel
   const anchorAge = anchorRow && !isNaN(Number(anchorRow.Age)) ? Number(anchorRow.Age) : playerAge;
   const rawAnchorH = Number(anchorRow?.Height);
   const anchorHeight = !isNaN(rawAnchorH) && rawAnchorH > 0 
     ? (rawAnchorH < 3 ? rawAnchorH * 100 : rawAnchorH) 
     : playerHeight;
 
-  // 2. PASSO 2: BUSCAR TODAS AS ÉPOCAS DESSE JOGADOR (Filtro Biométrico Estrito)
+  // 3. PASSO 2: BUSCAR HISTÓRICO COM ASSINATURA BIOMÉTRICA
   const matchedEntries: any[] = [];
-
   for (const entries of Object.values(algorithmData)) {
     if (!entries) continue;
 
@@ -178,25 +199,18 @@ function getPlayerAlgoEntries(player: any, algorithmData: Record<string, any[]>)
       const rawH = Number(e.row?.Height);
       const rowHeight = !isNaN(rawH) && rawH > 0 ? (rawH < 3 ? rawH * 100 : rawH) : 0;
 
-      // Filtro de Nome Estrito
-      const rNameWords = rowName.split(/\s+/).filter(Boolean);
-      const isNameStrict = rowName === cleanName || rNameWords.includes(targetLastName) || targetNameWords.includes(rNameWords[rNameWords.length - 1]);
-      if (!isNameStrict) continue;
+      // Rejeita logo se o nome não for idêntico ou a abreviatura não bater certo
+      if (!checkNameMatch(rowName)) continue;
 
-      // Verificar se é o clube atual
-      let isClubMatch = false;
-      if (currentClub && rowClub) {
-        const rClubWords = rowClub.split(/\s+/).filter(w => w.length > 2);
-        const commonWords = targetClubWords.filter(w => rClubWords.includes(w));
-        isClubMatch = commonWords.length > 0 || currentClub.includes(rowClub) || rowClub.includes(currentClub);
-      }
+      const isClubMatch = checkClubMatch(rowClub);
 
-      // Se não for o clube atual (Transferência Histórica), a validação biométrica tem de ser quase exata
+      // Validação Biométrica
       if (!isClubMatch) {
-        if (!isNaN(anchorAge) && !isNaN(rowAge) && Math.abs(anchorAge - rowAge) > 1) continue; // Tolerância máxima de 1 ano
-        if (anchorHeight > 0 && rowHeight > 0 && Math.abs(anchorHeight - rowHeight) > 2) continue; // Tolerância máxima de 2cm
+        // Tolerância de 1 ano para épocas passadas noutros clubes
+        if (!isNaN(anchorAge) && !isNaN(rowAge) && Math.abs(anchorAge - rowAge) > 1) continue;
+        if (anchorHeight > 0 && rowHeight > 0 && Math.abs(anchorHeight - rowHeight) > 2) continue;
       } else {
-        // Se for do clube atual, somos ligeiramente mais permissivos
+        // Tolerância de 2 anos se continuar no mesmo clube
         if (!isNaN(anchorAge) && !isNaN(rowAge) && Math.abs(anchorAge - rowAge) > 2) continue;
       }
 
@@ -204,7 +218,7 @@ function getPlayerAlgoEntries(player: any, algorithmData: Record<string, any[]>)
     }
   }
 
-  // 3. PASSO 3: RESOLVER CONFLITOS DE HOMÓNIMOS NA MESMA ÉPOCA (Desempate Final)
+  // 4. PASSO 3: DESEMPATE (RESOLVER HOMÓNIMOS NA MESMA ÉPOCA)
   const groupedByTag: Record<string, any[]> = {};
   for (const item of matchedEntries) {
     const tag = item.tag || 'Geral';
@@ -215,13 +229,20 @@ function getPlayerAlgoEntries(player: any, algorithmData: Record<string, any[]>)
   const finalRows: any[] = [];
   for (const tagRows of Object.values(groupedByTag)) {
     if (tagRows.length === 1) {
-      finalRows.push(tagRows[0]);
+      finalRows.push(tagRows[0]); // Sem conflitos, adiciona a época
     } else {
-      // Se houver 2 "Rodrigo Silva" no mesmo ano com idade parecida, traz SÓ o do nosso clube. 
-      // Se nenhum for do nosso clube (época antiga onde ambos jogavam noutros clubes), descarta ambos para evitar lixo.
+      // Conflito! Dois jogadores com o mesmo nome exato e idade na mesma liga
       const clubMatch = tagRows.find(r => r.isClubMatch);
       if (clubMatch) {
-        finalRows.push(clubMatch);
+        finalRows.push(clubMatch); // Traz o do clube atual
+      } else {
+        // Se nenhum é do clube atual, traz o que tiver a idade mais fiel à âncora
+        const closest = tagRows.sort((a, b) => {
+           const diffA = isNaN(Number(a.row?.Age)) ? 99 : Math.abs(anchorAge - Number(a.row?.Age));
+           const diffB = isNaN(Number(b.row?.Age)) ? 99 : Math.abs(anchorAge - Number(b.row?.Age));
+           return diffA - diffB;
+        })[0];
+        finalRows.push(closest);
       }
     }
   }
