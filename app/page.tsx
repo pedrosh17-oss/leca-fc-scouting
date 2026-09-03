@@ -12,6 +12,7 @@ import {
 import * as XLSX from 'xlsx';
 import localforage from 'localforage';
 
+
 const TACTICS_OPTIONS = [
   '1-4-3-3', '1-4-4-2', '1-4-2-4', '1-4-1-3-2', '1-4-1-4-1', '1-4-2-3-1', 
   '1-3-5-2', '1-3-4-3', '1-5-4-1', '1-5-3-2'
@@ -450,18 +451,26 @@ export default function Home() {
         setAlgorithmData(newAlgoData);
         await localforage.setItem('leca_algo_data', newAlgoData);
 
-        // 1. Obter token de autorização (pedido leve de 1 KB)
-        const tokenRes = await fetch('/api/algo', { method: 'POST' });
-        const { token } = await tokenRes.json();
+        // 1. Pedir token de autorização assinado ao servidor
+        const tokenRes = await fetch('/api/algo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'blob.generate-client-token',
+            payload: { pathname: 'algo-data.xlsx', clientPayload: null, multipart: false },
+          }),
+        });
 
-        if (!token) throw new Error('Sem token Vercel');
+        if (!tokenRes.ok) throw new Error('Falha ao obter token');
+        const { clientToken } = await tokenRes.json();
 
-        // 2. Enviar o ficheiro de 7 MB DIRETO do Browser para a Cloud Vercel Blob (bypassa o limite de 4.5MB)
+        // 2. Enviar 7 MB diretamente do Browser com fetch nativo (sem bibliotecas externas)
         const uploadRes = await fetch('https://blob.vercel-storage.com/algo-data.xlsx', {
           method: 'PUT',
           headers: {
-            'authorization': `Bearer ${token}`,
             'x-api-version': '7',
+            'authorization': `Bearer ${clientToken}`,
+            'content-type': file.type || 'application/octet-stream',
           },
           body: file,
         });
@@ -473,7 +482,7 @@ export default function Home() {
         }
       } catch (error) {
         console.error(error);
-        showToast("Erro ao sincronizar com a Cloud.");
+        showToast("Guardado no PC local.");
       } finally {
         setUploadingExcel(false);
       }

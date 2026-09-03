@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { list } from '@vercel/blob';
+import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 
 export const runtime = 'nodejs';
 
-// Retorna o URL do Excel na Cloud para o telemóvel descarregar
 export async function GET() {
   try {
     const { blobs } = await list({ prefix: 'algo-data.xlsx' });
@@ -14,9 +14,30 @@ export async function GET() {
   }
 }
 
-// Entrega o token de escrita ao browser
-export async function POST() {
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!token) return NextResponse.json({ error: 'Token ausente na Vercel' }, { status: 500 });
-  return NextResponse.json({ token });
+export async function POST(request: Request): Promise<NextResponse> {
+  const body = (await request.json()) as HandleUploadBody;
+
+  try {
+    const jsonResponse = await handleUpload({
+      body,
+      request,
+      onBeforeGenerateToken: async () => {
+        return {
+          allowedContentTypes: [
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-excel',
+            'application/octet-stream',
+          ],
+        };
+      },
+      onUploadCompleted: async () => {},
+    });
+
+    return NextResponse.json(jsonResponse);
+  } catch (error) {
+    return NextResponse.json(
+      { error: (error as Error).message },
+      { status: 400 },
+    );
+  }
 }
