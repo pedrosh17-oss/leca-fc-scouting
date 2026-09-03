@@ -451,22 +451,29 @@ export default function Home() {
           const tag = extractContextTag(row);
 
           if (cleanName) {
+            // Limpa propriedades indefinidas/vazias para compactar o JSON
+            const cleanRow: Record<string, any> = {};
+            Object.keys(row).forEach((k) => {
+              if (row[k] !== null && row[k] !== undefined && row[k] !== '') {
+                cleanRow[k] = row[k];
+              }
+            });
+
             const isGK = (row.Position || row.Setor_Avaliacao || '').toLowerCase().includes('gk');
             const key = `${cleanName}${isGK ? '_gk' : '_field'}`;
 
             if (!newAlgoData[key]) newAlgoData[key] = [];
-            newAlgoData[key].push({ tag, row });
+            newAlgoData[key].push({ tag, row: cleanRow });
 
             if (!newAlgoData[cleanName]) newAlgoData[cleanName] = [];
-            newAlgoData[cleanName].push({ tag, row });
+            newAlgoData[cleanName].push({ tag, row: cleanRow });
           }
         });
 
-        // Atualiza no PC imediatamente
         setAlgorithmData(newAlgoData);
         await localforage.setItem('leca_algo_data', newAlgoData);
 
-        // Converter para JSON e enviar para o Supabase
+        // Gera o JSON leve e compactado
         const jsonString = JSON.stringify(newAlgoData);
         const jsonBlob = new Blob([jsonString], { type: 'application/json' });
 
@@ -480,7 +487,7 @@ export default function Home() {
         if (error) throw error;
 
         showToast("Ficheiro sincronizado na Cloud! Telemóveis atualizados.");
-      } catch (error) {
+      } catch (error: any) {
         console.error("Erro no Supabase:", error);
         showToast("Guardado no PC local.");
       } finally {
