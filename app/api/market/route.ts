@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY || '';
+const AIRTABLE_API_KEY = process.env.AIRTABLE_PAT || '';
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID || '';
 
 const headers = {
