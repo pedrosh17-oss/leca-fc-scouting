@@ -5,7 +5,7 @@ import {
   Users, Trophy, Shield, Search, Plus, ChevronDown, ChevronUp, Calendar, 
   UserCheck, X, Activity, FileText, BarChart3, Briefcase, Flag, Building2,
   Zap, Crosshair, BrainCircuit, ExternalLink, Globe, Loader2, UserPlus, LogOut, CheckCircle2,
-  Menu, LayoutDashboard, ArrowRight, Star, Edit3, Lock, Sliders, Settings
+  Menu, LayoutDashboard, ArrowRight, Star, Edit3, Lock, Sliders, Settings, CheckSquare, Target
 } from 'lucide-react';
 
 const TACTICS_OPTIONS = [
@@ -121,7 +121,7 @@ function CustomSelect({
 }
 
 function CustomMultiSelect({
-  options, selectedIds, onChange, placeholder = 'Selecionar Scouts...', className = ''
+  options, selectedIds, onChange, placeholder = 'Selecionar...', className = ''
 }: {
   options: Array<{ value: string; label: string; image?: string | null }>;
   selectedIds: string[];
@@ -216,11 +216,9 @@ export default function Home() {
   const [selectedScout, setSelectedScout] = useState<any | null>(null);
   const [profileTab, setProfileTab] = useState<'timeline' | 'algo' | 'market'>('timeline');
 
-  // GESTÃO DE MERCADOS ADMIN
-  const [adminMarkets, setAdminMarkets] = useState<string[]>([
-    'Liga 3 (Portugal)', 'Campeonato de Portugal', 'Liga Revelação (Sub-23)', 'S19 Nacional', 'América do Sul (Prospeção)'
-  ]);
-  const [newMarketInput, setNewMarketInput] = useState('');
+  // GESTÃO DE MERCADOS E TAREFAS POR SCOUT (ADMIN)
+  const [scoutMarketAssignments, setScoutMarketAssignments] = useState<Record<string, string[]>>({});
+  const [selectedAdminScoutId, setSelectedAdminScoutId] = useState<string>('');
 
   // FORMS
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
@@ -291,6 +289,10 @@ export default function Home() {
 
   useEffect(() => { 
     loadData(); 
+    const savedAssignments = localStorage.getItem('leca_scout_markets');
+    if (savedAssignments) {
+      try { setScoutMarketAssignments(JSON.parse(savedAssignments)); } catch (e) {}
+    }
   }, []);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -331,6 +333,13 @@ export default function Home() {
     const role = getRoleForUser(s.name);
     return role === 'SCOUT' || role === 'ADMIN';
   });
+
+  const handleSaveScoutMarkets = (scoutId: string, assignedMarkets: string[]) => {
+    const updated = { ...scoutMarketAssignments, [scoutId]: assignedMarkets };
+    setScoutMarketAssignments(updated);
+    localStorage.setItem('leca_scout_markets', JSON.stringify(updated));
+    showToast("Mercados atribuídos com sucesso!");
+  };
 
   const navigateToMatch = (matchId: string) => {
     setSelectedTeam(null);
@@ -413,19 +422,6 @@ export default function Home() {
         setIsNewPlayerOpen(false); setNewPlayerData({ name: '', clubId: '', position: '' }); showToast(`Atleta "${data.player.name}" criado!`);
       }
     } catch (err) { console.error(err); } finally { setCreatingPlayer(false); }
-  };
-
-  const handleAddMarket = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMarketInput.trim()) return;
-    setAdminMarkets([...adminMarkets, newMarketInput.trim()]);
-    setNewMarketInput('');
-    showToast("Mercado adicionado à lista prioritária!");
-  };
-
-  const handleRemoveMarket = (index: number) => {
-    setAdminMarkets(adminMarkets.filter((_, i) => i !== index));
-    showToast("Mercado removido!");
   };
 
   const filteredPlayers = players.filter(p => {
@@ -693,6 +689,7 @@ export default function Home() {
               </div>
             )}
 
+            {/* RECENT HIGHLIGHTS FEED */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-sm md:text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -741,6 +738,7 @@ export default function Home() {
                 ))}
               </div>
             </div>
+
           </div>
         )}
 
@@ -1044,78 +1042,131 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 4: EQUIPA DE SCOUTS (APENAS OBSERVADORES REAIS COM CLIQUE) */}
+        {/* TAB 4: EQUIPA DE SCOUTS (MOSTRA OS MERCADOS REALMENTE ATRIBUÍDOS) */}
         {activeTab === 'scouts' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {displayScouts.map((scout) => (
-              <div 
-                key={scout.id} 
-                onClick={() => setSelectedScout(scout)}
-                className="bg-[#151c2c] border border-slate-800 rounded-xl p-5 hover:border-blue-500/50 transition flex flex-col shadow-sm cursor-pointer group"
-              >
-                <div className="flex items-center gap-4 mb-5">
-                  {scout.photo ? (
-                    <img src={scout.photo} alt={scout.name} className="w-14 h-14 rounded-full object-cover border-2 border-slate-700 shadow-md group-hover:border-blue-500 transition" />
-                  ) : (
-                    <div className="w-14 h-14 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-slate-400 font-bold text-xl shadow-md group-hover:border-blue-500 transition">
-                      {scout.name.charAt(0)}
+            {displayScouts.map((scout) => {
+              const assigned = scoutMarketAssignments[scout.id] || [];
+
+              return (
+                <div 
+                  key={scout.id} 
+                  onClick={() => setSelectedScout(scout)}
+                  className="bg-[#151c2c] border border-slate-800 rounded-xl p-5 hover:border-blue-500/50 transition flex flex-col shadow-sm cursor-pointer group"
+                >
+                  <div className="flex items-center gap-4 mb-5">
+                    {scout.photo ? (
+                      <img src={scout.photo} alt={scout.name} className="w-14 h-14 rounded-full object-cover border-2 border-slate-700 shadow-md group-hover:border-blue-500 transition" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-slate-400 font-bold text-xl shadow-md group-hover:border-blue-500 transition">
+                        {scout.name.charAt(0)}
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="font-bold text-white text-base leading-tight group-hover:text-blue-400 transition">{scout.name}</h3>
+                      <p className="text-[10px] md:text-xs text-blue-400 font-bold mt-0.5">{getUserTitle(scout.name)}</p>
                     </div>
-                  )}
-                  <div>
-                    <h3 className="font-bold text-white text-base leading-tight group-hover:text-blue-400 transition">{scout.name}</h3>
-                    <p className="text-[10px] md:text-xs text-blue-400 font-bold mt-0.5">{getUserTitle(scout.name)}</p>
                   </div>
-                </div>
 
-                <div className="bg-[#0d131f] p-3 rounded-lg border border-slate-800/80 mb-4 flex-1">
-                  <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider block mb-2 flex items-center gap-1">
-                    <Globe className="w-3 h-3 text-slate-400" /> Mercados Atribuídos
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700/60 font-medium">Liga 3</span>
-                    <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700/60 font-medium">CP - Série A</span>
+                  <div className="bg-[#0d131f] p-3 rounded-lg border border-slate-800/80 mb-4 flex-1">
+                    <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider block mb-2 flex items-center gap-1">
+                      <Globe className="w-3 h-3 text-slate-400" /> Mercados Atribuídos ({assigned.length})
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {assigned.length > 0 ? (
+                        assigned.map((m, idx) => (
+                          <span key={idx} className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700/60 font-medium">
+                            {m}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-[10px] text-slate-500 italic">Sem mercados atribuídos.</span>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex justify-between items-center text-center pt-3 border-t border-slate-800/60">
-                  <div className="flex-1 border-r border-slate-800">
-                    <span className="block text-lg font-bold text-emerald-400">{getScoutMatches(scout.name).length}</span>
-                    <span className="block text-[8px] md:text-[9px] text-slate-500 uppercase font-bold mt-0.5">Jogos</span>
-                  </div>
-                  <div className="flex-1 text-[10px] text-slate-400 space-y-0.5 flex flex-col justify-center">
-                    <div><span className="text-blue-400 font-bold">{scout.liveMatches || 0}</span> Live</div>
-                    <div><span className="text-slate-300 font-bold">{scout.streamMatches || 0}</span> Vídeo</div>
+                  <div className="flex justify-between items-center text-center pt-3 border-t border-slate-800/60">
+                    <div className="flex-1 border-r border-slate-800">
+                      <span className="block text-lg font-bold text-emerald-400">{getScoutMatches(scout.name).length}</span>
+                      <span className="block text-[8px] md:text-[9px] text-slate-500 uppercase font-bold mt-0.5">Jogos Vistos</span>
+                    </div>
+                    <div className="flex-1 text-[10px] text-slate-400 space-y-0.5 flex flex-col justify-center">
+                      <div><span className="text-blue-400 font-bold">{scout.liveMatches || 0}</span> Live</div>
+                      <div><span className="text-slate-300 font-bold">{scout.streamMatches || 0}</span> Vídeo</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
-        {/* TAB 5: PAINEL ADMIN (APENAS PARA O PEDRO OLIVEIRA) */}
+        {/* TAB 5: PAINEL ADMIN (ATRIBUIÇÃO DE MERCADOS E TAREFAS) */}
         {activeTab === 'admin' && isAdmin && (
           <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="bg-[#151c2c] border border-purple-500/30 p-6 md:p-8 rounded-2xl shadow-xl relative overflow-hidden">
-              <div className="flex items-center gap-3 mb-6 border-b border-slate-800 pb-4">
+            <div className="bg-[#151c2c] border border-purple-500/30 p-6 md:p-8 rounded-2xl shadow-xl relative overflow-hidden space-y-8">
+              <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
                 <div className="p-3 bg-purple-600/20 text-purple-400 rounded-xl border border-purple-500/30"><Sliders className="w-6 h-6"/></div>
                 <div>
-                  <h2 className="text-xl font-bold text-white">Definições do Departamento de Scouting</h2>
-                  <p className="text-xs text-slate-400">Espaço reservado do Head of Scouting para gerir a plataforma e os alvos de mercado.</p>
+                  <h2 className="text-xl font-bold text-white">Painel de Gestão e Atribuição de Mercados</h2>
+                  <p className="text-xs text-slate-400">Gerir permissões, alvos de prospecção e associar campeonatos a cada Scout.</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* GESTÃO DE MERCADOS ALVO */}
+              {/* MÓDULO 1: ATRIBUIR CAMPEONATOS / MERCADOS A CADA SCOUT */}
+              <div className="bg-[#0d131f] p-5 md:p-6 rounded-xl border border-slate-800 space-y-4">
+                <h3 className="text-sm font-bold text-purple-400 uppercase tracking-wider flex items-center gap-2">
+                  <Target className="w-4 h-4 text-purple-400" /> Atribuir Campeonatos a um Scout
+                </h3>
+                <p className="text-xs text-slate-400">Escolha o observador e selecione as ligas que estão sob a sua alçada.</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">1. Selecionar Observador</label>
+                    <CustomSelect 
+                      options={displayScouts.map(s => ({ value: s.id, label: `${s.name} (${getUserTitle(s.name)})`, image: s.photo }))} 
+                      value={selectedAdminScoutId} 
+                      onChange={val => setSelectedAdminScoutId(val)} 
+                      placeholder="Escolher Scout..."
+                      searchable={true}
+                    />
+                  </div>
+
+                  {selectedAdminScoutId && (
+                    <div className="animate-in fade-in">
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">2. Selecionar Campeonatos do Airtable</label>
+                      <CustomMultiSelect 
+                        options={competitions.map(c => ({ value: c.name, label: c.name }))} 
+                        selectedIds={scoutMarketAssignments[selectedAdminScoutId] || []} 
+                        onChange={ids => handleSaveScoutMarkets(selectedAdminScoutId, ids)} 
+                        placeholder="Atribuir ligas..." 
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* MÓDULO 2: ESPAÇO RESERVADO PARA TAREFAS FUTURAS */}
+              <div className="bg-[#0d131f] p-5 md:p-6 rounded-xl border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <CheckSquare className="w-4 h-4 text-purple-400" /> Missões & Tarefas Específicas
+                  </h3>
+                  <span className="text-[10px] bg-purple-500/20 text-purple-300 font-bold px-2 py-0.5 rounded border border-purple-500/30">Módulo em Estruturação</span>
+                </div>
+                <p className="text-xs text-slate-400">Espaço reservado para envio de diretivas de observação individuais (ex: *"Acompanhar atleta X no próximo fim de semana"*).</p>
+              </div>
+
+              {/* MÓDULO 3: GESTÃO DE MERCADOS PRIORITÁRIOS DA SAD */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-slate-800">
                 <div className="space-y-4">
                   <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                    <Globe className="w-4 h-4 text-purple-400" /> Definição de Mercados Prioritários
+                    <Globe className="w-4 h-4 text-purple-400" /> Mercados Alvo Globais do Leça FC
                   </h3>
-                  <p className="text-xs text-slate-400">Adiciona ou remove ligas e contextos sob observação da equipa.</p>
-
                   <form onSubmit={handleAddMarket} className="flex gap-2">
                     <input 
                       type="text" 
-                      placeholder="Ex: Campeonato de Portugal - Série B..." 
+                      placeholder="Ex: América do Sul (Prospeção)..." 
                       value={newMarketInput} 
                       onChange={e => setNewMarketInput(e.target.value)} 
                       className="flex-1 bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
@@ -1135,10 +1186,9 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* ESTATÍSTICAS E PARÂMETROS DO SISTEMA */}
                 <div className="space-y-4">
                   <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                    <Settings className="w-4 h-4 text-purple-400" /> Parâmetros Globais da Intranet
+                    <Settings className="w-4 h-4 text-purple-400" /> Parâmetros do Sistema
                   </h3>
                   
                   <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800 space-y-3 text-xs">
@@ -1147,12 +1197,12 @@ export default function Home() {
                       <span className="text-emerald-400 font-bold flex items-center gap-1"><CheckCircle2 size={12}/> Ativa</span>
                     </div>
                     <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
-                      <span className="text-slate-400 font-medium">Total de Elementos com Acesso</span>
+                      <span className="text-slate-400 font-medium">Total de Utilizadores Registados</span>
                       <span className="text-white font-bold">{scouts.length} Pessoas</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-400 font-medium">Versão da Plataforma</span>
-                      <span className="text-purple-400 font-bold">Leça FC Scouting v2.5</span>
+                      <span className="text-slate-400 font-medium">Versão da Intranet</span>
+                      <span className="text-purple-400 font-bold">Leça FC Scouting v2.6</span>
                     </div>
                   </div>
                 </div>
@@ -1169,6 +1219,8 @@ export default function Home() {
       {/* MODAL DETALHADO DO SCOUT */}
       {selectedScout && (() => {
         const scoutMatches = getScoutMatches(selectedScout.name);
+        const assignedMarkets = scoutMarketAssignments[selectedScout.id] || [];
+
         return (
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
             <div className="bg-[#151c2c] border border-slate-800 w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl shadow-2xl p-5 md:p-6 space-y-6 animate-in fade-in zoom-in-95">
@@ -1201,6 +1253,24 @@ export default function Home() {
                 <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
                   <span className="text-xs text-slate-500 block mb-1 font-semibold">Live vs Stream</span>
                   <span className="text-sm font-bold text-blue-400 mt-1 block">{selectedScout.liveMatches || 0} L / {selectedScout.streamMatches || 0} S</span>
+                </div>
+              </div>
+
+              {/* MERCADOS ATRIBUÍDOS */}
+              <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-blue-400" /> Mercados Atribuídos ({assignedMarkets.length})
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {assignedMarkets.length > 0 ? (
+                    assignedMarkets.map((m, idx) => (
+                      <span key={idx} className="text-xs bg-slate-800 text-slate-200 px-3 py-1 rounded-lg border border-slate-700 font-medium">
+                        {m}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-slate-500 italic">Nenhum campeonato atribuído a este observador.</span>
+                  )}
                 </div>
               </div>
 
@@ -1331,7 +1401,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL PRÉ-JOGO (COM LISTA DE SCOUTS FILTRADA) */}
+      {/* MODAL PRÉ-JOGO */}
       {isRegisterOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-xl rounded-2xl shadow-2xl p-5 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
@@ -1378,7 +1448,7 @@ export default function Home() {
                   options={displayScouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
                   selectedIds={preGameData.scoutIds} 
                   onChange={ids => setPreGameData({ ...preGameData, scoutIds: ids })} 
-                  placeholder="Selecionar Scouts que acompanharam o jogo..." 
+                  placeholder="Selecionar Scouts..." 
                 />
               </div>
 
