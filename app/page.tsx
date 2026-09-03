@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 import * as XLSX from 'xlsx';
-import localforage from 'localforage'; // 🆕 NOVO: Base de dados gigante e veloz para o browser!
+import localforage from 'localforage';
 
 const TACTICS_OPTIONS = [
   '1-4-3-3', '1-4-4-2', '1-4-2-4', '1-4-1-3-2', '1-4-1-4-1', '1-4-2-3-1', 
@@ -80,7 +80,6 @@ function extractContextTag(row: any): string {
   return 'Atual';
 }
 
-// Mapeamento com Chaves de Estatística Bruta + Percentil + Peso
 const PILLAR_METRICS_MAP: Record<string, { label: string; statKey: string; pctKey: string; weight: string }[]> = {
   'GK Defesa': [
     { label: 'GK xG Prevented / 90', statKey: 'GK xG Prevented per 90', pctKey: 'GK xG Prevented per 90 Pct', weight: '40%' },
@@ -313,18 +312,19 @@ export default function Home() {
   const [selectedScout, setSelectedScout] = useState<any | null>(null);
   const [profileTab, setProfileTab] = useState<'timeline' | 'algo' | 'market'>('timeline');
 
+  // ESTADOS DO ALGORITMO E SELETOR DE ÉPOCAS
   const [selectedPillarDetail, setSelectedPillarDetail] = useState<string | null>(null);
   const [algorithmData, setAlgorithmData] = useState<Record<string, { tag: string; row: any }[]>>({});
   const [selectedSeasonIdx, setSelectedSeasonIdx] = useState<number>(0);
   const [uploadingExcel, setUploadingExcel] = useState(false);
 
+  // GESTÃO DE MERCADOS ADMIN
   const [scoutMarketAssignments, setScoutMarketAssignments] = useState<Record<string, string[]>>({});
   const [selectedAdminScoutId, setSelectedAdminScoutId] = useState<string>('');
-  
-  // 4. Limpeza da lista de admin markets
   const [adminMarkets, setAdminMarkets] = useState<string[]>([]);
   const [newMarketInput, setNewMarketInput] = useState('');
 
+  // FORMS
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [submittingPre, setSubmittingPre] = useState(false);
   const [preGameData, setPreGameData] = useState({ homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutIds: [] as string[], type: '' });
@@ -354,23 +354,36 @@ export default function Home() {
 
   const loadData = async () => {
     try {
-      const [resP, resT, resM, resS] = await Promise.all([
+      const [resP, resT, resM, resS, resAlgo] = await Promise.all([
         fetch('/api/players').catch(() => ({ json: () => ({ players: [] }) })),
         fetch('/api/teams').catch(() => ({ json: () => ({ teams: [] }) })),
         fetch('/api/matches').catch(() => ({ json: () => ({ matches: [], competitions: [] }) })),
-        fetch('/api/scouts').catch(() => ({ json: () => ({ scouts: [] }) }))
+        fetch('/api/scouts').catch(() => ({ json: () => ({ scouts: [] }) })),
+        fetch('/api/algo').catch(() => ({ json: () => ({ algoData: {} }) }))
       ]);
       
       const dataP = await resP.json(); 
       const dataT = await resT.json(); 
       const dataM = await resM.json(); 
       const dataS = await resS.json();
+      const dataAlgo = await resAlgo.json();
       
       if (dataP.players) setPlayers(dataP.players);
       if (dataT.teams) setTeams(dataT.teams);
       if (dataM.matches) setMatches(dataM.matches);
       if (dataM.competitions) setCompetitions(dataM.competitions);
       
+      // SINCRONIZAÇÃO SERVIDOR / API CENTRAL
+      if (dataAlgo.algoData && Object.keys(dataAlgo.algoData).length > 0) {
+        setAlgorithmData(dataAlgo.algoData);
+        localforage.setItem('leca_algo_data', dataAlgo.algoData);
+      } else {
+        // Fallback para memória local do browser
+        localforage.getItem('leca_algo_data').then((savedAlgo) => {
+          if (savedAlgo) setAlgorithmData(savedAlgo as Record<string, any>);
+        });
+      }
+
       if (dataS.scouts) {
         setScouts(dataS.scouts);
         const savedAuthId = localStorage.getItem('leca_scout_auth');
@@ -397,15 +410,9 @@ export default function Home() {
     if (savedAssignments) {
       try { setScoutMarketAssignments(JSON.parse(savedAssignments)); } catch (e) {}
     }
-    
-    // 1. CARREGAMENTO DOS DADOS COM LOCALFORAGE
-    localforage.getItem('leca_algo_data').then((savedAlgo) => {
-      if (savedAlgo) {
-        setAlgorithmData(savedAlgo as Record<string, any>);
-      }
-    }).catch(e => console.error("Erro no localforage: ", e));
   }, []);
 
+  // UPLOAD DO EXCEL DE MULTI-DISPOSITIVOS
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -451,10 +458,16 @@ export default function Home() {
         });
 
         setAlgorithmData(newAlgoData);
-        // GRAVAÇÃO COM LOCALFORAGE
-        localforage.setItem('leca_algo_data', newAlgoData).then(() => {
-          showToast(`Ficheiro processado! ${rawData.length} registos inseridos no histórico e guardados no browser.`);
-        });
+        localforage.setItem('leca_algo_data', newAlgoData);
+
+        // DISPARO DE SINCRONIZAÇÃO PARA A ROTA CENTRAL DA API
+        fetch('/api/algo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newAlgoData)
+        }).catch(err => console.error("Erro no envio para servidor:", err));
+
+        showToast(`Ficheiro processado! ${rawData.length} registos sincronizados para PC e Telemóvel.`);
       } catch (error) {
         showToast("Erro ao processar o ficheiro Excel.");
       } finally {
@@ -1052,7 +1065,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 3: MATCH CENTER */}
+        {/* TAB 3: MATCHES (MATCH CENTER) */}
         {activeTab === 'matches' && (
           <div className="animate-in fade-in duration-300">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5 md:mb-6">
@@ -1114,7 +1127,7 @@ export default function Home() {
                             <h4 className="font-bold text-blue-400 uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">Editar Detalhes do Jogo</h4>
                             
                             <div className="mb-4">
-                              <label className="block text-slate-400 mb-1.5 font-bold">Scouts Observadores (Podes adicionar ou remover)</label>
+                              <label className="block text-slate-400 mb-1.5 font-bold">Scouts Observadores</label>
                               <CustomMultiSelect 
                                 options={displayScouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
                                 selectedIds={reportData.scoutIds} 
@@ -1526,7 +1539,7 @@ export default function Home() {
         );
       })()}
 
-      {/* MODAL PARA EXIBIR PARÂMETROS DO PILAR SELECIONADO COM PESOS E PERCENTIL LIMPO */}
+      {/* MODAL PARA EXIBIR PARÂMETROS DO PILAR SELECIONADO (3. PERCENTIL LIMPO) */}
       {selectedPillarDetail && selectedPlayer && (() => {
         const playerCleanName = extractPlayerBaseName(selectedPlayer.name);
         const isGK = (selectedPlayer.position || '').toLowerCase().includes('goalkeeper') || (selectedPlayer.position || '').toLowerCase().includes('gk');
@@ -1571,6 +1584,7 @@ export default function Home() {
                         <div className="flex items-center gap-3 text-[11px] text-slate-400">
                           <span>Bruto: <strong className="text-white font-bold">{rawVal !== undefined && rawVal !== null ? parseFloat(rawVal).toFixed(2) : 'N/D'}</strong></span>
                           <span>•</span>
+                          {/* LIMPEZA DO SIMBOLO DE PERCENTAGEM */}
                           <span>Percentil: <strong className="text-emerald-400 font-bold">{pctVal !== undefined && pctVal !== null ? `${parseFloat(pctVal).toFixed(1)} Pct` : 'N/D'}</strong></span>
                         </div>
                       </div>
@@ -1906,21 +1920,17 @@ export default function Home() {
                           </div>
                         )}
 
-                        {/* NOVO BLOCO: VOLUME DE JOGO NO EXCEL (JOGOS E MINUTOS) */}
-                        <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800 grid grid-cols-3 gap-3 text-center">
-                          <div className="bg-[#0d131f] p-3 rounded-xl border border-slate-800/80">
+                        {/* 2. REMOÇÃO DA CAIXA OBS. INTRANET (AGORA APENAS 2 COLUNAS) */}
+                        <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800 grid grid-cols-2 gap-3 text-center">
+                          <div className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800/80">
                             <span className="text-[10px] text-slate-500 uppercase font-bold block mb-0.5">Jogos Disputados</span>
                             <span className="text-xl font-black text-emerald-400">{playerAlgo['Matches played'] || '--'}</span>
                           </div>
-                          <div className="bg-[#0d131f] p-3 rounded-xl border border-slate-800/80">
+                          <div className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800/80">
                             <span className="text-[10px] text-slate-500 uppercase font-bold block mb-0.5 flex items-center justify-center gap-1">
                               <Clock className="w-3 h-3 text-blue-400"/> Minutos Jogados
                             </span>
                             <span className="text-xl font-black text-blue-400">{playerAlgo['Minutes'] ? `${playerAlgo['Minutes']}'` : '--'}</span>
-                          </div>
-                          <div className="bg-[#0d131f] p-3 rounded-xl border border-slate-800/80">
-                            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-0.5">Obs. Intranet</span>
-                            <span className="text-xl font-black text-purple-400">{getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length}</span>
                           </div>
                         </div>
 
