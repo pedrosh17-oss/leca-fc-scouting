@@ -519,58 +519,66 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
   const [selectedSeasonIdx, setSelectedSeasonIdx] = useState<number>(0);
   const [uploadingExcel, setUploadingExcel] = useState(false);
 
-  // OTIMIZAÇÃO DE PERFORMANCE (Processa os 8.000+ atletas uma só vez em memória)
-  const algoOptions = useMemo(() => {
-    if (!algorithmData) return [];
+ // OTIMIZAÇÃO DE PERFORMANCE E CRUZAMENTO DE NOMES
+ const algoOptions = useMemo(() => {
+  if (!algorithmData) return [];
 
-    const lastNameMap = new Map<string, string>();
-    players.forEach(p => {
-      const dbClean = extractPlayerBaseName(p.name);
-      const dbLastName = dbClean.split(/\s+/).pop() || '';
-      if (dbLastName && dbLastName.length > 2 && !lastNameMap.has(dbLastName)) {
-        lastNameMap.set(dbLastName, p.name);
+  const optionsMap = new Map<string, { value: string; label: string; row: any }>();
+
+  Object.entries(algorithmData).forEach(([key, items]) => {
+    if (!items || key.endsWith('_gk')) return;
+
+    items.forEach((item, seasonIdx) => {
+      const row = item.row || {};
+      const rawName = row.Player || row.Player_ID || key;
+      const cleanPlayerName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
+      const teamName = row.Team_Calc || row.Team || '';
+      const seasonTag = item.tag || extractContextTag(row) || 'Atual';
+
+      const cleanBase = extractPlayerBaseName(cleanPlayerName);
+      const words = cleanBase.split(/\s+/).filter(Boolean);
+      const firstName = words[0] || '';
+      const lastName = words[words.length - 1] || '';
+
+      let displayName = cleanPlayerName;
+
+      // Só tenta procurar nome completo se o primeiro nome for UMA INICIAL (ex: "N." ou "L")
+      const isInitial = firstName.length === 1 || (firstName.length === 2 && firstName.endsWith('.'));
+
+      if (isInitial && lastName.length > 2) {
+        const dbMatch = players.find(p => {
+          const pClean = extractPlayerBaseName(p.name);
+          const pWords = pClean.split(/\s+/).filter(Boolean);
+          const pFirst = pWords[0] || '';
+          const pLast = pWords[pWords.length - 1] || '';
+          return pLast === lastName && pFirst.startsWith(firstName[0]);
+        });
+
+        if (dbMatch) {
+          displayName = `${cleanPlayerName} (${dbMatch.name})`;
+        }
+      }
+
+      let label = displayName;
+      if (teamName && seasonTag) {
+        label += ` (${teamName} - ${seasonTag})`;
+      } else if (teamName) {
+        label += ` (${teamName})`;
+      } else if (seasonTag) {
+        label += ` (${seasonTag})`;
+      }
+
+      const optionValue = `${key}___${seasonIdx}`;
+      const dedupKey = `${extractPlayerBaseName(cleanPlayerName)}_${extractPlayerBaseName(teamName)}_${seasonTag}`.toLowerCase();
+
+      if (!optionsMap.has(dedupKey)) {
+        optionsMap.set(dedupKey, { value: optionValue, label, row });
       }
     });
+  });
 
-    const optionsMap = new Map<string, { value: string; label: string; row: any }>();
-
-    Object.entries(algorithmData).forEach(([key, items]) => {
-      if (!items || key.endsWith('_gk')) return;
-
-      items.forEach((item, seasonIdx) => {
-        const row = item.row || {};
-        const rawName = row.Player || row.Player_ID || key;
-        const cleanPlayerName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
-        const teamName = row.Team_Calc || row.Team || '';
-        const seasonTag = item.tag || extractContextTag(row) || 'Atual';
-
-        const rowLastName = extractPlayerBaseName(cleanPlayerName).split(/\s+/).pop() || '';
-        const dbMatchName = lastNameMap.get(rowLastName);
-
-        const displayName = (dbMatchName && dbMatchName.length > cleanPlayerName.length)
-          ? `${cleanPlayerName} / ${dbMatchName}`
-          : cleanPlayerName;
-
-        let label = displayName;
-        if (teamName && seasonTag) {
-          label += ` (${teamName} - ${seasonTag})`;
-        } else if (teamName) {
-          label += ` (${teamName})`;
-        } else if (seasonTag) {
-          label += ` (${seasonTag})`;
-        }
-
-        const optionValue = `${key}___${seasonIdx}`;
-        const dedupKey = `${extractPlayerBaseName(cleanPlayerName)}_${extractPlayerBaseName(teamName)}_${seasonTag}`.toLowerCase();
-
-        if (!optionsMap.has(dedupKey)) {
-          optionsMap.set(dedupKey, { value: optionValue, label, row });
-        }
-      });
-    });
-
-    return Array.from(optionsMap.values()).sort((a, b) => a.label.localeCompare(b.label));
-  }, [algorithmData, players]);
+  return Array.from(optionsMap.values()).sort((a, b) => a.label.localeCompare(b.label));
+}, [algorithmData, players]);
 
   // MERCADOS ADMIN
   const [scoutMarketAssignments, setScoutMarketAssignments] = useState<Record<string, string[]>>({});
