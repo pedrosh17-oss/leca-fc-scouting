@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    swcMinify: false,
-  };
-  
-  module.exports = nextConfig;
+  experimental: {
+    serverComponentsExternalPackages: ['@vercel/blob'],
+  },
+};
+
+module.exports = nextConfig;
