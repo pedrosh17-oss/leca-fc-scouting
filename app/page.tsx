@@ -317,10 +317,10 @@ export default function Home() {
   const [search, setSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(20);
 
-  // FILTROS DE JOGADORES
-  const [playerPositionFilter, setPlayerPositionFilter] = useState('All');
-  const [playerStatusFilter, setPlayerStatusFilter] = useState('All');
-  const [minAgeFilter, setMinAgeFilter] = useState<number>(15);
+ // FILTROS DE JOGADORES (ESTADOS ÚNICOS)
+const [playerPositionFilter, setPlayerPositionFilter] = useState('All');
+const [playerStatusFilter, setPlayerStatusFilter] = useState('All');
+const [minAgeFilter, setMinAgeFilter] = useState<number>(15);
 const [maxAgeFilter, setMaxAgeFilter] = useState<number>(40);
 const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
   
