@@ -49,13 +49,12 @@ function getUserTitle(name: string): string {
   return 'Scout do Clube';
 }
 
-// Função de Limpeza e Mapeamento de Nomes (Fuzzy Normalization)
 function cleanPlayerName(str: string): string {
   if (!str) return '';
   return str
-    .replace(/\s*\([^)]*\)/g, '') // Remove conteúdo entre parênteses "Marcos Barbeiro (Atlético Malveira)" -> "Marcos Barbeiro"
+    .replace(/\s*\([^)]*\)/g, '')
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
 }
@@ -228,13 +227,12 @@ export default function Home() {
   const [selectedScout, setSelectedScout] = useState<any | null>(null);
   const [profileTab, setProfileTab] = useState<'timeline' | 'algo' | 'market'>('timeline');
 
-  // ALGORITHM DATA CACHE (Armazenamento Interno do Excel)
+  // CACHE DO ALGORITMO
   const [algorithmData, setAlgorithmData] = useState<Record<string, any>>({});
   const [uploadingExcel, setUploadingExcel] = useState(false);
 
-  // GESTÃO DE MERCADOS ADMIN
+  // GESTÃO DE MERCADOS POR SCOUT
   const [scoutMarketAssignments, setScoutMarketAssignments] = useState<Record<string, string[]>>({});
-  const [selectedAdminScoutId, setSelectedAdminScoutId] = useState<string>('');
   const [adminMarkets, setAdminMarkets] = useState<string[]>([
     'Liga 3 (Portugal)', 'Campeonato de Portugal', 'Liga Revelação (Sub-23)', 'S19 Nacional', 'América do Sul (Prospeção)'
   ]);
@@ -382,7 +380,6 @@ export default function Home() {
     localStorage.removeItem('leca_scout_auth');
   };
 
-  // REGRAS DE PERMISSÕES RBAC
   const canCreateMatches = userRole === 'ADMIN' || userRole === 'SCOUT';
   const canEditMatches = userRole === 'ADMIN' || userRole === 'SCOUT';
   const canSeeMarket = true;
@@ -398,7 +395,30 @@ export default function Home() {
     const updated = { ...scoutMarketAssignments, [scoutId]: assignedMarkets };
     setScoutMarketAssignments(updated);
     localStorage.setItem('leca_scout_markets', JSON.stringify(updated));
-    showToast("Mercados atribuídos com sucesso!");
+    showToast("Mercados atualizados para este Scout!");
+  };
+
+  // MONTA A LISTA COM SÉRIES ESPECÍFICAS PARA A SELEÇÃO DE MERCADOS DO SCOUT
+  const getScoutMarketOptions = () => {
+    const seriesOptions = [
+      { value: 'Liga 3 - Série A', label: 'Liga 3 - Série A' },
+      { value: 'Liga 3 - Série B', label: 'Liga 3 - Série B' },
+      { value: 'CP - Série A', label: 'CP - Série A' },
+      { value: 'CP - Série B', label: 'CP - Série B' },
+      { value: 'CP - Série C', label: 'CP - Série C' },
+      { value: 'CP - Série D', label: 'CP - Série D' },
+    ];
+
+    const otherComps = competitions
+      .map(c => c.name)
+      .filter(name => 
+        !name.toLowerCase().includes('liga 3') && 
+        !name.toLowerCase().includes('campeonato de portugal') &&
+        !name.toLowerCase().includes('cp')
+      )
+      .map(name => ({ value: name, label: name }));
+
+    return [...seriesOptions, ...otherComps];
   };
 
   const navigateToMatch = (matchId: string) => {
@@ -1181,7 +1201,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 5: PAINEL ADMIN (UPLOAD DE EXCEL E ATRIBUIÇÃO DE MERCADOS) */}
+        {/* TAB 5: PAINEL ADMIN (UPLOAD DE EXCEL E DEFINIÇÃO DE MERCADOS) */}
         {activeTab === 'admin' && isAdmin && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div className="bg-[#151c2c] border border-purple-500/30 p-6 md:p-8 rounded-2xl shadow-xl relative overflow-hidden space-y-8">
@@ -1189,7 +1209,7 @@ export default function Home() {
                 <div className="p-3 bg-purple-600/20 text-purple-400 rounded-xl border border-purple-500/30"><Sliders className="w-6 h-6"/></div>
                 <div>
                   <h2 className="text-xl font-bold text-white">Painel do Head of Scouting (Administração)</h2>
-                  <p className="text-xs text-slate-400">Carregar dados analíticos em bulk e gerir mercados dos observadores.</p>
+                  <p className="text-xs text-slate-400">Carregar dados analíticos em bulk e gerir mercados do clube.</p>
                 </div>
               </div>
 
@@ -1219,39 +1239,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* MÓDULO: ATRIBUIR CAMPEONATOS A CADA SCOUT */}
-              <div className="bg-[#0d131f] p-5 md:p-6 rounded-xl border border-slate-800 space-y-4">
-                <h3 className="text-sm font-bold text-purple-400 uppercase tracking-wider flex items-center gap-2">
-                  <Target className="w-4 h-4 text-purple-400" /> Atribuir Campeonatos a um Scout
-                </h3>
-                <p className="text-xs text-slate-400">Escolha o observador e selecione as ligas que estão sob a sua alçada.</p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">1. Selecionar Observador</label>
-                    <CustomSelect 
-                      options={displayScouts.map(s => ({ value: s.id, label: `${s.name} (${getUserTitle(s.name)})`, image: s.photo }))} 
-                      value={selectedAdminScoutId} 
-                      onChange={val => setSelectedAdminScoutId(val)} 
-                      placeholder="Escolher Scout..."
-                      searchable={true}
-                    />
-                  </div>
-
-                  {selectedAdminScoutId && (
-                    <div className="animate-in fade-in">
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">2. Selecionar Campeonatos</label>
-                      <CustomMultiSelect 
-                        options={competitions.map(c => ({ value: c.name, label: c.name }))} 
-                        selectedIds={scoutMarketAssignments[selectedAdminScoutId] || []} 
-                        onChange={(ids: string[]) => handleSaveScoutMarkets(selectedAdminScoutId, ids)} 
-                        placeholder="Atribuir ligas..." 
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
               {/* ESPAÇO RESERVADO PARA TAREFAS FUTURAS */}
               <div className="bg-[#0d131f] p-5 md:p-6 rounded-xl border border-slate-800 space-y-3">
                 <div className="flex items-center justify-between">
@@ -1263,15 +1250,64 @@ export default function Home() {
                 <p className="text-xs text-slate-400">Espaço reservado para envio de diretivas de observação individuais (ex: &quot;Acompanhar atleta X no próximo fim de semana&quot;).</p>
               </div>
 
+              {/* GESTÃO DE MERCADOS PRIORITÁRIOS DA SAD */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-slate-800">
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-purple-400" /> Mercados Alvo Globais do Leça FC
+                  </h3>
+                  <form onSubmit={handleAddMarket} className="flex gap-2">
+                    <input 
+                      type="text" 
+                      placeholder="Ex: América do Sul (Prospeção)..." 
+                      value={newMarketInput} 
+                      onChange={e => setNewMarketInput(e.target.value)} 
+                      className="flex-1 bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
+                    />
+                    <button type="submit" className="px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs flex items-center gap-1">
+                      <Plus className="w-4 h-4"/> Adicionar
+                    </button>
+                  </form>
+
+                  <div className="space-y-2 pt-2">
+                    {adminMarkets.map((m, idx) => (
+                      <div key={idx} className="bg-[#0d131f] p-3 rounded-xl border border-slate-800 flex justify-between items-center text-xs font-medium text-slate-200">
+                        <span>{m}</span>
+                        <button onClick={() => handleRemoveMarket(idx)} className="text-slate-500 hover:text-red-400 transition p-1"><X className="w-4 h-4"/></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <Settings className="w-4 h-4 text-purple-400" /> Parâmetros do Sistema
+                  </h3>
+                  
+                  <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800 space-y-3 text-xs">
+                    <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
+                      <span className="text-slate-400 font-medium">Estado da Sincronização Airtable</span>
+                      <span className="text-emerald-400 font-bold flex items-center gap-1"><CheckCircle2 size={12}/> Ativa</span>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
+                      <span className="text-slate-400 font-medium">Total de Utilizadores Registados</span>
+                      <span className="text-white font-bold">{scouts.length} Pessoas</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400 font-medium">Versão da Intranet</span>
+                      <span className="text-purple-400 font-bold">Leça FC Scouting v2.6</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         )}
 
       </div>
 
-      {/* --------------------- MODALS CENTRADOS --------------------- */}
-
-      {/* MODAL DETALHADO DO SCOUT */}
+      {/* MODAL DETALHADO DO SCOUT (COM SELEÇÃO DIRETA DE MERCADOS NO CARTÃO) */}
       {selectedScout && (() => {
         const scoutMatches = getScoutMatches(selectedScout.name);
         const assignedMarkets = scoutMarketAssignments[selectedScout.id] || [];
@@ -1299,6 +1335,7 @@ export default function Home() {
                 </button>
               </div>
 
+              {/* KPIS DO SCOUT */}
               <div className="grid grid-cols-2 gap-3 text-center">
                 <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
                   <span className="text-xs text-slate-500 block mb-1 font-semibold">Jogos Observados</span>
@@ -1310,23 +1347,40 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-blue-400" /> Mercados Atribuídos ({assignedMarkets.length})
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {assignedMarkets.length > 0 ? (
-                    assignedMarkets.map((m, idx) => (
-                      <span key={idx} className="text-xs bg-slate-800 text-slate-200 px-3 py-1 rounded-lg border border-slate-700 font-medium">
-                        {m}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-slate-500 italic">Nenhum campeonato atribuído a este observador.</span>
+              {/* MERCADOS ATRIBUÍDOS COM EDIÇÃO DIRETA NO CARTÃO */}
+              <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5 text-blue-400" /> Mercados Atribuídos ({assignedMarkets.length})
+                  </h3>
+                  {isAdmin && (
+                    <span className="text-[10px] text-purple-400 font-bold uppercase">Edição de Admin</span>
                   )}
                 </div>
+
+                {isAdmin ? (
+                  <CustomMultiSelect 
+                    options={getScoutMarketOptions()} 
+                    selectedIds={assignedMarkets} 
+                    onChange={(ids: string[]) => handleSaveScoutMarkets(selectedScout.id, ids)} 
+                    placeholder="Atribuir mercados e séries..." 
+                  />
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {assignedMarkets.length > 0 ? (
+                      assignedMarkets.map((m, idx) => (
+                        <span key={idx} className="text-xs bg-slate-800 text-slate-200 px-3 py-1 rounded-lg border border-slate-700 font-medium">
+                          {m}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-slate-500 italic">Nenhum campeonato atribuído a este observador.</span>
+                    )}
+                  </div>
+                )}
               </div>
 
+              {/* HISTÓRICO DE JOGOS OBSERVADOS POR ESTE SCOUT */}
               <div>
                 <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Histórico de Partidas Acompanhadas ({scoutMatches.length})</h3>
                 {scoutMatches.length > 0 ? (
@@ -1555,7 +1609,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* PERFIL DETALHADO DO JOGADOR (INCLUI RENDERIZAÇÃO DO ALGORITMO) */}
+      {/* PERFIL DETALHADO DO JOGADOR */}
       {selectedPlayer && (() => {
         const playerCleanName = cleanPlayerName(selectedPlayer.name);
         const playerAlgo = algorithmData[playerCleanName];
@@ -1623,12 +1677,11 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* VISTA DO ALGORITMO (LOOKER STUDIO DADOS DO EXCEL) */}
+                {/* VISTA DO ALGORITMO */}
                 {profileTab === 'algo' && (
                   <div className="space-y-6 animate-in fade-in duration-300">
                     {playerAlgo ? (
                       <>
-                        {/* BANNER DO PERFIL TOP 1 */}
                         <div className="bg-[#151c2c] p-6 rounded-2xl border border-purple-500/30 relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4">
                           <div className="space-y-1 text-center md:text-left">
                             <span className="text-[10px] uppercase font-bold tracking-widest text-purple-400 flex items-center gap-1 justify-center md:justify-start">
@@ -1649,7 +1702,6 @@ export default function Home() {
                           </div>
                         </div>
 
-                        {/* OS 8 PILARES DO JOGADOR */}
                         <div className="bg-[#151c2c] p-6 rounded-2xl border border-slate-800 space-y-4">
                           <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                             <Award className="w-4 h-4 text-blue-400"/> Pilares de Desempenho (Ajustados)
@@ -1679,7 +1731,6 @@ export default function Home() {
                           </div>
                         </div>
 
-                        {/* TOP PERCENTIS */}
                         <div className="bg-[#151c2c] p-6 rounded-2xl border border-slate-800 space-y-3">
                           <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                             <TrendingUp className="w-4 h-4 text-emerald-400"/> Mapeamento de Destaques em Percentil (% Pct)
