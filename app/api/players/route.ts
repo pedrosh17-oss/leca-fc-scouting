@@ -36,6 +36,9 @@ export async function GET() {
       const f = r.fields || {};
       const photoUrl = Array.isArray(f['Photo']) && f['Photo'][0]?.url ? f['Photo'][0].url : null;
       const clubLogoUrl = Array.isArray(f['Club Logo']) && f['Club Logo'][0]?.url ? f['Club Logo'][0].url : null;
+      
+      // Mapeamento da coluna de nascimento do Airtable
+      const rawBirth = safeText(f['Date of Birth'] || f['Date of birth'] || f['Data de Nascimento'], '');
 
       return {
         id: r.id,
@@ -44,6 +47,7 @@ export async function GET() {
         position: safeText(f['Position'], 'N/D'),
         nationality: safeText(f['Nationality'], 'N/A'),
         age: safeText(f['Age'], 'N/D'),
+        birthDate: rawBirth !== 'N/D' && rawBirth !== '' ? rawBirth : null,
         height: safeText(f[' Height'] || f['Height'], 'N/D'),
         foot: safeText(f['Foot'], 'N/D'),
         club: safeText(f['Team name'] || f['Current Team'], 'Sem Clube'),
