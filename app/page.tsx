@@ -140,18 +140,22 @@ function getPlayerAlgoEntries(player: any, algorithmData: Record<string, any[]>)
     
     const rNameWords = rName.split(/\s+/).filter(Boolean);
     const rLastName = rNameWords[rNameWords.length - 1] || '';
-    const rFirstInitial = rNameWords[0]?.[0] || '';
+    const rFirstWord = rNameWords[0] || '';
     
-    // Check 1: Subset (ex: "Cheikh Niang" vs "Niang", mas rejeita "Niang" vs "Ni")
+    // Check 1: Subset exato (ex: "Cheikh Niang" vs "Niang")
     if (rNameWords.length > 0 && targetNameWords.length > 0) {
       const isSubset = rNameWords.every(w => targetNameWords.includes(w)) || targetNameWords.every(w => rNameWords.includes(w));
       if (isSubset) return true;
     }
 
     // Check 2: Inicial + Apelido (ex: "L. Moreira" vs "Lucas Moreira")
-    // Rejeita automaticamente "T. Moreira" ou "Tiago Moreira"
-    if (rLastName === targetLastName && rFirstInitial === targetFirstInitial && targetLastName.length > 2) {
-      return true;
+    // SÓ valida se o primeiro nome no Excel for efetivamente uma inicial (ex: "L" ou "L.")
+    const isInitial = rFirstWord.length === 1 || (rFirstWord.length === 2 && rFirstWord.endsWith('.'));
+    if (isInitial) {
+      const rFirstInitial = rFirstWord[0];
+      if (rLastName === targetLastName && rFirstInitial === targetFirstInitial && targetLastName.length > 2) {
+        return true;
+      }
     }
     
     return false;
