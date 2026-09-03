@@ -2492,7 +2492,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                 )}
 
                {/* VISTA RELATÓRIOS & ANÁLISE */}
-                {profileTab === 'reports' && (
+               {profileTab === 'reports' && (
                   <div className="space-y-6 animate-in fade-in duration-300">
                     <div className={`${themeCard} p-6 md:p-8 rounded-2xl border border-blue-500/30 shadow-xl space-y-4`}>
                       <div className="flex items-center justify-between border-b border-slate-700/40 pb-4">
@@ -2504,14 +2504,22 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                             <h3 className="text-sm md:text-base font-bold uppercase tracking-wider">
                               Relatório Consolidado de Prospeção
                             </h3>
-                            <p className={`text-xs ${themeTextMuted}`}>
-                              Síntese técnica automatizada gerada por IA no Airtable
-                            </p>
                           </div>
                         </div>
-                        <span className="text-[10px] bg-blue-500/10 text-blue-400 font-bold px-2.5 py-1 rounded-md border border-blue-500/20">
-                          Sintetizado
-                        </span>
+
+                        {/* BOTÃO PARA SINCRONIZAR/ATUALIZAR DADOS DO AIRTABLE */}
+                        <button
+                          onClick={async () => {
+                            if (typeof fetchPlayers === 'function') {
+                              await fetchPlayers();
+                              showToast("Relatório sincronizado com o Airtable!");
+                            }
+                          }}
+                          className="flex items-center gap-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-xl shadow-md transition"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Atualizar Relatório</span>
+                        </button>
                       </div>
 
                       {(() => {
@@ -2520,15 +2528,15 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                         const isAiReport = Boolean(selectedPlayer.finalReport);
 
                         return isAiReport && reportText && reportText !== 'Sem observações registadas.' ? (
-                          <div className={`text-xs md:text-sm leading-relaxed font-sans whitespace-pre-wrap ${themeInnerCard} p-5 rounded-xl border border-slate-700/40 font-mono`}>
-                            {reportText}
+                          <div className={`${themeInnerCard} p-5 md:p-6 rounded-xl border border-slate-700/40 text-xs md:text-sm`}>
+                            {renderFormattedMarkdown(reportText)}
                           </div>
                         ) : (
-                          <div className={`text-center py-10 ${themeInnerCard} rounded-xl border border-dashed text-xs md:text-sm space-y-2`}>
+                          <div className={`text-center py-10 ${themeInnerCard} rounded-xl border border-dashed text-xs md:text-sm space-y-3`}>
                             <Info className="w-6 h-6 text-slate-400 mx-auto" />
-                            <p className="font-bold">Relatório executivo ainda não gerado no Airtable.</p>
+                            <p className="font-bold">Relatório executivo ainda não gerado.</p>
                             <p className={`${themeTextMuted} text-xs`}>
-                              Para gerar este relatório, clica em <strong>Run agent</strong> na coluna <strong>Final Report</strong> no Airtable.
+                              Clica em <strong>Run agent</strong> na coluna <em>Final Report</em> no Airtable e depois pressiona o botão <strong>Atualizar Relatório</strong> acima.
                             </p>
                           </div>
                         );
@@ -2550,7 +2558,6 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                     </div>
                   </div>
                 )}
-
                 {profileTab === 'market' && canSeeMarket && (
                   <div className={`${themeCard} p-6 md:p-8 rounded-2xl border border-blue-500/20 relative overflow-hidden`}>
                     <div className="flex items-center justify-between mb-6 border-b border-slate-700/40 pb-4">
