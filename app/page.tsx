@@ -381,19 +381,21 @@ export default function Home() {
       if (dataM.competitions) setCompetitions(dataM.competitions);
       
     
-      // SINCRONIZAÇÃO VIA SUPABASE STORAGE
+      // SINCRONIZAÇÃO E DESCOMPRESSÃO VIA SUPABASE STORAGE
       try {
-        const { data } = supabase.storage.from('Scouting').getPublicUrl('algo-data.json');
+        const { data } = supabase.storage.from('Scouting').getPublicUrl('algo-data.json.gz');
         if (data?.publicUrl) {
           const resAlgo = await fetch(`${data.publicUrl}?t=${Date.now()}`);
-          if (resAlgo.ok) {
-            const remoteAlgoData = await resAlgo.json();
+          if (resAlgo.ok && resAlgo.body) {
+            const decompressedStream = resAlgo.body.pipeThrough(new DecompressionStream('gzip'));
+            const decompressedText = await new Response(decompressedStream).text();
+            const remoteAlgoData = JSON.parse(decompressedText);
+
             setAlgorithmData(remoteAlgoData);
             await localforage.setItem('leca_algo_data', remoteAlgoData);
           }
         }
       } catch (err) {
-        // Fallback para memória local do browser
         localforage.getItem('leca_algo_data').then((savedAlgo) => {
           if (savedAlgo) setAlgorithmData(savedAlgo as Record<string, any>);
         });
@@ -451,7 +453,6 @@ export default function Home() {
           const tag = extractContextTag(row);
 
           if (cleanName) {
-            // Limpa propriedades indefinidas/vazias para compactar o JSON
             const cleanRow: Record<string, any> = {};
             Object.keys(row).forEach((k) => {
               if (row[k] !== null && row[k] !== undefined && row[k] !== '') {
@@ -473,23 +474,25 @@ export default function Home() {
         setAlgorithmData(newAlgoData);
         await localforage.setItem('leca_algo_data', newAlgoData);
 
-        // Gera o JSON leve e compactado
+        // Comprime o JSON de 50MB para ~3MB usando a API nativa do browser
         const jsonString = JSON.stringify(newAlgoData);
         const jsonBlob = new Blob([jsonString], { type: 'application/json' });
+        const compressedStream = jsonBlob.stream().pipeThrough(new CompressionStream('gzip'));
+        const compressedBlob = await new Response(compressedStream).blob();
 
         const { error } = await supabase.storage
           .from('Scouting')
-          .upload('algo-data.json', jsonBlob, {
-            contentType: 'application/json',
+          .upload('algo-data.json.gz', compressedBlob, {
+            contentType: 'application/gzip',
             upsert: true,
           });
 
         if (error) throw error;
 
-        showToast("Ficheiro sincronizado na Cloud! Telemóveis atualizados.");
+        showToast("Ficheiro comprimido e sincronizado! Telemóveis atualizados.");
       } catch (error: any) {
         console.error("Erro no Supabase:", error);
-        showToast("Guardado no PC local.");
+        showToast("Erro ao sincronizar na Cloud.");
       } finally {
         setUploadingExcel(false);
       }
