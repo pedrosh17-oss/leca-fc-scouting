@@ -59,51 +59,68 @@ function cleanPlayerName(str: string): string {
     .trim();
 }
 
-// Mapeamento dos parâmetros que contribuem para cada pilar ao clicar no cartão
-const PILLAR_METRICS_MAP: Record<string, { label: string; statKey: string; pctKey: string }[]> = {
+// Estrutura de Métricas e Pesos por Pilar
+const PILLAR_METRICS_MAP: Record<string, { label: string; statKey: string; weight: string }[]> = {
+  'GK Defesa': [
+    { label: 'GK xG Prevented / 90', statKey: 'GK xG Prevented per 90', weight: '40%' },
+    { label: 'GK Save Rate %', statKey: 'GK Save Rate %', weight: '25%' },
+    { label: 'Aerial Duels Won %', statKey: 'Aerial Duels Won %', weight: '15%' },
+    { label: 'GK Exits / 90', statKey: 'GK Exits per 90', weight: '10%' },
+    { label: 'GK Conceded / 90', statKey: 'GK Conceded per 90', weight: '10%' },
+  ],
+  'GK Distribuicao': [
+    { label: 'Passes Accuracy %', statKey: 'Passes Accuracy %', weight: '45%' },
+    { label: 'Long Passes Accuracy %', statKey: 'Long Passes Accuracy %', weight: '30%' },
+    { label: 'Passes / 90', statKey: 'Passes per 90', weight: '25%' },
+  ],
   'Jogo Aéreo': [
-    { label: 'Duelos Aéreos / 90', statKey: 'Aerial Duels per 90', pctKey: 'Aerial Duels per 90 Pct' },
-    { label: 'Duelos Aéreos Ganhos %', statKey: 'Aerial Duels Won %', pctKey: 'Aerial Duels Won % Pct' },
-    { label: 'Golos de Cabeça / 90', statKey: 'Head Goals per 90', pctKey: 'Head Goals per 90 Pct' },
+    { label: 'Aerial Duels Won %', statKey: 'Aerial Duels Won %', weight: '65%' },
+    { label: 'Aerial Duels / 90', statKey: 'Aerial Duels per 90', weight: '35%' },
   ],
   'Defesa': [
-    { label: 'Ações Defensivas Certas / 90', statKey: 'Successful Defensive Actions per 90', pctKey: 'Successful Defensive Actions per 90 Pct' },
-    { label: 'Duelos Defensivos / 90', statKey: 'Defensive Duels per 90', pctKey: 'Defensive Duels per 90 Pct' },
-    { label: 'Duelos Defensivos Ganhos %', statKey: 'Defensive Duels Won %', pctKey: 'Defensive Duels Won % Pct' },
-    { label: 'Interceções PAdj', statKey: 'Interceptions PAdj', pctKey: 'Interceptions PAdj Pct' },
-    { label: 'Desarmes PAdj', statKey: 'Sliding Tackles PAdj', pctKey: 'Sliding Tackles PAdj Pct' },
+    { label: 'Defensive Duels Won %', statKey: 'Defensive Duels Won %', weight: '35%' },
+    { label: 'Interceptions PAdj', statKey: 'Interceptions PAdj', weight: '25%' },
+    { label: 'Successful Defensive Actions / 90', statKey: 'Successful Defensive Actions per 90', weight: '20%' },
+    { label: 'Defensive Duels / 90', statKey: 'Defensive Duels per 90', weight: '15%' },
+    { label: 'Sliding Tackles PAdj', statKey: 'Sliding Tackles PAdj', weight: '5%' },
   ],
   'Construção': [
-    { label: 'Passes / 90', statKey: 'Passes per 90', pctKey: 'Passes per 90 Pct' },
-    { label: 'Eficácia de Passe %', statKey: 'Passes Accuracy %', pctKey: 'Passes Accuracy % Pct' },
-    { label: 'Passes para a Frente / 90', statKey: 'Forward Passes per 90', pctKey: 'Forward Passes per 90 Pct' },
-    { label: 'Passes Progressivos / 90', statKey: 'Progressive Passes per 90', pctKey: 'Progressive Passes per 90 Pct' },
+    { label: 'Passes Accuracy %', statKey: 'Passes Accuracy %', weight: '25%' },
+    { label: 'Passes / 90', statKey: 'Passes per 90', weight: '20%' },
+    { label: 'Progressive Passes Accuracy %', statKey: 'Progressive Passes Accuracy %', weight: '20%' },
+    { label: 'Progressive Passes / 90', statKey: 'Progressive Passes per 90', weight: '15%' },
+    { label: 'Forward Passes / 90', statKey: 'Forward Passes per 90', weight: '10%' },
+    { label: 'Long Passes Accuracy %', statKey: 'Long Passes Accuracy %', weight: '10%' },
   ],
   'Criação': [
-    { label: 'xA (Assistências Esperadas) / 90', statKey: 'xA per 90', pctKey: 'xA per 90 Pct' },
-    { label: 'Passes Chave / 90', statKey: 'Key Passes per 90', pctKey: 'Key Passes per 90 Pct' },
-    { label: 'Passes para o 1/3 Final / 90', statKey: 'Passes to Final Third per 90', pctKey: 'Passes to Final Third per 90 Pct' },
-    { label: 'Passes para a Área / 90', statKey: 'Passes to Penalty Area per 90', pctKey: 'Passes to Penalty Area per 90 Pct' },
+    { label: 'xA / 90', statKey: 'xA per 90', weight: '25%' },
+    { label: 'Key Passes / 90', statKey: 'Key Passes per 90', weight: '25%' },
+    { label: 'Passes to Final Third / 90', statKey: 'Passes to Final Third per 90', weight: '20%' },
+    { label: 'Passes to Penalty Area / 90', statKey: 'Passes to Penalty Area per 90', weight: '15%' },
+    { label: 'Progressive Passes / 90', statKey: 'Progressive Passes per 90', weight: '10%' },
+    { label: 'Smart Passes / 90', statKey: 'Smart Passes per 90', weight: '5%' },
   ],
   'Cruzamento': [
-    { label: 'Cruzamentos / 90', statKey: 'Crosses per 90', pctKey: 'Crosses per 90 Pct' },
-    { label: 'Precisão de Cruzamento %', statKey: 'Crosses Accuracy %', pctKey: 'Crosses Accuracy % Pct' },
+    { label: 'Crosses Accuracy %', statKey: 'Crosses Accuracy %', weight: '60%' },
+    { label: 'Crosses / 90', statKey: 'Crosses per 90', weight: '40%' },
   ],
   'Capacidade 1v1': [
-    { label: 'Dribles / 90', statKey: 'Dribbles per 90', pctKey: 'Dribbles per 90 Pct' },
-    { label: 'Sucesso no Drible %', statKey: 'Dribbles Success %', pctKey: 'Dribbles Success % Pct' },
-    { label: 'Duelos Ofensivos / 90', statKey: 'Offensive Duels per 90', pctKey: 'Offensive Duels per 90 Pct' },
-    { label: 'Duelos Ofensivos Ganhos %', statKey: 'Offensive Duels Won %', pctKey: 'Offensive Duels Won % Pct' },
+    { label: 'Dribbles Success %', statKey: 'Dribbles Success %', weight: '30%' },
+    { label: 'Offensive Duels Won %', statKey: 'Offensive Duels Won %', weight: '25%' },
+    { label: 'Dribbles / 90', statKey: 'Dribbles per 90', weight: '20%' },
+    { label: 'Offensive Duels / 90', statKey: 'Offensive Duels per 90', weight: '15%' },
+    { label: 'Progressive Runs / 90', statKey: 'Progressive Runs per 90', weight: '10%' },
   ],
   'Profundidade': [
-    { label: 'Corridas Progressivas / 90', statKey: 'Progressive Runs per 90', pctKey: 'Progressive Runs per 90 Pct' },
-    { label: 'Acelerações / 90', statKey: 'Accelerations per 90', pctKey: 'Accelerations per 90 Pct' },
-    { label: 'Toques na Área / 90', statKey: 'Touches in Box per 90', pctKey: 'Touches in Box per 90 Pct' },
+    { label: 'Received Through Passes / 90', statKey: 'Received Through Passes per 90', weight: '40%' },
+    { label: 'Accelerations / 90', statKey: 'Accelerations per 90', weight: '35%' },
+    { label: 'Touches in Box / 90', statKey: 'Touches in Box per 90', weight: '25%' },
   ],
   'Finalização': [
-    { label: 'Golos Sem Penálti / 90', statKey: 'Non-Penalty Goals per 90', pctKey: 'Non-Penalty Goals per 90 Pct' },
-    { label: 'xG (Golos Esperados) / 90', statKey: 'xG per 90', pctKey: 'xG per 90 Pct' },
-    { label: 'Remates no Alvo %', statKey: 'Shots on Target %', pctKey: 'Shots on Target % Pct' },
+    { label: 'Non-Penalty Goals / 90', statKey: 'Non-Penalty Goals per 90', weight: '40%' },
+    { label: 'xG / 90', statKey: 'xG per 90', weight: '25%' },
+    { label: 'Shots on Target %', statKey: 'Shots on Target %', weight: '20%' },
+    { label: 'Head Goals / 90', statKey: 'Head Goals per 90', weight: '15%' },
   ],
 };
 
@@ -275,21 +292,17 @@ export default function Home() {
   const [selectedScout, setSelectedScout] = useState<any | null>(null);
   const [profileTab, setProfileTab] = useState<'timeline' | 'algo' | 'market'>('timeline');
 
-  // ESTADO DO PILAR SELECIONADO PARA VER PARÂMETROS
   const [selectedPillarDetail, setSelectedPillarDetail] = useState<string | null>(null);
 
-  // CACHE DO ALGORITMO
   const [algorithmData, setAlgorithmData] = useState<Record<string, any>>({});
   const [uploadingExcel, setUploadingExcel] = useState(false);
 
-  // GESTÃO DE MERCADOS POR SCOUT
   const [scoutMarketAssignments, setScoutMarketAssignments] = useState<Record<string, string[]>>({});
   const [adminMarkets, setAdminMarkets] = useState<string[]>([
     'Liga 3 (Portugal)', 'Campeonato de Portugal', 'Liga Revelação (Sub-23)', 'S19 Nacional', 'América do Sul (Prospeção)'
   ]);
   const [newMarketInput, setNewMarketInput] = useState('');
 
-  // FORMS
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [submittingPre, setSubmittingPre] = useState(false);
   const [preGameData, setPreGameData] = useState({ homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutIds: [] as string[], type: '' });
@@ -388,10 +401,9 @@ export default function Home() {
         rawData.forEach((row) => {
           const cleanName = cleanPlayerName(row.Player || '');
           if (cleanName) {
-            // Guarda chave por nome limpo + posição para evitar misturar GKs com Jogadores de Campo
             const posKey = (row.Position || '').toLowerCase().includes('gk') || (row.Setor_Avaliacao || '').toLowerCase().includes('gk') ? '_gk' : '_field';
             newAlgoData[`${cleanName}${posKey}`] = row;
-            newAlgoData[cleanName] = row; // Fallback generico
+            newAlgoData[cleanName] = row;
           }
         });
 
@@ -993,7 +1005,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 3: MATCHES (MATCH CENTER) */}
+        {/* TAB 3: MATCHES */}
         {activeTab === 'matches' && (
           <div className="animate-in fade-in duration-300">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5 md:mb-6">
@@ -1055,7 +1067,7 @@ export default function Home() {
                             <h4 className="font-bold text-blue-400 uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">Editar Detalhes do Jogo</h4>
                             
                             <div className="mb-4">
-                              <label className="block text-slate-400 mb-1.5 font-bold">Scouts Observadores (Podes adicionar ou remover)</label>
+                              <label className="block text-slate-400 mb-1.5 font-bold">Scouts Observadores</label>
                               <CustomMultiSelect 
                                 options={displayScouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
                                 selectedIds={reportData.scoutIds} 
@@ -1471,7 +1483,7 @@ export default function Home() {
         );
       })()}
 
-      {/* MODAL PARA EXIBIR PARÂMETROS DO PILAR SELECIONADO */}
+      {/* MODAL PARA EXIBIR PARÂMETROS DO PILAR SELECIONADO COM PESOS */}
       {selectedPillarDetail && selectedPlayer && (() => {
         const playerCleanName = cleanPlayerName(selectedPlayer.name);
         const isGK = (selectedPlayer.position || '').toLowerCase().includes('goalkeeper') || (selectedPlayer.position || '').toLowerCase().includes('gk');
@@ -1496,7 +1508,6 @@ export default function Home() {
               <div className="space-y-3">
                 {metrics.map((m, idx) => {
                   const rawVal = playerAlgo ? playerAlgo[m.statKey] : null;
-                  const pctVal = playerAlgo ? playerAlgo[m.pctKey] : null;
 
                   return (
                     <div key={idx} className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800/80 flex items-center justify-between">
@@ -1504,11 +1515,9 @@ export default function Home() {
                         <span className="block text-xs font-bold text-slate-200">{m.label}</span>
                         <span className="text-[11px] text-slate-500">Valor Bruto: <strong className="text-slate-300">{rawVal !== undefined && rawVal !== null ? parseFloat(rawVal).toFixed(2) : 'N/D'}</strong></span>
                       </div>
-                      {pctVal !== undefined && pctVal !== null && (
-                        <div className="text-right">
-                          <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">{parseFloat(pctVal).toFixed(1)}% Pct</span>
-                        </div>
-                      )}
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/20">Peso: {m.weight}</span>
+                      </div>
                     </div>
                   );
                 })}
@@ -1721,8 +1730,22 @@ export default function Home() {
         const isGK = (selectedPlayer.position || '').toLowerCase().includes('goalkeeper') || (selectedPlayer.position || '').toLowerCase().includes('gk');
         const posKey = isGK ? '_gk' : '_field';
         
-        // Tenta obter o registo correto por nome + posicao (evita misturar Diogo Silva GR com Diogo Silva de campo)
         const playerAlgo = algorithmData[`${playerCleanName}${posKey}`] || algorithmData[playerCleanName];
+
+        // Mapeamento dos 8 Pilares (ou 2 Pilares se for GR)
+        const pillarList = isGK ? [
+          { title: 'GK Defesa', key: 'GK Defesa' },
+          { title: 'GK Distribuicao', key: 'GK Distribuicao' },
+        ] : [
+          { title: 'Jogo Aéreo', key: 'Jogo Aéreo' },
+          { title: 'Defesa', key: 'Defesa' },
+          { title: 'Construção', key: 'Construção' },
+          { title: 'Criação', key: 'Criação' },
+          { title: 'Cruzamento', key: 'Cruzamento' },
+          { title: 'Capacidade 1v1', key: 'Capacidade 1v1' },
+          { title: 'Profundidade', key: 'Profundidade' },
+          { title: 'Finalização', key: 'Finalização' },
+        ];
 
         return (
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
@@ -1792,44 +1815,35 @@ export default function Home() {
                   <div className="space-y-6 animate-in fade-in duration-300">
                     {playerAlgo ? (
                       <>
-                        {/* CARTÃO DE NOTA DO PERFIL TOP 1 (SIMPLIFICADO) */}
+                        {/* CARTÃO DE NOTA BRUTA DO PERFIL TOP 1 */}
                         <div className="bg-[#151c2c] p-6 rounded-2xl border border-purple-500/30 relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4">
                           <div className="space-y-1 text-center md:text-left">
                             <span className="text-[10px] uppercase font-bold tracking-widest text-purple-400 flex items-center gap-1 justify-center md:justify-start">
-                              <Cpu className="w-3.5 h-3.5" /> Perfil Top 1
+                              <Cpu className="w-3.5 h-3.5" /> Perfil Principal
                             </span>
                             <h3 className="text-2xl font-black text-white">{playerAlgo.Top_Profile_1_Name || playerAlgo.Melhor_Perfil || 'N/D'}</h3>
                             <p className="text-xs text-slate-400">Fase da Carreira: <span className="text-emerald-400 font-bold">{playerAlgo.Fase_Carreira || 'N/D'}</span> • Tier: <span className="text-purple-300 font-bold">{playerAlgo.Scout_Tier || 'N/D'}</span></p>
                           </div>
                           
-                          {/* UNIFICADO APENAS EM "NOTA" BRUTA */}
                           <div className="bg-purple-900/20 px-6 py-3.5 rounded-xl border border-purple-500/30 text-center min-w-[120px]">
                             <span className="block text-[10px] text-purple-400 uppercase font-bold">Nota</span>
                             <span className="text-3xl font-black text-purple-300">{playerAlgo.Top_Profile_1_Score || playerAlgo.Nota_Melhor_Perfil || '0'}</span>
                           </div>
                         </div>
 
-                        {/* OS 8 PILARES DO JOGADOR (COM DELTA DA MEDIANA DA LIGA E CLIQUE) */}
+                        {/* PILARES DE DESEMPENHO (COM VALORES BRUTOS E DELTA VS MEDIANA DA LIGA) */}
                         <div className="bg-[#151c2c] p-6 rounded-2xl border border-slate-800 space-y-4">
                           <div className="flex justify-between items-center">
                             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                               <Award className="w-4 h-4 text-blue-400"/> Pilares de Desempenho
                             </h4>
-                            <span className="text-[10px] text-slate-500 font-medium">Clica num pilar para ver os parâmetros contribuintes</span>
+                            <span className="text-[10px] text-slate-500 font-medium">Clica num pilar para ver a distribuição de pesos</span>
                           </div>
 
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            {[
-                              { title: 'Jogo Aéreo', key: 'Jogo Aéreo_Adj' },
-                              { title: 'Defesa', key: 'Defesa_Adj' },
-                              { title: 'Construção', key: 'Construção_Adj' },
-                              { title: 'Criação', key: 'Criação_Adj' },
-                              { title: 'Cruzamento', key: 'Cruzamento_Adj' },
-                              { title: 'Capacidade 1v1', key: 'Capacidade 1v1_Adj' },
-                              { title: 'Profundidade', key: 'Profundidade_Adj' },
-                              { title: 'Finalização', key: 'Finalização_Adj' },
-                            ].map((pilar, idx) => {
-                              const val = playerAlgo[pilar.key] || playerAlgo[pilar.title];
+                          <div className={`grid grid-cols-2 ${isGK ? 'md:grid-cols-2' : 'md:grid-cols-4'} gap-3`}>
+                            {pillarList.map((pilar, idx) => {
+                              // Lê a nota bruta do pilar no Excel
+                              const val = playerAlgo[pilar.key];
                               const numVal = val ? parseFloat(val) : 0;
                               
                               // Cálculo do Delta em relação à Mediana da Liga
@@ -1849,7 +1863,7 @@ export default function Home() {
                                     
                                     {delta !== null && (
                                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${delta >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                                        {delta >= 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)}
+                                        {delta >= 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)} vs Mediana
                                       </span>
                                     )}
                                   </div>
@@ -1859,24 +1873,25 @@ export default function Home() {
                           </div>
                         </div>
 
-                        {/* TOP PERCENTIS (% PCT) */}
+                        {/* PONTOS FORTES / TOP ATRIBUTOS DO JOGADOR */}
                         <div className="bg-[#151c2c] p-6 rounded-2xl border border-slate-800 space-y-3">
                           <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                            <TrendingUp className="w-4 h-4 text-emerald-400"/> Destaques em Percentil (% Pct)
+                            <TrendingUp className="w-4 h-4 text-emerald-400"/> Pontos Fortes em Destaque (Top Atributos)
                           </h4>
-                          <p className="text-xs text-slate-500">Métricas onde o atleta se posiciona em relação à totalidade dos jogadores da liga (0-100%).</p>
+                          <p className="text-xs text-slate-500">Métricas onde o atleta regista maior pontuação de acordo com o algoritmo.</p>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
                             {[
-                              { title: 'Duelos Aéreos Ganhos %', val: playerAlgo['Aerial Duels Won % Pct'] },
-                              { title: 'Duelos Ofensivos Ganhos %', val: playerAlgo['Offensive Duels Won % Pct'] },
-                              { title: 'Eficácia de Drible %', val: playerAlgo['Dribbles Success % Pct'] },
-                              { title: 'Duelos Defensivos Ganhos %', val: playerAlgo['Defensive Duels Won % Pct'] },
-                              { title: 'Passe Certo %', val: playerAlgo['Passes Accuracy % Pct'] },
-                              { title: 'Cruzamentos Precisos %', val: playerAlgo['Crosses Accuracy % Pct'] },
-                            ].map((pct, idx) => (
+                              { name: playerAlgo['Top_Attr_1_Name'], val: playerAlgo['Top_Attr_1_Val'] },
+                              { name: playerAlgo['Top_Attr_2_Name'], val: playerAlgo['Top_Attr_2_Val'] },
+                              { name: playerAlgo['Top_Attr_3_Name'], val: playerAlgo['Top_Attr_3_Val'] },
+                              { name: playerAlgo['Top_Attr_4_Name'], val: playerAlgo['Top_Attr_4_Val'] },
+                              { name: playerAlgo['Top_Attr_5_Name'], val: playerAlgo['Top_Attr_5_Val'] },
+                            ].filter(a => a.name).map((attr, idx) => (
                               <div key={idx} className="bg-[#0d131f] p-3 rounded-xl border border-slate-800/60 flex items-center justify-between">
-                                <span className="text-xs text-slate-300 font-medium">{pct.title}</span>
-                                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">{pct.val ? `${parseFloat(pct.val).toFixed(1)}%` : 'N/D'}</span>
+                                <span className="text-xs text-slate-300 font-medium">{attr.name}</span>
+                                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/20">
+                                  {attr.val ? parseFloat(attr.val).toFixed(1) : 'N/D'}
+                                </span>
                               </div>
                             ))}
                           </div>
