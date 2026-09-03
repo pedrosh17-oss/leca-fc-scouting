@@ -1239,6 +1239,14 @@ const uniqueBirthYears: string[] = Array.from(new Set(
           const cleanNameB = nameB.replace(/\s*\([^)]*\)/g, '').trim();
           const cleanNameC = nameC.replace(/\s*\([^)]*\)/g, '').trim();
 
+          const tagA = rowA ? extractContextTag(rowA) : '';
+          const tagB = rowB ? extractContextTag(rowB) : '';
+          const tagC = rowC ? extractContextTag(rowC) : '';
+
+          const cardLabelA = rowA ? `${cleanNameA}${tagA ? ` (${tagA})` : ''}` : '';
+          const cardLabelB = rowB ? `${cleanNameB}${tagB ? ` (${tagB})` : ''}` : '';
+          const cardLabelC = rowC ? `${cleanNameC}${tagC ? ` (${tagC})` : ''}` : '';
+
           const pillars = [
             { axis: 'Defesa', key: 'Defesa' },
             { axis: 'Jogo Aéreo', key: 'Jogo Aéreo' },
@@ -1318,7 +1326,6 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                         const valB = rowB && rowB[p.key] ? parseFloat(rowB[p.key]) : null;
                         const valC = rowC && rowC[p.key] ? parseFloat(rowC[p.key]) : null;
                         
-                        // Descobrir qual é o valor mais alto para o destacar
                         const maxVal = Math.max(...[valA, valB, valC].filter(v => v !== null) as number[]);
 
                         return (
@@ -1331,7 +1338,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-1.5 overflow-hidden pr-2">
                                   <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"/>
-                                  <span className="text-[10px] md:text-xs truncate text-slate-300">{cleanNameA.split(' ')[0]}</span>
+                                  <span className="text-[10px] md:text-xs truncate text-slate-300" title={cardLabelA}>{cardLabelA}</span>
                                 </div>
                                 <span className={`text-xs ${valA === maxVal && valA !== null ? 'font-black text-white bg-slate-800 px-1.5 rounded' : 'font-semibold text-slate-400'}`}>
                                   {valA?.toFixed(1) || '-'}
@@ -1343,7 +1350,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-1.5 overflow-hidden pr-2">
                                   <span className="w-2 h-2 rounded-full bg-pink-500 flex-shrink-0"/>
-                                  <span className="text-[10px] md:text-xs truncate text-slate-300">{cleanNameB.split(' ')[0]}</span>
+                                  <span className="text-[10px] md:text-xs truncate text-slate-300" title={cardLabelB}>{cardLabelB}</span>
                                 </div>
                                 <span className={`text-xs ${valB === maxVal && valB !== null ? 'font-black text-white bg-slate-800 px-1.5 rounded' : 'font-semibold text-slate-400'}`}>
                                   {valB?.toFixed(1) || '-'}
@@ -1355,7 +1362,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-1.5 overflow-hidden pr-2">
                                   <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"/>
-                                  <span className="text-[10px] md:text-xs truncate text-slate-300">{cleanNameC.split(' ')[0]}</span>
+                                  <span className="text-[10px] md:text-xs truncate text-slate-300" title={cardLabelC}>{cardLabelC}</span>
                                 </div>
                                 <span className={`text-xs ${valC === maxVal && valC !== null ? 'font-black text-white bg-slate-800 px-1.5 rounded' : 'font-semibold text-slate-400'}`}>
                                   {valC?.toFixed(1) || '-'}
