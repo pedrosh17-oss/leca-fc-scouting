@@ -85,6 +85,40 @@ function extractContextTag(row: any): string {
   return 'Atual';
 }
 
+function getPlayerAlgoEntries(player: any, algorithmData: Record<string, any[]>) {
+  if (!player || !algorithmData) return [];
+
+  const cleanName = extractPlayerBaseName(player.name);
+  const cleanClub = extractPlayerBaseName(player.club || '');
+  const playerAge = Number(player.age);
+
+  const matchingKeys = Object.keys(algorithmData).filter(key => key.includes(cleanName));
+  if (matchingKeys.length === 0) return [];
+
+  // Nível 1: Nome + Clube com palavras em comum
+  for (const key of matchingKeys) {
+    const entries = algorithmData[key] || [];
+    const clubMatch = entries.filter(e => {
+      const rowClub = extractPlayerBaseName(e.row?.Team_Calc || e.row?.Team || '');
+      return rowClub && (rowClub.includes(cleanClub) || cleanClub.includes(rowClub));
+    });
+    if (clubMatch.length > 0) return clubMatch;
+  }
+
+  // Nível 2: Nome + Idade compatível (+/- 1 ano)
+  for (const key of matchingKeys) {
+    const entries = algorithmData[key] || [];
+    const ageMatch = entries.filter(e => {
+      const rowAge = Number(e.row?.Age);
+      return !isNaN(playerAge) && !isNaN(rowAge) && Math.abs(rowAge - playerAge) <= 1;
+    });
+    if (ageMatch.length > 0) return ageMatch;
+  }
+
+  // Nível 3: Fallback por nome
+  return algorithmData[matchingKeys[0]] || [];
+}
+
 const PILLAR_METRICS_MAP: Record<string, { label: string; statKey: string; pctKey: string; weight: string }[]> = {
   'GK Defesa': [
     { label: 'GK xG Prevented / 90', statKey: 'GK xG Prevented per 90', pctKey: 'GK xG Prevented per 90 Pct', weight: '40%' },
@@ -466,9 +500,13 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
         const newAlgoData: Record<string, { tag: string; row: any }[]> = {};
 
         rawData.forEach((row) => {
-          const rawPlayerStr = row.Player || row.Player_ID || '';
+          const rawPlayerStr = row.Player || '';
+          const teamStr = row.Team_Calc || '';
           const cleanName = extractPlayerBaseName(rawPlayerStr);
-          const tag = extractContextTag(row);
+          const cleanTeam = extractPlayerBaseName(teamStr);
+          
+          const baseTag = extractContextTag(row);
+          const tag = teamStr ? `${baseTag} (${teamStr})` : baseTag;
 
           if (cleanName) {
             const cleanRow: Record<string, any> = {};
@@ -478,14 +516,29 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
               }
             });
 
+            // Concatenação do Top 5 Atributos diretamente do Excel
+            const topAttrsArr = [];
+            for (let i = 1; i <= 5; i++) {
+              if (row[`Top_Attr_${i}_Name`]) {
+                topAttrsArr.push(row[`Top_Attr_${i}_Name`]);
+              }
+            }
+            if (topAttrsArr.length > 0) {
+              cleanRow['Top_5_Atributos'] = topAttrsArr.join(', ');
+            }
+
             const isGK = (row.Position || row.Setor_Avaliacao || '').toLowerCase().includes('gk');
-            const key = `${cleanName}${isGK ? '_gk' : '_field'}`;
+            const posSuffix = isGK ? '_gk' : '_field';
 
-            if (!newAlgoData[key]) newAlgoData[key] = [];
-            newAlgoData[key].push({ tag, row: cleanRow });
+            // Chave única (Nome + Clube)
+            const uniqueKeyWithTeam = `${cleanName}_${cleanTeam}${posSuffix}`;
+            if (!newAlgoData[uniqueKeyWithTeam]) newAlgoData[uniqueKeyWithTeam] = [];
+            newAlgoData[uniqueKeyWithTeam].push({ tag, row: cleanRow });
 
-            if (!newAlgoData[cleanName]) newAlgoData[cleanName] = [];
-            newAlgoData[cleanName].push({ tag, row: cleanRow });
+            // Chave por Nome (Fallback)
+            const genericKey = `${cleanName}${posSuffix}`;
+            if (!newAlgoData[genericKey]) newAlgoData[genericKey] = [];
+            newAlgoData[genericKey].push({ tag, row: cleanRow });
           }
         });
 
@@ -506,10 +559,10 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
 
         if (error) throw error;
 
-        showToast("Ficheiro comprimido e sincronizado! Telemóveis atualizados.");
+        showToast("Ficheiro processado! Atletas diferenciados por clube.");
       } catch (error: any) {
-        console.error("Erro no Supabase:", error);
-        showToast("Erro ao sincronizar na Cloud.");
+        console.error("Erro no upload:", error);
+        showToast("Erro ao sincronizar dados.");
       } finally {
         setUploadingExcel(false);
       }
@@ -1812,7 +1865,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
         const isGK = (selectedPlayer.position || '').toLowerCase().includes('goalkeeper') || (selectedPlayer.position || '').toLowerCase().includes('gk');
         const posKey = isGK ? '_gk' : '_field';
         
-        const rawEntry = algorithmData[`${playerCleanName}${posKey}`] || algorithmData[playerCleanName] || [];
+        const rawEntry = getPlayerAlgoEntries(selectedPlayer, algorithmData);
         const safeArray = Array.isArray(rawEntry) ? rawEntry : (rawEntry && typeof rawEntry === 'object' && Object.keys(rawEntry).length > 0 ? [{ tag: 'Atual', row: rawEntry }] : []);
 
         const sortedEntry = [...safeArray].sort((a, b) => {
@@ -2082,7 +2135,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
         const isGK = (selectedPlayer.position || '').toLowerCase().includes('goalkeeper') || (selectedPlayer.position || '').toLowerCase().includes('gk');
         const posKey = isGK ? '_gk' : '_field';
         
-        const rawEntry = algorithmData[`${playerCleanName}${posKey}`] || algorithmData[playerCleanName] || [];
+        const rawEntry = getPlayerAlgoEntries(selectedPlayer, algorithmData);
         
         const sortedEntry = [...rawEntry].sort((a, b) => {
           if (a.tag === 'Atual') return -1;
