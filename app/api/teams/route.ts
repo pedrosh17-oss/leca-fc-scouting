@@ -43,7 +43,6 @@ export async function GET() {
       fetchAllRecords('Competition', headers),
     ]);
 
-    // Mapear IDs de competição para o nome real no Airtable
     const compMap: Record<string, string> = {};
     recsComps.forEach((r: any) => {
       const f = r.fields || {};
@@ -56,7 +55,6 @@ export async function GET() {
     const teams = recsTeams.map((r: any) => {
       const f = r.fields || {};
 
-      // Mapeamento dinâmico da competição
       let competition = 'N/D';
       const rawComp = f['Competition'] || f['Competition Name'] || f['Liga'] || f['League'] || f['Competição'];
 
@@ -96,6 +94,44 @@ export async function GET() {
     teams.sort((a, b) => a.name.localeCompare(b.name));
 
     return NextResponse.json({ total: teams.length, teams });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+// NOVA FUNÇÃO POST PARA CRIAR EQUIPA NO AIRTABLE
+export async function POST(req: Request) {
+  if (!BASE_ID || !TOKEN) {
+    return NextResponse.json({ error: 'Faltam credenciais' }, { status: 500 });
+  }
+
+  try {
+    const { name, competitionId } = await req.json();
+
+    const fieldsData: Record<string, any> = {
+      'Team Name': name,
+    };
+
+    if (competitionId) {
+      fieldsData['Competition'] = [competitionId];
+    }
+
+    const res = await fetch(`https://api.airtable.com/v0/${BASE_ID}/Teams`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ fields: fieldsData }),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.error?.message || 'Erro ao criar equipa no Airtable');
+    }
+
+    const data = await res.json();
+    return NextResponse.json({ team: { id: data.id, name: data.fields['Team Name'] } });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

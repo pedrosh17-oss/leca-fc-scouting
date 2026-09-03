@@ -6,18 +6,16 @@ import {
   UserCheck, X, Activity, FileText, BarChart3, Briefcase, Flag, Building2,
   Zap, Crosshair, BrainCircuit, ExternalLink, Globe, Loader2, UserPlus, LogOut, CheckCircle2,
   Menu, LayoutDashboard, ArrowRight, Star, Edit3, Lock, Sliders, Settings, CheckSquare, Target,
-  Upload, Award, TrendingUp, Cpu, Info, Clock
+  Upload, Award, TrendingUp, Cpu, Info, Clock, Sun, Moon, Filter
 } from 'lucide-react';
 
 import * as XLSX from 'xlsx';
 import localforage from 'localforage';
-
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://zlvakhbqskmsubxmyvvr.supabase.co';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_TBhrZLVa7hAP3EPrDrAbiQ_mI2v_egy';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
 
 const TACTICS_OPTIONS = [
   '1-4-3-3', '1-4-4-2', '1-4-2-4', '1-4-1-3-2', '1-4-1-4-1', '1-4-2-3-1', 
@@ -152,10 +150,10 @@ const PILLAR_METRICS_MAP: Record<string, { label: string; statKey: string; pctKe
 };
 
 function CustomSelect({
-  options, value, onChange, placeholder = 'Selecionar...', searchable = false, className = '',
+  options, value, onChange, placeholder = 'Selecionar...', searchable = false, className = '', isDarkMode = true
 }: {
   options: Array<{ value: string; label: string; image?: string | null; icon?: React.ReactNode }>;
-  value: string; onChange: (val: string) => void; placeholder?: string; searchable?: boolean; className?: string;
+  value: string; onChange: (val: string) => void; placeholder?: string; searchable?: boolean; className?: string; isDarkMode?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -176,17 +174,21 @@ function CustomSelect({
     ? options.filter((o) => (o.label || '').toLowerCase().includes((searchTerm || '').toLowerCase()))
     : options;
 
+  const bgBtn = isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-white border-slate-300 text-slate-800';
+  const bgMenu = isDarkMode ? 'bg-[#151c2c]/95 border-slate-700/80' : 'bg-white/95 border-slate-300';
+  const bgInput = isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800';
+
   return (
     <div className={`relative ${className}`} ref={containerRef}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 md:p-3.5 text-left text-slate-200 focus:outline-none focus:border-blue-500 flex justify-between items-center text-xs sm:text-sm transition"
+        className={`w-full border rounded-xl p-3 md:p-3.5 text-left focus:outline-none focus:border-blue-500 flex justify-between items-center text-xs sm:text-sm transition ${bgBtn}`}
       >
         <div className="flex items-center gap-2 overflow-hidden">
           {selectedOption?.image && <img src={selectedOption.image} alt="" className="w-5 h-5 object-contain rounded-full bg-slate-900" />}
           {selectedOption?.icon && !selectedOption.image && <div className="text-slate-400">{selectedOption.icon}</div>}
-          <span className={`truncate ${selectedOption ? 'text-slate-200 font-medium' : 'text-slate-500'}`}>
+          <span className={`truncate ${selectedOption ? 'font-medium' : 'text-slate-500'}`}>
             {selectedOption ? selectedOption.label : placeholder}
           </span>
         </div>
@@ -194,12 +196,12 @@ function CustomSelect({
       </button>
 
       {isOpen && (
-        <div className="absolute z-[100] left-0 right-0 mt-1 bg-[#151c2c]/95 backdrop-blur-md border border-slate-700/80 rounded-xl shadow-2xl max-h-60 overflow-y-auto p-1.5 space-y-1 text-xs sm:text-sm">
+        <div className={`absolute z-[100] left-0 right-0 mt-1 backdrop-blur-md border rounded-xl shadow-2xl max-h-60 overflow-y-auto p-1.5 space-y-1 text-xs sm:text-sm ${bgMenu}`}>
           {searchable && (
-            <div className="p-1 sticky top-0 bg-[#151c2c]/95 z-10 pb-2">
+            <div className={`p-1 sticky top-0 z-10 pb-2 ${isDarkMode ? 'bg-[#151c2c]' : 'bg-white'}`}>
               <input
                 type="text" placeholder="Pesquisar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-[#0d131f] border border-slate-800 rounded-lg p-2.5 text-slate-200 text-xs sm:text-sm focus:outline-none focus:border-blue-500"
+                className={`w-full border rounded-lg p-2.5 text-xs sm:text-sm focus:outline-none focus:border-blue-500 ${bgInput}`}
               />
             </div>
           )}
@@ -210,9 +212,9 @@ function CustomSelect({
               <button
                 key={opt.value} type="button"
                 onClick={() => { onChange(opt.value); setIsOpen(false); setSearchTerm(''); }}
-                className={`w-full text-left px-3 py-3 md:py-2.5 rounded-lg transition flex items-center gap-2.5 ${opt.value === value ? 'bg-blue-600/20 text-blue-400 font-medium border border-blue-500/30' : 'text-slate-300 hover:bg-slate-800/80 hover:text-white border border-transparent'}`}
+                className={`w-full text-left px-3 py-3 md:py-2.5 rounded-lg transition flex items-center gap-2.5 ${opt.value === value ? 'bg-blue-600/20 text-blue-400 font-medium border border-blue-500/30' : isDarkMode ? 'text-slate-300 hover:bg-slate-800/80 hover:text-white' : 'text-slate-700 hover:bg-slate-100'}`}
               >
-                {opt.image ? <img src={opt.image} alt="" className="w-6 h-6 object-contain rounded-md bg-[#0d131f] p-0.5 border border-slate-700" /> : opt.icon ? <span className="text-slate-400">{opt.icon}</span> : <span className="w-1.5 h-1.5 rounded-full bg-slate-700 flex-shrink-0" />}
+                {opt.image ? <img src={opt.image} alt="" className="w-6 h-6 object-contain rounded-md bg-[#0d131f] p-0.5 border border-slate-700" /> : opt.icon ? <span className="text-slate-400">{opt.icon}</span> : <span className="w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0" />}
                 <span className="truncate">{opt.label}</span>
               </button>
             ))
@@ -224,13 +226,14 @@ function CustomSelect({
 }
 
 function CustomMultiSelect({
-  options, selectedIds, onChange, placeholder = 'Selecionar...', className = ''
+  options, selectedIds, onChange, placeholder = 'Selecionar...', className = '', isDarkMode = true
 }: {
   options: Array<{ value: string; label: string; image?: string | null }>;
   selectedIds: string[];
   onChange: (ids: string[]) => void;
   placeholder?: string;
   className?: string;
+  isDarkMode?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -254,29 +257,31 @@ function CustomMultiSelect({
   };
 
   const selectedLabels = options.filter(o => selectedIds.includes(o.value)).map(o => o.label);
+  const bgBtn = isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-white border-slate-300 text-slate-800';
+  const bgMenu = isDarkMode ? 'bg-[#151c2c]/95 border-slate-700/80' : 'bg-white/95 border-slate-300';
 
   return (
     <div className={`relative ${className}`} ref={containerRef}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 md:p-3.5 text-left text-slate-200 focus:outline-none focus:border-blue-500 flex justify-between items-center text-xs sm:text-sm transition min-h-[46px]"
+        className={`w-full border rounded-xl p-3 md:p-3.5 text-left focus:outline-none focus:border-blue-500 flex justify-between items-center text-xs sm:text-sm transition min-h-[46px] ${bgBtn}`}
       >
-        <span className={selectedLabels.length > 0 ? 'text-slate-200 font-medium truncate' : 'text-slate-500'}>
+        <span className={selectedLabels.length > 0 ? 'font-medium truncate' : 'text-slate-500'}>
           {selectedLabels.length > 0 ? selectedLabels.join(', ') : placeholder}
         </span>
         <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute z-[100] left-0 right-0 mt-1 bg-[#151c2c]/95 backdrop-blur-md border border-slate-700/80 rounded-xl shadow-2xl max-h-52 overflow-y-auto p-1.5 space-y-1 text-xs sm:text-sm">
+        <div className={`absolute z-[100] left-0 right-0 mt-1 backdrop-blur-md border rounded-xl shadow-2xl max-h-52 overflow-y-auto p-1.5 space-y-1 text-xs sm:text-sm ${bgMenu}`}>
           {options.map((opt) => {
             const isSelected = selectedIds.includes(opt.value);
             return (
               <button
                 key={opt.value} type="button"
                 onClick={() => toggleOption(opt.value)}
-                className={`w-full text-left px-3 py-3 md:py-2.5 rounded-lg transition flex items-center justify-between ${isSelected ? 'bg-blue-600/20 text-blue-400 font-bold border border-blue-500/30' : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'}`}
+                className={`w-full text-left px-3 py-3 md:py-2.5 rounded-lg transition flex items-center justify-between ${isSelected ? 'bg-blue-600/20 text-blue-400 font-bold border border-blue-500/30' : isDarkMode ? 'text-slate-300 hover:bg-slate-800/80 hover:text-white' : 'text-slate-700 hover:bg-slate-100'}`}
               >
                 <div className="flex items-center gap-2 overflow-hidden">
                   {opt.image ? <img src={opt.image} alt="" className="w-5 h-5 object-contain rounded-full bg-slate-900" /> : <Shield className="w-3.5 h-3.5 text-slate-500"/>}
@@ -293,6 +298,7 @@ function CustomMultiSelect({
 }
 
 export default function Home() {
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authScoutId, setAuthScoutId] = useState<string | null>(null);
   const [authScoutName, setAuthScoutName] = useState<string | null>(null);
@@ -310,8 +316,15 @@ export default function Home() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(20);
+
+  // FILTROS DE JOGADORES
+  const [playerPositionFilter, setPlayerPositionFilter] = useState('All');
+  const [playerStatusFilter, setPlayerStatusFilter] = useState('All');
+
+  // FILTROS DE EQUIPAS
   const [teamFilterStatus, setTeamFilterStatus] = useState('All');
   const [teamFilterComp, setTeamFilterComp] = useState('All');
+
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
   const [editingMatchId, setExpandedMatchEdit] = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<any | null>(null);
@@ -319,15 +332,14 @@ export default function Home() {
   const [selectedScout, setSelectedScout] = useState<any | null>(null);
   const [profileTab, setProfileTab] = useState<'timeline' | 'algo' | 'market'>('timeline');
 
-  // ESTADOS DO ALGORITMO E SELETOR DE ÉPOCAS
+  // ALGORITMO
   const [selectedPillarDetail, setSelectedPillarDetail] = useState<string | null>(null);
   const [algorithmData, setAlgorithmData] = useState<Record<string, { tag: string; row: any }[]>>({});
   const [selectedSeasonIdx, setSelectedSeasonIdx] = useState<number>(0);
   const [uploadingExcel, setUploadingExcel] = useState(false);
 
-  // GESTÃO DE MERCADOS ADMIN
+  // MERCADOS ADMIN
   const [scoutMarketAssignments, setScoutMarketAssignments] = useState<Record<string, string[]>>({});
-  const [selectedAdminScoutId, setSelectedAdminScoutId] = useState<string>('');
   const [adminMarkets, setAdminMarkets] = useState<string[]>([]);
   const [newMarketInput, setNewMarketInput] = useState('');
 
@@ -350,9 +362,15 @@ export default function Home() {
   const [creatingPlayer, setCreatingPlayer] = useState(false);
   const [availableMatchTeams, setAvailableMatchTeams] = useState<Array<{ id: string; name: string; logo?: string | null }>>([]);
 
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // FORM CRIAR EQUIPA
+  const [isNewTeamOpen, setIsNewTeamOpen] = useState(false);
+  const [newTeamData, setNewTeamData] = useState({ name: '', competitionId: '' });
+  const [creatingTeam, setCreatingTeam] = useState(false);
 
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const lecaLogoUrl = "/logo.png";
+
+  const toggleTheme = () => setIsDarkMode(prev => !prev);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -361,27 +379,23 @@ export default function Home() {
 
   const loadData = async () => {
     try {
-      const [resP, resT, resM, resS, resAlgo] = await Promise.all([
+      const [resP, resT, resM, resS] = await Promise.all([
         fetch('/api/players').catch(() => ({ json: () => ({ players: [] }) })),
         fetch('/api/teams').catch(() => ({ json: () => ({ teams: [] }) })),
         fetch('/api/matches').catch(() => ({ json: () => ({ matches: [], competitions: [] }) })),
         fetch('/api/scouts').catch(() => ({ json: () => ({ scouts: [] }) })),
-        fetch('/api/algo').catch(() => ({ json: () => ({ algoData: {} }) }))
       ]);
       
       const dataP = await resP.json(); 
       const dataT = await resT.json(); 
       const dataM = await resM.json(); 
       const dataS = await resS.json();
-      const dataAlgo = await resAlgo.json();
       
       if (dataP.players) setPlayers(dataP.players);
       if (dataT.teams) setTeams(dataT.teams);
       if (dataM.matches) setMatches(dataM.matches);
       if (dataM.competitions) setCompetitions(dataM.competitions);
-      
-    
-      // SINCRONIZAÇÃO E DESCOMPRESSÃO VIA SUPABASE STORAGE
+
       try {
         const { data } = supabase.storage.from('Scouting').getPublicUrl('algo-data.json.gz');
         if (data?.publicUrl) {
@@ -429,7 +443,6 @@ export default function Home() {
     }
   }, []);
 
-  // UPLOAD DO EXCEL DE MULTI-DISPOSITIVOS
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -474,7 +487,6 @@ export default function Home() {
         setAlgorithmData(newAlgoData);
         await localforage.setItem('leca_algo_data', newAlgoData);
 
-        // Comprime o JSON de 50MB para ~3MB usando a API nativa do browser
         const jsonString = JSON.stringify(newAlgoData);
         const jsonBlob = new Blob([jsonString], { type: 'application/json' });
         const compressedStream = jsonBlob.stream().pipeThrough(new CompressionStream('gzip'));
@@ -501,6 +513,30 @@ export default function Home() {
     reader.readAsBinaryString(file);
   };
 
+  const handleCreateNewTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatingTeam(true);
+    try {
+      const res = await fetch('/api/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newTeamData),
+      });
+      if (res.ok) {
+        await loadData();
+        setIsNewTeamOpen(false);
+        setNewTeamData({ name: '', competitionId: '' });
+        showToast(`Equipa "${newTeamData.name}" criada com sucesso!`);
+      } else {
+        showToast("Erro ao criar equipa.");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Erro ao ligar ao servidor.");
+    } finally {
+      setCreatingTeam(false);
+    }
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -668,12 +704,19 @@ export default function Home() {
     showToast("Mercado removido!");
   };
 
+  // FILTRAGEM DE JOGADORES COM NOVOS SELETORES
+  const uniquePlayerPositions = Array.from(new Set(players.map(p => p.position).filter(Boolean))).sort();
+  const uniquePlayerStatuses = Array.from(new Set(players.map(p => p.status).filter(Boolean))).sort();
+
   const filteredPlayers = players.filter(p => {
     const query = search.toLowerCase();
-    return (p.name || '').toLowerCase().includes(query) || (p.club || '').toLowerCase().includes(query) || (p.position || '').toLowerCase().includes(query);
+    const matchSearch = (p.name || '').toLowerCase().includes(query) || (p.club || '').toLowerCase().includes(query) || (p.position || '').toLowerCase().includes(query);
+    const matchPos = playerPositionFilter === 'All' || p.position === playerPositionFilter;
+    const matchStatus = playerStatusFilter === 'All' || p.status === playerStatusFilter;
+    return matchSearch && matchPos && matchStatus;
   });
   
-  const displayedPlayers = search ? filteredPlayers : filteredPlayers.slice(0, visibleCount);
+  const displayedPlayers = search || playerPositionFilter !== 'All' || playerStatusFilter !== 'All' ? filteredPlayers : filteredPlayers.slice(0, visibleCount);
   const uniqueTeamComps = Array.from(new Set(teams.map(t => t.competition).filter(c => c !== 'N/D'))).sort();
   const uniqueTeamStatus = Array.from(new Set(teams.map(t => t.status).filter(s => s !== 'N/D'))).sort();
 
@@ -717,31 +760,38 @@ export default function Home() {
 
   const uniqueAlgoPlayersCount = Object.keys(algorithmData).filter(k => !k.endsWith('_gk') && !k.endsWith('_field')).length;
 
+  // CORES DINÂMICAS TEMA
+  const themeBg = isDarkMode ? 'bg-[#0d131f] text-slate-100' : 'bg-slate-100 text-slate-800';
+  const themeCard = isDarkMode ? 'bg-[#151c2c] border-slate-800' : 'bg-white border-slate-200 shadow-sm';
+  const themeInnerCard = isDarkMode ? 'bg-[#0d131f] border-slate-800/80' : 'bg-slate-50 border-slate-200';
+  const themeHeader = isDarkMode ? 'bg-[#151c2c]/95 border-slate-800' : 'bg-white/95 border-slate-200';
+  const themeTextMuted = isDarkMode ? 'text-slate-400' : 'text-slate-500';
+
   const renderMobileMenuButton = (id: typeof activeTab, icon: React.ReactNode, label: string, count?: number) => (
     <button 
       onClick={() => { setActiveTab(id); setIsMobileMenuOpen(false); }}
-      className={`flex items-center justify-between w-full p-5 border-b border-slate-800 ${activeTab === id ? 'bg-blue-600/10 text-blue-400 font-bold' : 'text-slate-300 hover:bg-slate-800'}`}
+      className={`flex items-center justify-between w-full p-5 border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} ${activeTab === id ? 'bg-blue-600/10 text-blue-500 font-bold' : isDarkMode ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50'}`}
     >
       <div className="flex items-center gap-3">{icon} {label}</div>
-      {count !== undefined && <span className="bg-slate-800 px-2 py-0.5 rounded-full text-xs text-slate-400 font-medium">{count}</span>}
+      {count !== undefined && <span className={`${isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600'} px-2 py-0.5 rounded-full text-xs font-medium`}>{count}</span>}
     </button>
   );
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0d131f] flex flex-col items-center justify-center text-slate-400">
+      <div className={`min-h-screen ${themeBg} flex flex-col items-center justify-center`}>
         <Loader2 className="w-8 h-8 animate-spin mb-4 text-emerald-400" />
-        <p className="text-sm font-medium tracking-widest uppercase">A sincronizar Airtable...</p>
+        <p className="text-sm font-medium tracking-widest uppercase text-slate-400">A carregar LEÇA FC...</p>
       </div>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#0d131f] flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
+      <div className={`min-h-screen ${themeBg} flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden`}>
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none"></div>
         
-        <div className="w-full max-w-md bg-[#151c2c]/80 backdrop-blur-md border border-slate-800 p-8 rounded-3xl shadow-2xl flex flex-col items-center animate-in fade-in zoom-in-95 duration-500 z-10">
+        <div className={`w-full max-w-md ${themeCard} backdrop-blur-md p-8 rounded-3xl shadow-2xl flex flex-col items-center animate-in fade-in zoom-in-95 duration-500 z-10 border`}>
           <div className="w-24 h-24 bg-slate-900 rounded-2xl border border-slate-700/60 flex items-center justify-center p-2 mb-6 shadow-xl relative overflow-hidden group">
             <img 
               src={lecaLogoUrl} 
@@ -752,27 +802,28 @@ export default function Home() {
             <Shield className="w-10 h-10 text-blue-400 absolute hidden group-has-[img[style*='display: none']]:block" />
           </div>
           
-          <h1 className="text-2xl md:text-3xl font-black text-white tracking-wide mb-1 text-center">INTRANET SAD</h1>
-          <p className="text-xs md:text-sm text-slate-400 mb-8 text-center font-medium">Departamento de Scouting e Prospeção</p>
+          <h1 className="text-2xl md:text-3xl font-black tracking-wide mb-1 text-center">LEÇA FC</h1>
+          <p className={`text-xs md:text-sm ${themeTextMuted} mb-8 text-center font-medium`}>Departamento de Scouting e Prospeção</p>
           
           <form onSubmit={handleLogin} className="w-full space-y-5">
              <div>
-                <label className="block text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Quem és tu?</label>
+                <label className={`block text-[10px] md:text-xs font-bold ${themeTextMuted} uppercase tracking-widest mb-2`}>Quem és tu?</label>
                 <CustomSelect 
                   options={scouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
                   value={authScoutId || ''} 
                   onChange={val => setAuthScoutId(val)} 
                   placeholder="Seleciona o teu perfil..." 
                   searchable={true} 
+                  isDarkMode={isDarkMode}
                 />
              </div>
              <div>
-                <label className="block text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Password do Departamento</label>
+                <label className={`block text-[10px] md:text-xs font-bold ${themeTextMuted} uppercase tracking-widest mb-2`}>Password do Departamento</label>
                 <input 
                   type="password" 
                   value={authPassword} 
                   onChange={e => setAuthPassword(e.target.value)} 
-                  className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-slate-200 focus:outline-none focus:border-blue-500 shadow-inner" 
+                  className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-blue-500 shadow-inner ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-300 text-slate-800'}`} 
                   placeholder="••••••••" 
                   required 
                 />
@@ -783,7 +834,7 @@ export default function Home() {
                </div>
              )}
              <button type="submit" className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 transition mt-2 flex items-center justify-center gap-2">
-               Entrar no Sistema <ArrowRight className="w-4 h-4" />
+                Entrar no Sistema <ArrowRight className="w-4 h-4" />
              </button>
           </form>
         </div>
@@ -792,7 +843,7 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0d131f] text-slate-100 font-sans relative pb-10 md:pb-6">
+    <main className={`min-h-screen ${themeBg} font-sans relative pb-10 md:pb-6 transition-colors duration-200`}>
       
       {toastMessage && (
         <div className="fixed top-4 right-4 md:top-6 md:right-6 z-[100] bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 duration-300 font-medium text-xs md:text-sm max-w-[90vw] md:max-w-md border border-emerald-500">
@@ -802,12 +853,12 @@ export default function Home() {
       )}
 
       {/* HEADER */}
-      <header className="sticky top-0 z-40 bg-[#151c2c]/95 backdrop-blur-md border-b border-slate-800 px-5 py-4 md:p-6 md:m-6 md:rounded-xl md:static flex justify-between items-center shadow-sm">
+      <header className={`sticky top-0 z-40 ${themeHeader} backdrop-blur-md border-b px-5 py-4 md:p-6 md:m-6 md:rounded-xl md:static flex justify-between items-center shadow-sm`}>
         <div className="flex items-center gap-3.5">
           <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 rounded-xl border border-slate-700/60 flex items-center justify-center p-1 shadow flex-shrink-0 group relative overflow-hidden">
             <img 
               src={lecaLogoUrl} 
-              alt="Leça FC SAD" 
+              alt="Leça FC" 
               className="w-full h-full object-contain"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
@@ -817,13 +868,22 @@ export default function Home() {
             <Shield className="w-6 h-6 text-blue-400 absolute hidden group-has-[img[style*='display: none']]:block" />
           </div>
           <div>
-            <span className="hidden md:block text-[10px] md:text-xs font-semibold tracking-wider text-slate-400 uppercase mb-0.5">Departamento de Scouting</span>
-            <h1 className="text-xl md:text-2xl font-bold text-white tracking-wide">LEÇA FC SAD</h1>
+            <span className={`hidden md:block text-[10px] md:text-xs font-semibold tracking-wider ${themeTextMuted} uppercase mb-0.5`}>Departamento de Scouting</span>
+            <h1 className="text-xl md:text-2xl font-bold tracking-wide">LEÇA FC</h1>
           </div>
         </div>
         
         <div className="flex items-center gap-3">
-          <button className="md:hidden p-2 text-slate-300 hover:text-white" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+          {/* BOTÃO MODO CLARO / ESCURO */}
+          <button 
+            onClick={toggleTheme} 
+            className={`p-2.5 rounded-xl border transition flex items-center justify-center ${isDarkMode ? 'bg-slate-800 border-slate-700 text-amber-400 hover:bg-slate-700' : 'bg-slate-200 border-slate-300 text-slate-700 hover:bg-slate-300'}`}
+            title={isDarkMode ? "Mudar para Modo Claro" : "Mudar para Modo Escuro"}
+          >
+            {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+
+          <button className="md:hidden p-2 text-slate-400 hover:text-white" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
 
@@ -833,12 +893,12 @@ export default function Home() {
               {players.length} Atletas na DB
             </div>
             
-            <div className="flex items-center gap-2 pl-3 border-l border-slate-700">
+            <div className={`flex items-center gap-2 pl-3 border-l ${isDarkMode ? 'border-slate-700' : 'border-slate-300'}`}>
               <div className="flex flex-col items-end">
-                <span className="text-xs font-medium text-slate-300 leading-tight">{authScoutName}</span>
-                <span className="text-[9px] text-blue-400 font-bold uppercase">{getUserTitle(authScoutName || '')}</span>
+                <span className="text-xs font-medium leading-tight">{authScoutName}</span>
+                <span className="text-[9px] text-blue-500 font-bold uppercase">{getUserTitle(authScoutName || '')}</span>
               </div>
-              <button onClick={handleLogout} className="p-2 ml-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-red-400 rounded-lg transition" title="Terminar Sessão">
+              <button onClick={handleLogout} className={`p-2 ml-1 ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 text-slate-400' : 'bg-slate-200 hover:bg-slate-300 text-slate-600'} hover:text-red-400 rounded-lg transition`} title="Terminar Sessão">
                 <LogOut className="w-4 h-4" />
               </button>
             </div>
@@ -848,15 +908,15 @@ export default function Home() {
 
       {/* MOBILE MENU */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 top-[76px] z-30 bg-[#0d131f] animate-in slide-in-from-top-2 md:hidden overflow-y-auto pb-20">
-          <div className="p-5 border-b border-slate-800 bg-[#111723] flex items-center justify-between">
+        <div className={`fixed inset-0 top-[76px] z-30 ${themeBg} animate-in slide-in-from-top-2 md:hidden overflow-y-auto pb-20`}>
+          <div className={`p-5 border-b ${isDarkMode ? 'border-slate-800 bg-[#111723]' : 'border-slate-200 bg-slate-200'} flex items-center justify-between`}>
              <div className="flex items-center gap-3">
                <div className="w-10 h-10 rounded-full bg-blue-600/20 border border-blue-500/30 text-blue-400 flex items-center justify-center font-bold text-lg">
                  {authScoutName?.charAt(0)}
                </div>
                <div>
-                 <p className="text-sm font-bold text-white leading-tight">{authScoutName}</p>
-                 <p className="text-[10px] text-blue-400 font-bold uppercase mt-0.5">{getUserTitle(authScoutName || '')}</p>
+                 <p className="text-sm font-bold leading-tight">{authScoutName}</p>
+                 <p className="text-[10px] text-blue-500 font-bold uppercase mt-0.5">{getUserTitle(authScoutName || '')}</p>
                </div>
              </div>
              <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-400">
@@ -875,13 +935,13 @@ export default function Home() {
 
       {/* DESKTOP TABS */}
       <div className="hidden md:flex max-w-6xl mx-auto mb-6 flex-wrap gap-3 px-6 md:px-0">
-        <button onClick={() => setActiveTab('dashboard')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><LayoutDashboard className="w-4 h-4" /> Início</button>
-        <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Users className="w-4 h-4" /> Base de Jogadores ({players.length})</button>
-        <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Building2 className="w-4 h-4" /> Equipas ({teams.length})</button>
-        <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Trophy className="w-4 h-4" /> Match Center ({matches.length})</button>
-        <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white shadow-lg' : 'bg-[#151c2c] text-slate-400 hover:text-white'}`}><Shield className="w-4 h-4" /> Equipa de Scouts ({displayScouts.length})</button>
+        <button onClick={() => setActiveTab('dashboard')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><LayoutDashboard className="w-4 h-4" /> Início</button>
+        <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><Users className="w-4 h-4" /> Base de Jogadores ({players.length})</button>
+        <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><Building2 className="w-4 h-4" /> Equipas ({teams.length})</button>
+        <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><Trophy className="w-4 h-4" /> Match Center ({matches.length})</button>
+        <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><Shield className="w-4 h-4" /> Equipa de Scouts ({displayScouts.length})</button>
         {isAdmin && (
-          <button onClick={() => setActiveTab('admin')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'admin' ? 'bg-purple-600 text-white shadow-lg' : 'bg-[#151c2c] text-purple-400 hover:text-white border border-purple-500/30'}`}><Sliders className="w-4 h-4" /> Painel Admin</button>
+          <button onClick={() => setActiveTab('admin')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'admin' ? 'bg-purple-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-purple-400 hover:text-white border border-purple-500/30' : 'bg-white text-purple-600 hover:text-purple-800 border border-purple-200'}`}><Sliders className="w-4 h-4" /> Painel Admin</button>
         )}
       </div>
 
@@ -891,42 +951,42 @@ export default function Home() {
         {activeTab === 'dashboard' && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-              <div className="bg-[#151c2c] p-4 md:p-5 rounded-2xl border border-slate-800 shadow-sm flex flex-col justify-between">
-                <span className="text-slate-500 text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1">Base de Atletas</span>
-                <span className="text-2xl md:text-3xl font-black text-white">{players.length}</span>
-                <span className="text-[10px] text-emerald-400 font-bold mt-2 flex items-center gap-1"><Activity size={10}/> Atleta(s) Ativos</span>
+              <div className={`${themeCard} p-4 md:p-5 rounded-2xl border flex flex-col justify-between`}>
+                <span className={`${themeTextMuted} text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1`}>Base de Atletas</span>
+                <span className="text-2xl md:text-3xl font-black">{players.length}</span>
+                <span className="text-[10px] text-emerald-500 font-bold mt-2 flex items-center gap-1"><Activity size={10}/> Atleta(s) Ativos</span>
               </div>
               
-              <div className="bg-[#151c2c] p-4 md:p-5 rounded-2xl border border-slate-800 shadow-sm flex flex-col justify-between">
-                <span className="text-slate-500 text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1">Jogos Vistos</span>
-                <span className="text-2xl md:text-3xl font-black text-blue-400">{matches.length}</span>
-                <span className="text-[10px] text-slate-400 font-medium mt-2">Mapeados na Época</span>
+              <div className={`${themeCard} p-4 md:p-5 rounded-2xl border flex flex-col justify-between`}>
+                <span className={`${themeTextMuted} text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1`}>Jogos Vistos</span>
+                <span className="text-2xl md:text-3xl font-black text-blue-500">{matches.length}</span>
+                <span className={`text-[10px] ${themeTextMuted} font-medium mt-2`}>Mapeados na Época</span>
               </div>
 
-              <div className="bg-[#151c2c] p-4 md:p-5 rounded-2xl border border-slate-800 shadow-sm flex flex-col justify-between">
-                <span className="text-slate-500 text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1">Equipas Mapeadas</span>
-                <span className="text-2xl md:text-3xl font-black text-white">{teams.length}</span>
-                <span className="text-[10px] text-slate-400 font-medium mt-2">Clubes em BD</span>
+              <div className={`${themeCard} p-4 md:p-5 rounded-2xl border flex flex-col justify-between`}>
+                <span className={`${themeTextMuted} text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1`}>Equipas Mapeadas</span>
+                <span className="text-2xl md:text-3xl font-black">{teams.length}</span>
+                <span className={`text-[10px] ${themeTextMuted} font-medium mt-2`}>Clubes em BD</span>
               </div>
 
-              <div className="bg-[#151c2c] p-4 md:p-5 rounded-2xl border border-slate-800 shadow-sm flex flex-col justify-between">
-                <span className="text-slate-500 text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1">Equipa de Scouts</span>
-                <span className="text-2xl md:text-3xl font-black text-emerald-400">{displayScouts.length}</span>
-                <span className="text-[10px] text-slate-400 font-medium mt-2">Observadores no Terreno</span>
+              <div className={`${themeCard} p-4 md:p-5 rounded-2xl border flex flex-col justify-between`}>
+                <span className={`${themeTextMuted} text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1`}>Equipa de Scouts</span>
+                <span className="text-2xl md:text-3xl font-black text-emerald-500">{displayScouts.length}</span>
+                <span className={`text-[10px] ${themeTextMuted} font-medium mt-2`}>Observadores no Terreno</span>
               </div>
             </div>
 
             {canCreateMatches && (
-              <div className="bg-[#151c2c] p-4 md:p-6 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className={`${themeCard} p-4 md:p-6 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-4`}>
                 <div>
-                  <h3 className="font-bold text-white text-base md:text-lg">Atalhos do Departamento</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Ações rápidas para acompanhamento das partidas e prospeção</p>
+                  <h3 className="font-bold text-base md:text-lg">Atalhos do Departamento</h3>
+                  <p className={`text-xs ${themeTextMuted} mt-0.5`}>Ações rápidas para acompanhamento das partidas e prospeção</p>
                 </div>
                 <div className="flex w-full sm:w-auto gap-3">
                   <button onClick={() => { setPreGameData({ ...preGameData, scoutIds: authScoutId ? [authScoutId] : [] }); setIsRegisterOpen(true); }} className="flex-1 sm:flex-none px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white text-xs md:text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
                     <Plus className="w-4 h-4" /> Agendar Jogo
                   </button>
-                  <button onClick={() => { setActiveTab('players'); }} className="flex-1 sm:flex-none px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs md:text-sm font-bold rounded-xl flex items-center justify-center gap-2 border border-slate-700">
+                  <button onClick={() => { setActiveTab('players'); }} className={`flex-1 sm:flex-none px-4 py-3 ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'} border text-xs md:text-sm font-bold rounded-xl flex items-center justify-center gap-2`}>
                     <Search className="w-4 h-4" /> Pesquisar Atleta
                   </button>
                 </div>
@@ -935,45 +995,45 @@ export default function Home() {
 
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-sm md:text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <Star className="w-4 h-4 text-blue-400" /> Últimas Observações Submetidas
+                <h3 className="text-sm md:text-base font-bold uppercase tracking-wider flex items-center gap-2">
+                  <Star className="w-4 h-4 text-blue-500" /> Últimas Observações Submetidas
                 </h3>
-                <button onClick={() => setActiveTab('matches')} className="text-xs text-blue-400 font-bold hover:underline flex items-center gap-1">
+                <button onClick={() => setActiveTab('matches')} className="text-xs text-blue-500 font-bold hover:underline flex items-center gap-1">
                   Ver Todos os Jogos <ArrowRight className="w-3 h-3" />
                 </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {getRecentHighlights().map((p, idx) => (
-                  <div key={idx} className="bg-[#151c2c] border border-slate-800 p-4 rounded-2xl space-y-3 hover:border-slate-700 transition">
-                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                  <div key={idx} className={`${themeCard} border p-4 rounded-2xl space-y-3 transition`}>
+                    <div className={`flex items-center justify-between border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-3`}>
                       <div className="flex items-center gap-3">
                         {p.photo ? (
                           <img src={p.photo} alt={p.name} className="w-10 h-10 rounded-full object-cover border border-slate-700 shadow" />
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm">
+                          <div className={`w-10 h-10 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold text-sm`}>
                             {(p.name || 'J').charAt(0)}
                           </div>
                         )}
                         <div>
-                          <h5 className="font-bold text-white text-sm">{p.name}</h5>
-                          <p className="text-xs text-slate-400 mt-0.5">
-                            <span className="text-blue-400 font-medium">{p.position}</span> • {p.club}
+                          <h5 className="font-bold text-sm">{p.name}</h5>
+                          <p className={`text-xs ${themeTextMuted} mt-0.5`}>
+                            <span className="text-blue-500 font-medium">{p.position}</span> • {p.club}
                           </p>
                         </div>
                       </div>
-                      <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded font-semibold flex items-center gap-1">
+                      <span className={`text-[10px] ${isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'} px-2 py-1 rounded font-semibold flex items-center gap-1`}>
                         {p.gameDate}
                       </span>
                     </div>
 
-                    <p className="text-xs text-slate-300 leading-relaxed bg-[#0d131f] p-3 rounded-xl border border-slate-800/60 line-clamp-3">
+                    <p className={`text-xs leading-relaxed ${themeInnerCard} p-3 rounded-xl border line-clamp-3`}>
                       {p.note}
                     </p>
                     
                     <button 
                       onClick={() => navigateToMatch(p.matchId)}
-                      className="text-[10px] text-blue-400 font-bold hover:underline flex items-center justify-end w-full gap-1 pt-1"
+                      className="text-[10px] text-blue-500 font-bold hover:underline flex items-center justify-end w-full gap-1 pt-1"
                     >
                       Ir para Jogo <ExternalLink className="w-3 h-3" />
                     </button>
@@ -984,15 +1044,41 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 1: PLAYERS */}
+{/* TAB 1: PLAYERS (COM NOVOS FILTROS) */}
         {activeTab === 'players' && (
           <div className="animate-in fade-in duration-300">
-            <div className="relative mb-5 md:mb-6">
-              <Search className="absolute left-4 top-4 md:top-3.5 text-slate-500 w-4 h-4 md:w-5 md:h-5" />
-              <input type="text" placeholder="Pesquisar atleta, clube, posição..." value={search} onChange={(e) => { setSearch(e.target.value); setVisibleCount(20); }} className="w-full bg-[#151c2c] border border-slate-800 rounded-xl py-4 md:py-3.5 pl-12 pr-4 text-sm md:text-base text-slate-200 focus:outline-none focus:border-blue-500 shadow-sm" />
+            <div className="flex flex-col md:flex-row gap-3 md:gap-4 mb-5 md:mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-4 md:top-3.5 text-slate-400 w-4 h-4 md:w-5 md:h-5" />
+                <input 
+                  type="text" 
+                  placeholder="Pesquisar atleta, clube, posição..." 
+                  value={search} 
+                  onChange={(e) => { setSearch(e.target.value); setVisibleCount(20); }} 
+                  className={`w-full border rounded-xl py-4 md:py-3.5 pl-12 pr-4 text-sm md:text-base focus:outline-none focus:border-blue-500 shadow-sm ${isDarkMode ? 'bg-[#151c2c] border-slate-800 text-slate-200' : 'bg-white border-slate-300 text-slate-800'}`} 
+                />
+              </div>
+
+              {/* NOVOS FILTROS DE POSIÇÃO E ESTATUTO */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <CustomSelect 
+                  options={[{ value: 'All', label: 'Todas as Posições' }, ...uniquePlayerPositions.map(p => ({ value: p, label: p }))]} 
+                  value={playerPositionFilter} 
+                  onChange={setPlayerPositionFilter} 
+                  className="w-full sm:w-48"
+                  isDarkMode={isDarkMode}
+                />
+                <CustomSelect 
+                  options={[{ value: 'All', label: 'Todos os Estatutos' }, ...uniquePlayerStatuses.map(s => ({ value: s, label: s }))]} 
+                  value={playerStatusFilter} 
+                  onChange={setPlayerStatusFilter} 
+                  className="w-full sm:w-48"
+                  isDarkMode={isDarkMode}
+                />
+              </div>
             </div>
 
-            <div className="flex justify-between items-center mb-4 text-xs md:text-sm text-slate-400">
+            <div className={`flex justify-between items-center mb-4 text-xs md:text-sm ${themeTextMuted}`}>
               <span>A mostrar {displayedPlayers.length} de {filteredPlayers.length} atletas.</span>
             </div>
 
@@ -1001,32 +1087,32 @@ export default function Home() {
                 <div 
                   key={player.id} 
                   onClick={() => { setSelectedPlayer(player); setProfileTab('timeline'); setSelectedSeasonIdx(0); }}
-                  className="bg-[#151c2c] border border-slate-800/80 rounded-xl p-4 md:p-5 flex flex-col hover:border-blue-500/50 transition cursor-pointer group shadow-sm"
+                  className={`${themeCard} border rounded-xl p-4 md:p-5 flex flex-col hover:border-blue-500/50 transition cursor-pointer group shadow-sm`}
                 >
                   <div className="flex items-center gap-4 mb-4">
                     {player.photo ? (
                       <img src={player.photo} alt={player.name} className="w-14 h-14 md:w-12 md:h-12 rounded-full object-cover border border-slate-700 bg-slate-800" />
                     ) : (
-                      <div className="w-14 h-14 md:w-12 md:h-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-base md:text-sm">
+                      <div className={`w-14 h-14 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold text-base md:text-sm`}>
                         {player.name.charAt(0)}
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-white text-base truncate flex items-center gap-2">
+                      <h3 className="font-bold text-base truncate flex items-center gap-2">
                         {player.name}
                       </h3>
-                      <div className="flex items-center gap-1.5 text-xs md:text-[11px] text-slate-400 mt-1 md:mt-0.5 truncate">
-                        <span className="text-blue-400 font-medium truncate">{player.position}</span>
+                      <div className={`flex items-center gap-1.5 text-xs md:text-[11px] ${themeTextMuted} mt-1 md:mt-0.5 truncate`}>
+                        <span className="text-blue-500 font-medium truncate">{player.position}</span>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="flex justify-between items-center mt-auto pt-3 border-t border-slate-800/60">
-                     <div className="flex items-center gap-2 text-xs md:text-sm text-slate-300">
-                        {player.clubLogo ? <img src={player.clubLogo} alt={player.club} className="w-4 h-4 md:w-5 md:h-5 object-contain" /> : <Shield className="w-4 h-4 text-slate-500" />}
+                  <div className={`flex justify-between items-center mt-auto pt-3 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
+                     <div className="flex items-center gap-2 text-xs md:text-sm">
+                        {player.clubLogo ? <img src={player.clubLogo} alt={player.club} className="w-4 h-4 md:w-5 md:h-5 object-contain" /> : <Shield className="w-4 h-4 text-slate-400" />}
                         <span className="truncate max-w-[140px] font-medium">{player.club}</span>
                      </div>
-                     <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded-md font-bold uppercase tracking-wide">{player.status}</span>
+                     <span className={`text-[10px] ${isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'} px-2 py-1 rounded-md font-bold uppercase tracking-wide`}>{player.status}</span>
                   </div>
                 </div>
               ))}
@@ -1034,7 +1120,7 @@ export default function Home() {
 
             {!search && displayedPlayers.length < filteredPlayers.length && (
               <div className="text-center mt-8">
-                <button onClick={() => setVisibleCount(prev => prev + 30)} className="w-full md:w-auto px-8 py-4 md:py-3 bg-[#151c2c] hover:bg-slate-800 text-slate-200 border border-slate-800 font-medium text-sm md:text-base rounded-xl transition shadow-sm">
+                <button onClick={() => setVisibleCount(prev => prev + 30)} className={`w-full md:w-auto px-8 py-4 md:py-3 ${themeCard} border font-medium text-sm md:text-base rounded-xl transition shadow-sm`}>
                   Ver Mais Atletas
                 </button>
               </div>
@@ -1042,17 +1128,33 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 2: TEAMS */}
+        {/* TAB 2: TEAMS (COM BOTÃO DE CRIAR EQUIPA) */}
         {activeTab === 'teams' && (
           <div className="animate-in fade-in duration-300">
             <div className="flex flex-col md:flex-row gap-3 md:gap-4 mb-6">
               <div className="relative flex-1">
-                <Search className="absolute left-4 top-4 md:top-3.5 text-slate-500 w-4 h-4 md:w-5 md:h-5" />
-                <input type="text" placeholder="Pesquisar equipa..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-[#151c2c] border border-slate-800 rounded-xl py-4 md:py-3.5 pl-12 pr-4 text-sm md:text-base text-slate-200 focus:outline-none focus:border-blue-500" />
+                <Search className="absolute left-4 top-4 md:top-3.5 text-slate-400 w-4 h-4 md:w-5 md:h-5" />
+                <input 
+                  type="text" 
+                  placeholder="Pesquisar equipa..." 
+                  value={search} 
+                  onChange={(e) => setSearch(e.target.value)} 
+                  className={`w-full border rounded-xl py-4 md:py-3.5 pl-12 pr-4 text-sm md:text-base focus:outline-none focus:border-blue-500 ${isDarkMode ? 'bg-[#151c2c] border-slate-800 text-slate-200' : 'bg-white border-slate-300 text-slate-800'}`} 
+                />
               </div>
               <div className="flex flex-col sm:flex-row gap-3 z-20">
-                <CustomSelect options={[{ value: 'All', label: 'Todas as Ligas' }, ...uniqueTeamComps.map(c => ({ value: c, label: c }))]} value={teamFilterComp} onChange={setTeamFilterComp} className="w-full sm:w-48" />
-                <CustomSelect options={[{ value: 'All', label: 'Todos Estatutos' }, ...uniqueTeamStatus.map(s => ({ value: s, label: s }))]} value={teamFilterStatus} onChange={setTeamFilterStatus} className="w-full sm:w-48" />
+                <CustomSelect options={[{ value: 'All', label: 'Todas as Ligas' }, ...uniqueTeamComps.map(c => ({ value: c, label: c }))]} value={teamFilterComp} onChange={setTeamFilterComp} className="w-full sm:w-48" isDarkMode={isDarkMode} />
+                <CustomSelect options={[{ value: 'All', label: 'Todos Estatutos' }, ...uniqueTeamStatus.map(s => ({ value: s, label: s }))]} value={teamFilterStatus} onChange={setTeamFilterStatus} className="w-full sm:w-48" isDarkMode={isDarkMode} />
+                
+                {/* BOTÃO CRIAR EQUIPA */}
+                {canCreateMatches && (
+                  <button 
+                    onClick={() => setIsNewTeamOpen(true)}
+                    className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs md:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 transition whitespace-nowrap"
+                  >
+                    <Plus className="w-4 h-4" /> Criar Equipa
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1062,25 +1164,25 @@ export default function Home() {
                 const teamMatchesCount = matches.filter(m => (m.matchName || '').toLowerCase().includes((team.name || '').toLowerCase())).length;
 
                 return (
-                  <div key={team.id} onClick={() => setSelectedTeam(team)} className="bg-[#151c2c] border border-slate-800 rounded-xl p-4 md:p-5 flex items-center justify-between hover:border-slate-700 transition cursor-pointer shadow-sm">
+                  <div key={team.id} onClick={() => setSelectedTeam(team)} className={`${themeCard} border rounded-xl p-4 md:p-5 flex items-center justify-between hover:border-slate-500 transition cursor-pointer shadow-sm`}>
                     <div className="flex items-center gap-4 min-w-0">
                       {team.logo ? (
                         <img src={team.logo} alt={team.name} className="w-12 h-12 md:w-14 md:h-14 object-contain p-1.5 bg-slate-900 rounded-lg border border-slate-800 flex-shrink-0" />
                       ) : (
-                        <div className="w-12 h-12 md:w-14 md:h-14 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold flex-shrink-0"><Building2 className="w-6 h-6" /></div>
+                        <div className={`w-12 h-12 md:w-14 md:h-14 rounded-lg ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold flex-shrink-0`}><Building2 className="w-6 h-6 text-slate-400" /></div>
                       )}
                       <div className="min-w-0">
-                        <h3 className="font-bold text-white text-base truncate">{team.name}</h3>
-                        <p className="text-xs text-blue-400 font-medium mt-1 truncate">
+                        <h3 className="font-bold text-base truncate">{team.name}</h3>
+                        <p className="text-xs text-blue-500 font-medium mt-1 truncate">
                           {team.competition && team.competition !== 'N/D' ? team.competition : ''} 
-                          {team.competition && team.competition !== 'N/D' && team.country ? <span className="text-slate-500 hidden sm:inline"> • </span> : ''}
-                          <span className="text-slate-500 hidden sm:inline">{team.country || ''}</span>
+                          {team.competition && team.competition !== 'N/D' && team.country ? <span className="text-slate-400 hidden sm:inline"> • </span> : ''}
+                          <span className="text-slate-400 hidden sm:inline">{team.country || ''}</span>
                         </p>
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1.5 flex-shrink-0 pl-2">
-                       <span className="text-xs bg-slate-800 px-2 py-1 rounded-md text-emerald-400 font-bold">{teamMatchesCount} Jogos</span>
-                       <span className="text-[10px] text-slate-400 font-medium">{teamPlayers.length} Atletas</span>
+                       <span className={`text-xs ${isDarkMode ? 'bg-slate-800 text-emerald-400' : 'bg-slate-100 text-emerald-600'} px-2 py-1 rounded-md font-bold`}>{teamMatchesCount} Jogos</span>
+                       <span className={`text-[10px] ${themeTextMuted} font-medium`}>{teamPlayers.length} Atletas</span>
                     </div>
                   </div>
                 );
@@ -1093,7 +1195,7 @@ export default function Home() {
         {activeTab === 'matches' && (
           <div className="animate-in fade-in duration-300">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5 md:mb-6">
-              <p className="text-xs md:text-sm text-slate-400 hidden sm:block">Motor de observação de equipas e atletas.</p>
+              <p className={`text-xs md:text-sm ${themeTextMuted} hidden sm:block`}>Motor de observação de equipas e atletas.</p>
               {canCreateMatches && (
                 <button onClick={() => { setPreGameData({ ...preGameData, scoutIds: authScoutId ? [authScoutId] : [] }); setIsRegisterOpen(true); }} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-4 md:py-3 rounded-xl text-sm md:text-base font-bold transition shadow-lg shadow-blue-900/20">
                   <Plus className="w-5 h-5" /> Agendar Jogo
@@ -1107,77 +1209,78 @@ export default function Home() {
                 const isEditingContext = editingMatchId === match.id;
 
                 return (
-                  <div key={match.id} id={`match-${match.id}`} className={`bg-[#151c2c] border ${isExpanded ? 'border-blue-500/50 shadow-blue-900/10' : 'border-slate-800'} rounded-xl overflow-hidden transition-all duration-300 shadow-sm`}>
-                    <div onClick={() => toggleMatch(match.id)} className="p-4 md:p-5 flex items-center justify-between cursor-pointer hover:bg-slate-800/40">
+                  <div key={match.id} id={`match-${match.id}`} className={`${themeCard} border ${isExpanded ? 'border-blue-500/50' : ''} rounded-xl overflow-hidden transition-all duration-300 shadow-sm`}>
+                    <div onClick={() => toggleMatch(match.id)} className={`p-4 md:p-5 flex items-center justify-between cursor-pointer ${isDarkMode ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'}`}>
                       <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                        <div className={`p-3 rounded-xl ${isExpanded ? 'bg-blue-500 text-white' : 'bg-blue-500/10 text-blue-400'} border border-blue-500/20 flex-shrink-0 transition-colors`}><Trophy className="w-5 h-5" /></div>
+                        <div className={`p-3 rounded-xl ${isExpanded ? 'bg-blue-500 text-white' : 'bg-blue-500/10 text-blue-500'} border border-blue-500/20 flex-shrink-0 transition-colors`}><Trophy className="w-5 h-5" /></div>
                         <div className="min-w-0">
-                          <h3 className="font-bold text-white text-sm md:text-base truncate leading-tight mb-1 md:mb-0">{match.matchName}</h3>
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] md:text-xs text-slate-400 mt-1">
+                          <h3 className="font-bold text-sm md:text-base truncate leading-tight mb-1 md:mb-0">{match.matchName}</h3>
+                          <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] md:text-xs ${themeTextMuted} mt-1`}>
                             <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {match.gameDate}</span>
-                            {match.competition && match.competition !== 'N/D' && <span className="text-slate-600">•</span>}
-                            {match.competition && match.competition !== 'N/D' && <span className="text-blue-400 font-semibold truncate max-w-[120px] md:max-w-none">{match.competition}</span>}
-                            <span className="text-slate-600">•</span>
-                            <span className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">{match.type}</span>
+                            {match.competition && match.competition !== 'N/D' && <span>•</span>}
+                            {match.competition && match.competition !== 'N/D' && <span className="text-blue-500 font-semibold truncate max-w-[120px] md:max-w-none">{match.competition}</span>}
+                            <span>•</span>
+                            <span className={`${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'} px-1.5 py-0.5 rounded`}>{match.type}</span>
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-3 md:gap-6 flex-shrink-0 pl-2">
                         <div className="text-right hidden sm:block">
-                          <span className="block text-sm font-bold text-emerald-400">{match.playersCount}</span>
-                          <span className="text-[9px] text-slate-500 uppercase tracking-wider font-bold">Atletas</span>
+                          <span className="block text-sm font-bold text-emerald-500">{match.playersCount}</span>
+                          <span className={`text-[9px] ${themeTextMuted} uppercase tracking-wider font-bold`}>Atletas</span>
                         </div>
-                        <div className="text-slate-400 bg-slate-800/50 p-2 md:p-1.5 rounded-lg">{isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}</div>
+                        <div className={`text-slate-400 ${isDarkMode ? 'bg-slate-800/50' : 'bg-slate-100'} p-2 md:p-1.5 rounded-lg`}>{isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}</div>
                       </div>
                     </div>
 
                     {isExpanded && (
-                      <div className="p-4 md:p-5 border-t border-slate-800 bg-[#0d131f] md:bg-[#111723] space-y-6 md:space-y-5">
+                      <div className={`p-4 md:p-5 border-t ${isDarkMode ? 'border-slate-800 bg-[#0d131f]' : 'border-slate-200 bg-slate-50'} space-y-6 md:space-y-5`}>
                         
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#151c2c] md:bg-[#0d131f] p-4 rounded-xl border border-slate-800 text-xs md:text-sm gap-4">
+                        <div className={`${themeCard} border p-4 rounded-xl text-xs md:text-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4`}>
                           <div className="space-y-2 md:space-y-1.5 w-full md:w-auto">
-                            <div className="flex items-center gap-2 text-slate-300"><Shield className="w-4 h-4 text-slate-500"/> <strong>Táticas:</strong> {match.homeTactic} / {match.awayTactic}</div>
-                            <div className="flex items-center gap-2 text-slate-300"><UserCheck className="w-4 h-4 text-slate-500"/> <strong>Scout:</strong> <span className="text-blue-400 font-medium">{match.scout}</span></div>
+                            <div className="flex items-center gap-2"><Shield className="w-4 h-4 text-slate-400"/> <strong>Táticas:</strong> {match.homeTactic} / {match.awayTactic}</div>
+                            <div className="flex items-center gap-2"><UserCheck className="w-4 h-4 text-slate-400"/> <strong>Scout:</strong> <span className="text-blue-500 font-medium">{match.scout}</span></div>
                           </div>
                           {canEditMatches && (
-                            <button onClick={() => startEditMatchContext(match)} className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-3 md:py-2 bg-blue-600/20 border border-blue-500/30 text-blue-400 rounded-xl md:rounded-lg font-bold hover:bg-blue-600/30 transition">
+                            <button onClick={() => startEditMatchContext(match)} className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-3 md:py-2 bg-blue-600/20 border border-blue-500/30 text-blue-500 rounded-xl md:rounded-lg font-bold hover:bg-blue-600/30 transition">
                               <Edit3 className="w-4 h-4" /> {isEditingContext ? 'Fechar' : 'Editar Jogo'}
                             </button>
                           )}
                         </div>
 
                         {isEditingContext && canEditMatches && (
-                          <div className="bg-[#151c2c] md:bg-[#0d131f] p-4 md:p-5 rounded-xl border border-blue-500/30 space-y-4 text-xs md:text-sm shadow-inner animate-in fade-in slide-in-from-top-2">
-                            <h4 className="font-bold text-blue-400 uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">Editar Detalhes do Jogo</h4>
+                          <div className={`${themeCard} border border-blue-500/30 p-4 md:p-5 rounded-xl space-y-4 text-xs md:text-sm shadow-inner animate-in fade-in slide-in-from-top-2`}>
+                            <h4 className="font-bold text-blue-500 uppercase tracking-wider mb-4 border-b border-slate-700/40 pb-2">Editar Detalhes do Jogo</h4>
                             
                             <div className="mb-4">
-                              <label className="block text-slate-400 mb-1.5 font-bold">Scouts Observadores</label>
+                              <label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Scouts Observadores</label>
                               <CustomMultiSelect 
                                 options={displayScouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
                                 selectedIds={reportData.scoutIds} 
                                 onChange={(ids: string[]) => setReportData({ ...reportData, scoutIds: ids })} 
                                 placeholder="Selecionar Scouts..." 
+                                isDarkMode={isDarkMode}
                               />
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div>
-                                <label className="block text-slate-400 mb-1.5 font-bold">Tática Casa</label>
-                                <CustomSelect options={TACTICS_OPTIONS.map(t => ({ value: t, label: t }))} value={reportData.homeTactic} onChange={val => setReportData({ ...reportData, homeTactic: val })} placeholder="Ex: 1-4-3-3" />
+                                <label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Tática Casa</label>
+                                <CustomSelect options={TACTICS_OPTIONS.map(t => ({ value: t, label: t }))} value={reportData.homeTactic} onChange={val => setReportData({ ...reportData, homeTactic: val })} placeholder="Ex: 1-4-3-3" isDarkMode={isDarkMode} />
                               </div>
                               <div>
-                                <label className="block text-slate-400 mb-1.5 font-bold">Tática Fora</label>
-                                <CustomSelect options={TACTICS_OPTIONS.map(t => ({ value: t, label: t }))} value={reportData.awayTactic} onChange={val => setReportData({ ...reportData, awayTactic: val })} placeholder="Ex: 1-4-3-3" />
+                                <label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Tática Fora</label>
+                                <CustomSelect options={TACTICS_OPTIONS.map(t => ({ value: t, label: t }))} value={reportData.awayTactic} onChange={val => setReportData({ ...reportData, awayTactic: val })} placeholder="Ex: 1-4-3-3" isDarkMode={isDarkMode} />
                               </div>
                             </div>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
-                              <div><label className="block text-slate-500 mb-1.5 font-bold">Ritmo</label><CustomSelect options={METRIC_LEVELS.map(m => ({ value: m, label: m }))} value={reportData.tempo} onChange={val => setReportData({ ...reportData, tempo: val })} placeholder="-" /></div>
-                              <div><label className="block text-slate-500 mb-1.5 font-bold">Físico</label><CustomSelect options={METRIC_LEVELS.map(m => ({ value: m, label: m }))} value={reportData.intensity} onChange={val => setReportData({ ...reportData, intensity: val })} placeholder="-" /></div>
-                              <div><label className="block text-slate-500 mb-1.5 font-bold">Técnica</label><CustomSelect options={METRIC_LEVELS.map(m => ({ value: m, label: m }))} value={reportData.technical} onChange={val => setReportData({ ...reportData, technical: val })} placeholder="-" /></div>
-                              <div><label className="block text-slate-500 mb-1.5 font-bold">Mental</label><CustomSelect options={METRIC_LEVELS.map(m => ({ value: m, label: m }))} value={reportData.pressure} onChange={val => setReportData({ ...reportData, pressure: val })} placeholder="-" /></div>
+                              <div><label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Ritmo</label><CustomSelect options={METRIC_LEVELS.map(m => ({ value: m, label: m }))} value={reportData.tempo} onChange={val => setReportData({ ...reportData, tempo: val })} placeholder="-" isDarkMode={isDarkMode} /></div>
+                              <div><label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Físico</label><CustomSelect options={METRIC_LEVELS.map(m => ({ value: m, label: m }))} value={reportData.intensity} onChange={val => setReportData({ ...reportData, intensity: val })} placeholder="-" isDarkMode={isDarkMode} /></div>
+                              <div><label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Técnica</label><CustomSelect options={METRIC_LEVELS.map(m => ({ value: m, label: m }))} value={reportData.technical} onChange={val => setReportData({ ...reportData, technical: val })} placeholder="-" isDarkMode={isDarkMode} /></div>
+                              <div><label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Mental</label><CustomSelect options={METRIC_LEVELS.map(m => ({ value: m, label: m }))} value={reportData.pressure} onChange={val => setReportData({ ...reportData, pressure: val })} placeholder="-" isDarkMode={isDarkMode} /></div>
                             </div>
-                            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 mt-2 border-t border-slate-800">
-                              <button type="button" onClick={() => setExpandedMatchEdit(null)} className="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl md:rounded-lg">Cancelar</button>
+                            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 mt-2 border-t border-slate-700/40">
+                              <button type="button" onClick={() => setExpandedMatchEdit(null)} className={`px-4 py-3 ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} font-bold rounded-xl md:rounded-lg`}>Cancelar</button>
                               <button type="button" disabled={submittingReport} onClick={() => handleReportSubmit(match.id)} className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl md:rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
                                 {submittingReport ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar Alterações'}
                               </button>
@@ -1187,11 +1290,11 @@ export default function Home() {
 
                         <div>
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-                            <h4 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider">Avaliações Individuais (Highlights)</h4>
+                            <h4 className={`text-xs md:text-sm font-bold ${themeTextMuted} uppercase tracking-wider`}>Avaliações Individuais (Highlights)</h4>
                             {canEditMatches && (
                               <button 
                                 onClick={() => { setIsAddHighlightOpen({ matchId: match.id, matchName: match.matchName }); setNewHighlightData({ playerId: '', notes: '' }); }}
-                                className="w-full sm:w-auto px-4 py-3 md:py-2 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 text-xs md:text-sm font-bold rounded-xl md:rounded-lg transition flex justify-center items-center gap-2"
+                                className="w-full sm:w-auto px-4 py-3 md:py-2 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-500 text-xs md:text-sm font-bold rounded-xl md:rounded-lg transition flex justify-center items-center gap-2"
                               >
                                 <Plus className="w-4 h-4" /> Adicionar Atleta
                               </button>
@@ -1205,25 +1308,25 @@ export default function Home() {
                                 const isUnidentified = fullP.id?.includes('unidentified') || !fullP.id;
 
                                 return (
-                                  <div key={p.id || idx} className="bg-[#151c2c] border border-slate-800 p-4 md:p-5 rounded-xl flex flex-col gap-3 shadow-sm relative overflow-hidden group">
+                                  <div key={p.id || idx} className={`${themeCard} border p-4 md:p-5 rounded-xl flex flex-col gap-3 shadow-sm relative overflow-hidden group`}>
                                     {isUnidentified && <div className="absolute top-0 left-0 w-1 h-full bg-orange-500/50"></div>}
                                     
-                                    <div className="flex items-start justify-between gap-2 border-b border-slate-800/80 pb-3">
+                                    <div className={`flex items-start justify-between gap-2 border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-3`}>
                                       <div className="flex items-center gap-3 min-w-0">
                                         {fullP.photo ? (
                                           <img src={fullP.photo} alt={fullP.name} className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover border border-slate-700 bg-slate-800 flex-shrink-0" />
                                         ) : (
-                                          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm md:text-base flex-shrink-0">
+                                          <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold text-sm md:text-base flex-shrink-0`}>
                                             {(fullP.name || 'J').charAt(0)}
                                           </div>
                                         )}
                                         <div className="min-w-0">
-                                          <h5 className="font-bold text-white text-sm md:text-base truncate flex items-center gap-1.5">
+                                          <h5 className="font-bold text-sm md:text-base truncate flex items-center gap-1.5">
                                             {fullP.name} 
                                             {isUnidentified && <span className="px-1.5 py-0.5 bg-orange-500/20 text-orange-400 text-[9px] rounded font-bold uppercase">S/Ficha</span>}
                                           </h5>
-                                          <p className="text-[11px] md:text-xs text-slate-400 mt-0.5 truncate">
-                                            <span className="text-blue-400 font-medium">{fullP.position && fullP.position !== 'N/D' ? fullP.position : 'Atleta'}</span> <span className="hidden sm:inline">• {fullP.club && fullP.club !== 'N/D' ? fullP.club : ''}</span>
+                                          <p className={`text-[11px] md:text-xs ${themeTextMuted} mt-0.5 truncate`}>
+                                            <span className="text-blue-500 font-medium">{fullP.position && fullP.position !== 'N/D' ? fullP.position : 'Atleta'}</span> <span className="hidden sm:inline">• {fullP.club && fullP.club !== 'N/D' ? fullP.club : ''}</span>
                                           </p>
                                         </div>
                                       </div>
@@ -1232,7 +1335,7 @@ export default function Home() {
                                         {canEditMatches && (
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); setEditingHighlight({ matchId: match.id, matchName: match.matchName, player: fullP, highlightId: p.highlightId || null, notes: p.note && p.note !== 'Sem notas registadas.' ? p.note : '' }); }}
-                                            className="p-2 md:px-2.5 md:py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition border border-slate-700 flex items-center justify-center"
+                                            className={`p-2 md:px-2.5 md:py-1.5 ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 border-slate-300'} border text-xs font-medium rounded-lg transition flex items-center justify-center`}
                                           >
                                             <Edit3 className="w-4 h-4 md:mr-1.5" /> <span className="hidden md:block">Editar</span>
                                           </button>
@@ -1240,7 +1343,7 @@ export default function Home() {
                                         {!isUnidentified && (
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); setSelectedPlayer(fullP); setProfileTab('timeline'); setSelectedSeasonIdx(0); }}
-                                            className="p-2 md:px-2.5 md:py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-xs font-medium rounded-lg transition flex items-center justify-center"
+                                            className="p-2 md:px-2.5 md:py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-500 border border-blue-500/30 text-xs font-medium rounded-lg transition flex items-center justify-center"
                                           >
                                             <Search className="w-4 h-4 md:mr-1.5" /> <span className="hidden md:block">Perfil</span>
                                           </button>
@@ -1248,37 +1351,37 @@ export default function Home() {
                                       </div>
                                     </div>
 
-                                    <div className="text-xs md:text-sm text-slate-300 leading-relaxed bg-[#0d131f] p-3 md:p-4 rounded-lg border border-slate-800/50 font-sans whitespace-pre-wrap">
-                                      {p.note || <span className="text-slate-500 italic">Sem nota descritiva registada.</span>}
+                                    <div className={`text-xs md:text-sm leading-relaxed ${themeInnerCard} p-3 md:p-4 rounded-lg border font-sans whitespace-pre-wrap`}>
+                                      {p.note || <span className="text-slate-400 italic">Sem nota descritiva registada.</span>}
                                     </div>
                                   </div>
                                 );
                               })}
                             </div>
                           ) : (
-                            <div className="text-xs md:text-sm text-slate-500 bg-[#151c2c] p-8 rounded-xl border border-slate-800 border-dashed text-center flex flex-col items-center gap-2">
-                              <UserCheck className="w-8 h-8 text-slate-600 mb-2" />
+                            <div className={`text-xs md:text-sm ${themeTextMuted} ${themeCard} p-8 rounded-xl border border-dashed text-center flex flex-col items-center gap-2`}>
+                              <UserCheck className="w-8 h-8 text-slate-400 mb-2" />
                               Não existem avaliações individuais registadas neste jogo.
                             </div>
                           )}
                         </div>
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
-                          <div className="bg-[#151c2c] p-3 md:p-4 rounded-xl border border-slate-800/60">
-                             <span className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 uppercase tracking-wider font-bold mb-1"><Zap className="w-3.5 h-3.5"/> Ritmo</span>
-                             <span className="text-sm md:text-base font-bold text-white">{match.tempo}</span>
+                          <div className={`${themeInnerCard} p-3 md:p-4 rounded-xl border`}>
+                             <span className={`flex items-center gap-1.5 text-[10px] md:text-xs ${themeTextMuted} uppercase tracking-wider font-bold mb-1`}><Zap className="w-3.5 h-3.5"/> Ritmo</span>
+                             <span className="text-sm md:text-base font-bold">{match.tempo}</span>
                           </div>
-                          <div className="bg-[#151c2c] p-3 md:p-4 rounded-xl border border-slate-800/60">
-                             <span className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 uppercase tracking-wider font-bold mb-1"><Activity className="w-3.5 h-3.5"/> Intensidade</span>
-                             <span className="text-sm md:text-base font-bold text-white">{match.intensity}</span>
+                          <div className={`${themeInnerCard} p-3 md:p-4 rounded-xl border`}>
+                             <span className={`flex items-center gap-1.5 text-[10px] md:text-xs ${themeTextMuted} uppercase tracking-wider font-bold mb-1`}><Activity className="w-3.5 h-3.5"/> Intensidade</span>
+                             <span className="text-sm md:text-base font-bold">{match.intensity}</span>
                           </div>
-                          <div className="bg-[#151c2c] p-3 md:p-4 rounded-xl border border-slate-800/60">
-                             <span className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 uppercase tracking-wider font-bold mb-1"><Crosshair className="w-3.5 h-3.5"/> Técnica</span>
-                             <span className="text-sm md:text-base font-bold text-white">{match.technical}</span>
+                          <div className={`${themeInnerCard} p-3 md:p-4 rounded-xl border`}>
+                             <span className={`flex items-center gap-1.5 text-[10px] md:text-xs ${themeTextMuted} uppercase tracking-wider font-bold mb-1`}><Crosshair className="w-3.5 h-3.5"/> Técnica</span>
+                             <span className="text-sm md:text-base font-bold">{match.technical}</span>
                           </div>
-                          <div className="bg-[#151c2c] p-3 md:p-4 rounded-xl border border-slate-800/60">
-                             <span className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 uppercase tracking-wider font-bold mb-1"><BrainCircuit className="w-3.5 h-3.5"/> Pressão</span>
-                             <span className="text-sm md:text-base font-bold text-white">{match.pressure}</span>
+                          <div className={`${themeInnerCard} p-3 md:p-4 rounded-xl border`}>
+                             <span className={`flex items-center gap-1.5 text-[10px] md:text-xs ${themeTextMuted} uppercase tracking-wider font-bold mb-1`}><BrainCircuit className="w-3.5 h-3.5"/> Pressão</span>
+                             <span className="text-sm md:text-base font-bold">{match.pressure}</span>
                           </div>
                         </div>
 
@@ -1301,47 +1404,47 @@ export default function Home() {
                 <div 
                   key={scout.id} 
                   onClick={() => setSelectedScout(scout)}
-                  className="bg-[#151c2c] border border-slate-800 rounded-xl p-5 hover:border-blue-500/50 transition flex flex-col shadow-sm cursor-pointer group"
+                  className={`${themeCard} border rounded-xl p-5 hover:border-blue-500/50 transition flex flex-col shadow-sm cursor-pointer group`}
                 >
                   <div className="flex items-center gap-4 mb-5">
                     {scout.photo ? (
                       <img src={scout.photo} alt={scout.name} className="w-14 h-14 rounded-full object-cover border-2 border-slate-700 shadow-md group-hover:border-blue-500 transition" />
                     ) : (
-                      <div className="w-14 h-14 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-slate-400 font-bold text-xl shadow-md group-hover:border-blue-500 transition">
+                      <div className={`w-14 h-14 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border-2 flex items-center justify-center font-bold text-xl shadow-md group-hover:border-blue-500 transition`}>
                         {scout.name.charAt(0)}
                       </div>
                     )}
                     <div>
-                      <h3 className="font-bold text-white text-base leading-tight group-hover:text-blue-400 transition">{scout.name}</h3>
-                      <p className="text-[10px] md:text-xs text-blue-400 font-bold mt-0.5">{getUserTitle(scout.name)}</p>
+                      <h3 className="font-bold text-base leading-tight group-hover:text-blue-500 transition">{scout.name}</h3>
+                      <p className="text-[10px] md:text-xs text-blue-500 font-bold mt-0.5">{getUserTitle(scout.name)}</p>
                     </div>
                   </div>
 
-                  <div className="bg-[#0d131f] p-3 rounded-lg border border-slate-800/80 mb-4 flex-1">
-                    <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider block mb-2 flex items-center gap-1">
-                      <Globe className="w-3 h-3 text-slate-400" /> Mercados Atribuídos ({assigned.length})
+                  <div className={`${themeInnerCard} p-3 rounded-lg border mb-4 flex-1`}>
+                    <span className={`text-[9px] ${themeTextMuted} uppercase font-bold tracking-wider block mb-2 flex items-center gap-1`}>
+                      <Globe className="w-3 h-3" /> Mercados Atribuídos ({assigned.length})
                     </span>
                     <div className="flex flex-wrap gap-1.5">
                       {assigned.length > 0 ? (
                         assigned.map((m, idx) => (
-                          <span key={idx} className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700/60 font-medium">
+                          <span key={idx} className={`text-[10px] ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-200 border-slate-300 text-slate-700'} px-2 py-0.5 rounded border font-medium`}>
                             {m}
                           </span>
                         ))
                       ) : (
-                        <span className="text-[10px] text-slate-500 italic">Sem mercados atribuídos.</span>
+                        <span className={`text-[10px] ${themeTextMuted} italic`}>Sem mercados atribuídos.</span>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-center text-center pt-3 border-t border-slate-800/60">
-                    <div className="flex-1 border-r border-slate-800">
-                      <span className="block text-lg font-bold text-emerald-400">{getScoutMatches(scout.name).length}</span>
-                      <span className="block text-[8px] md:text-[9px] text-slate-500 uppercase font-bold mt-0.5">Jogos Vistos</span>
+                  <div className={`flex justify-between items-center text-center pt-3 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
+                    <div className={`flex-1 border-r ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
+                      <span className="block text-lg font-bold text-emerald-500">{getScoutMatches(scout.name).length}</span>
+                      <span className={`block text-[8px] md:text-[9px] ${themeTextMuted} uppercase font-bold mt-0.5`}>Jogos Vistos</span>
                     </div>
-                    <div className="flex-1 text-[10px] text-slate-400 space-y-0.5 flex flex-col justify-center">
-                      <div><span className="text-blue-400 font-bold">{scout.liveMatches || 0}</span> Live</div>
-                      <div><span className="text-slate-300 font-bold">{scout.streamMatches || 0}</span> Vídeo</div>
+                    <div className={`flex-1 text-[10px] ${themeTextMuted} space-y-0.5 flex flex-col justify-center`}>
+                      <div><span className="text-blue-500 font-bold">{scout.liveMatches || 0}</span> Live</div>
+                      <div><span className="font-bold">{scout.streamMatches || 0}</span> Vídeo</div>
                     </div>
                   </div>
                 </div>
@@ -1353,25 +1456,25 @@ export default function Home() {
         {/* TAB 5: PAINEL ADMIN */}
         {activeTab === 'admin' && isAdmin && (
           <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="bg-[#151c2c] border border-purple-500/30 p-6 md:p-8 rounded-2xl shadow-xl relative overflow-hidden space-y-8">
-              <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
-                <div className="p-3 bg-purple-600/20 text-purple-400 rounded-xl border border-purple-500/30"><Sliders className="w-6 h-6"/></div>
+            <div className={`${themeCard} border border-purple-500/30 p-6 md:p-8 rounded-2xl shadow-xl space-y-8`}>
+              <div className={`flex items-center gap-3 border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-4`}>
+                <div className="p-3 bg-purple-600/20 text-purple-500 rounded-xl border border-purple-500/30"><Sliders className="w-6 h-6"/></div>
                 <div>
-                  <h2 className="text-xl font-bold text-white">Painel do Head of Scouting (Administração)</h2>
-                  <p className="text-xs text-slate-400">Carregar dados analíticos em bulk e gerir mercados do clube.</p>
+                  <h2 className="text-xl font-bold">Painel do Head of Scouting (Administração)</h2>
+                  <p className={`text-xs ${themeTextMuted}`}>Carregar dados analíticos em bulk e gerir mercados do clube.</p>
                 </div>
               </div>
 
-              <div className="bg-[#0d131f] p-5 md:p-6 rounded-xl border border-purple-500/40 space-y-4 relative overflow-hidden">
+              <div className={`${themeInnerCard} p-5 md:p-6 rounded-xl border border-purple-500/40 space-y-4`}>
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-purple-400 uppercase tracking-wider flex items-center gap-2">
-                    <Upload className="w-4 h-4 text-purple-400" /> Upload de Métricas e Algoritmo (.XLSX)
+                  <h3 className="text-sm font-bold text-purple-500 uppercase tracking-wider flex items-center gap-2">
+                    <Upload className="w-4 h-4 text-purple-500" /> Upload de Métricas e Algoritmo (.XLSX)
                   </h3>
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2.5 py-1 rounded border border-emerald-500/30">
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-500 font-bold px-2.5 py-1 rounded border border-emerald-500/30">
                     {uniqueAlgoPlayersCount} Atletas Únicos em Memória
                   </span>
                 </div>
-                <p className="text-xs text-slate-400">
+                <p className={`text-xs ${themeTextMuted}`}>
                   Selecione o ficheiro Excel com as métricas avançadas (Ratings, Pilares e Destaques). Se o ficheiro contiver a mesma pessoa em épocas/ligas diferentes, a app agrupa automaticamente o histórico sob a mesma ficha.
                 </p>
 
@@ -1381,26 +1484,26 @@ export default function Home() {
                     <span>{uploadingExcel ? 'A processar Excel...' : 'Carregar Ficheiro XLSX'}</span>
                     <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} className="hidden" disabled={uploadingExcel} />
                   </label>
-                  <span className="text-[11px] text-slate-500">
+                  <span className={`text-[11px] ${themeTextMuted}`}>
                     Processamento 100% interno (via LocalForage - Persistente).
                   </span>
                 </div>
               </div>
 
-              <div className="bg-[#0d131f] p-5 md:p-6 rounded-xl border border-slate-800 space-y-3">
+              <div className={`${themeInnerCard} p-5 md:p-6 rounded-xl border space-y-3`}>
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                    <CheckSquare className="w-4 h-4 text-purple-400" /> Missões & Tarefas Específicas
+                  <h3 className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                    <CheckSquare className="w-4 h-4 text-purple-500" /> Missões & Tarefas Específicas
                   </h3>
-                  <span className="text-[10px] bg-purple-500/20 text-purple-300 font-bold px-2 py-0.5 rounded border border-purple-500/30">Módulo em Estruturação</span>
+                  <span className="text-[10px] bg-purple-500/20 text-purple-400 font-bold px-2 py-0.5 rounded border border-purple-500/30">Módulo em Estruturação</span>
                 </div>
-                <p className="text-xs text-slate-400">Espaço reservado para envio de diretivas de observação individuais.</p>
+                <p className={`text-xs ${themeTextMuted}`}>Espaço reservado para envio de diretivas de observação individuais.</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-slate-800">
+              <div className={`grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
                 <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                    <Globe className="w-4 h-4 text-purple-400" /> Mercados Alvo Globais do Leça FC
+                  <h3 className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-purple-500" /> Mercados Alvo Globais do Leça FC
                   </h3>
                   <form onSubmit={handleAddMarket} className="flex gap-2">
                     <input 
@@ -1408,7 +1511,7 @@ export default function Home() {
                       placeholder="Ex: América do Sul (Prospeção)..." 
                       value={newMarketInput} 
                       onChange={e => setNewMarketInput(e.target.value)} 
-                      className="flex-1 bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
+                      className={`flex-1 border rounded-xl p-3 text-xs focus:outline-none focus:border-purple-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'}`}
                     />
                     <button type="submit" className="px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs flex items-center gap-1">
                       <Plus className="w-4 h-4"/> Adicionar
@@ -1417,31 +1520,31 @@ export default function Home() {
 
                   <div className="space-y-2 pt-2">
                     {adminMarkets.map((m, idx) => (
-                      <div key={idx} className="bg-[#0d131f] p-3 rounded-xl border border-slate-800 flex justify-between items-center text-xs font-medium text-slate-200">
+                      <div key={idx} className={`${themeInnerCard} p-3 rounded-xl border flex justify-between items-center text-xs font-medium`}>
                         <span>{m}</span>
-                        <button onClick={() => handleRemoveMarket(idx)} className="text-slate-500 hover:text-red-400 transition p-1"><X className="w-4 h-4"/></button>
+                        <button onClick={() => handleRemoveMarket(idx)} className="text-slate-400 hover:text-red-400 transition p-1"><X className="w-4 h-4"/></button>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                    <Settings className="w-4 h-4 text-purple-400" /> Parâmetros do Sistema
+                  <h3 className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                    <Settings className="w-4 h-4 text-purple-500" /> Parâmetros do Sistema
                   </h3>
                   
-                  <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800 space-y-3 text-xs">
-                    <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
-                      <span className="text-slate-400 font-medium">Estado da Sincronização Airtable</span>
-                      <span className="text-emerald-400 font-bold flex items-center gap-1"><CheckCircle2 size={12}/> Ativa</span>
+                  <div className={`${themeInnerCard} p-4 rounded-xl border space-y-3 text-xs`}>
+                    <div className={`flex justify-between items-center border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-2`}>
+                      <span className={`${themeTextMuted} font-medium`}>Estado da Sincronização Airtable</span>
+                      <span className="text-emerald-500 font-bold flex items-center gap-1"><CheckCircle2 size={12}/> Ativa</span>
                     </div>
-                    <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
-                      <span className="text-slate-400 font-medium">Total de Utilizadores Registados</span>
-                      <span className="text-white font-bold">{scouts.length} Pessoas</span>
+                    <div className={`flex justify-between items-center border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-2`}>
+                      <span className={`${themeTextMuted} font-medium`}>Total de Utilizadores Registados</span>
+                      <span className="font-bold">{scouts.length} Pessoas</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-400 font-medium">Versão da Intranet</span>
-                      <span className="text-purple-400 font-bold">Leça FC Scouting v2.7</span>
+                      <span className={`${themeTextMuted} font-medium`}>Versão da Intranet</span>
+                      <span className="text-purple-500 font-bold">Leça FC Scouting v2.8</span>
                     </div>
                   </div>
                 </div>
@@ -1453,7 +1556,52 @@ export default function Home() {
 
       </div>
 
-      {/* --------------------- MODALS CENTRADOS --------------------- */}
+{/* --------------------- MODALS CENTRADOS (PARTE 1) --------------------- */}
+
+      {/* MODAL CRIAR EQUIPA */}
+      {isNewTeamOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className={`${themeCard} border w-full max-w-md rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95`}>
+            <div className={`flex justify-between items-center border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-3`}>
+              <h3 className="font-bold text-base md:text-sm flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-emerald-500" /> Criar Equipa
+              </h3>
+              <button onClick={() => setIsNewTeamOpen(false)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-full text-slate-400 hover:text-white`}><X className="w-4 h-4" /></button>
+            </div>
+
+            <form onSubmit={handleCreateNewTeam} className="space-y-4 text-xs md:text-sm">
+              <div>
+                <label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Nome da Equipa</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={newTeamData.name} 
+                  onChange={e => setNewTeamData({ ...newTeamData, name: e.target.value })} 
+                  className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-emerald-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'}`} 
+                  placeholder="Ex: Boavista FC"
+                />
+              </div>
+              <div>
+                <label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Competição / Liga</label>
+                <CustomSelect 
+                  options={competitions.map(c => ({ value: c.id, label: c.name }))} 
+                  value={newTeamData.competitionId} 
+                  onChange={val => setNewTeamData({ ...newTeamData, competitionId: val })} 
+                  placeholder="Selecionar Competição..." 
+                  searchable={true} 
+                  isDarkMode={isDarkMode}
+                />
+              </div>
+              <div className={`flex gap-3 pt-4 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} mt-4`}>
+                <button type="button" onClick={() => setIsNewTeamOpen(false)} className={`flex-1 py-3 ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} font-bold rounded-xl`}>Voltar</button>
+                <button type="submit" disabled={creatingTeam} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-900/20">
+                  {creatingTeam ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar Equipa'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MODAL DETALHADO DO SCOUT */}
       {selectedScout && (() => {
@@ -1462,45 +1610,45 @@ export default function Home() {
 
         return (
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-            <div className="bg-[#151c2c] border border-slate-800 w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl shadow-2xl p-5 md:p-6 space-y-6 animate-in fade-in zoom-in-95">
+            <div className={`${themeCard} border w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl shadow-2xl p-5 md:p-6 space-y-6 animate-in fade-in zoom-in-95`}>
               
-              <div className="flex justify-between items-start border-b border-slate-800/80 pb-4">
+              <div className={`flex justify-between items-start border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-4`}>
                 <div className="flex items-center gap-4">
                   {selectedScout.photo ? (
                     <img src={selectedScout.photo} alt={selectedScout.name} className="w-16 h-16 rounded-full object-cover border-2 border-blue-500 shadow-md flex-shrink-0" />
                   ) : (
-                    <div className="w-16 h-16 rounded-full bg-slate-800 border-2 border-blue-500 flex items-center justify-center text-slate-300 font-bold text-2xl flex-shrink-0">
+                    <div className={`w-16 h-16 rounded-full ${isDarkMode ? 'bg-slate-800 border-blue-500' : 'bg-slate-200 border-blue-500'} border-2 flex items-center justify-center font-bold text-2xl flex-shrink-0`}>
                       {selectedScout.name.charAt(0)}
                     </div>
                   )}
                   <div>
-                    <h2 className="text-xl md:text-2xl font-bold text-white">{selectedScout.name}</h2>
-                    <p className="text-xs text-blue-400 font-bold mt-1">{getUserTitle(selectedScout.name)}</p>
+                    <h2 className="text-xl md:text-2xl font-bold">{selectedScout.name}</h2>
+                    <p className="text-xs text-blue-500 font-bold mt-1">{getUserTitle(selectedScout.name)}</p>
                   </div>
                 </div>
-                <button onClick={() => setSelectedScout(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition">
+                <button onClick={() => setSelectedScout(null)} className={`p-2 ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700' : 'bg-slate-200 hover:bg-slate-300'} rounded-full text-slate-400 hover:text-white transition`}>
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-center">
-                <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
-                  <span className="text-xs text-slate-500 block mb-1 font-semibold">Jogos Observados</span>
-                  <span className="text-2xl font-black text-emerald-400">{scoutMatches.length}</span>
+                <div className={`${themeInnerCard} p-4 rounded-xl border`}>
+                  <span className={`text-xs ${themeTextMuted} block mb-1 font-semibold`}>Jogos Observados</span>
+                  <span className="text-2xl font-black text-emerald-500">{scoutMatches.length}</span>
                 </div>
-                <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
-                  <span className="text-xs text-slate-500 block mb-1 font-semibold">Live vs Stream</span>
-                  <span className="text-sm font-bold text-blue-400 mt-1 block">{selectedScout.liveMatches || 0} L / {selectedScout.streamMatches || 0} S</span>
+                <div className={`${themeInnerCard} p-4 rounded-xl border`}>
+                  <span className={`text-xs ${themeTextMuted} block mb-1 font-semibold`}>Live vs Stream</span>
+                  <span className="text-sm font-bold text-blue-500 mt-1 block">{selectedScout.liveMatches || 0} L / {selectedScout.streamMatches || 0} S</span>
                 </div>
               </div>
 
-              <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800 space-y-3">
+              <div className={`${themeInnerCard} p-4 rounded-xl border space-y-3`}>
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Globe className="w-3.5 h-3.5 text-blue-400" /> Mercados Atribuídos ({assignedMarkets.length})
+                  <h3 className={`text-xs font-bold ${themeTextMuted} uppercase tracking-wider flex items-center gap-1.5`}>
+                    <Globe className="w-3.5 h-3.5 text-blue-500" /> Mercados Atribuídos ({assignedMarkets.length})
                   </h3>
                   {isAdmin && (
-                    <span className="text-[10px] text-purple-400 font-bold uppercase">Edição do Head of Scout</span>
+                    <span className="text-[10px] text-purple-500 font-bold uppercase">Edição do Head of Scout</span>
                   )}
                 </div>
 
@@ -1510,41 +1658,42 @@ export default function Home() {
                     selectedIds={assignedMarkets} 
                     onChange={(ids: string[]) => handleSaveScoutMarkets(selectedScout.id, ids)} 
                     placeholder="Atribuir mercados e séries..." 
+                    isDarkMode={isDarkMode}
                   />
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {assignedMarkets.length > 0 ? (
                       assignedMarkets.map((m, idx) => (
-                        <span key={idx} className="text-xs bg-slate-800 text-slate-200 px-3 py-1 rounded-lg border border-slate-700 font-medium">
+                        <span key={idx} className={`text-xs ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-200 border-slate-300 text-slate-800'} px-3 py-1 rounded-lg border font-medium`}>
                           {m}
                         </span>
                       ))
                     ) : (
-                      <span className="text-xs text-slate-500 italic">Nenhum campeonato atribuído a este observador.</span>
+                      <span className={`text-xs ${themeTextMuted} italic`}>Nenhum campeonato atribuído a este observador.</span>
                     )}
                   </div>
                 )}
               </div>
 
               <div>
-                <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Histórico de Partidas Acompanhadas ({scoutMatches.length})</h3>
+                <h3 className={`text-xs md:text-sm font-bold ${themeTextMuted} uppercase tracking-wider mb-3`}>Histórico de Partidas Acompanhadas ({scoutMatches.length})</h3>
                 {scoutMatches.length > 0 ? (
                   <div className="space-y-2.5">
                     {scoutMatches.map(m => (
-                      <div key={m.id} className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div key={m.id} className={`${themeInnerCard} p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2`}>
                         <div>
-                          <h4 className="font-bold text-white text-sm">{m.matchName}</h4>
-                          <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+                          <h4 className="font-bold text-sm">{m.matchName}</h4>
+                          <div className={`flex items-center gap-2 text-xs ${themeTextMuted} mt-1`}>
                             <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {m.gameDate}</span>
                             <span>•</span>
-                            <span className="text-blue-400 font-medium">{m.competition}</span>
+                            <span className="text-blue-500 font-medium">{m.competition}</span>
                             <span>•</span>
-                            <span className="bg-slate-800 px-1.5 py-0.5 rounded text-[10px] text-slate-300">{m.type}</span>
+                            <span className={`${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} px-1.5 py-0.5 rounded text-[10px]`}>{m.type}</span>
                           </div>
                         </div>
                         <button 
                           onClick={() => navigateToMatch(m.id)}
-                          className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-xs font-bold rounded-lg transition flex items-center gap-1.5 self-start sm:self-auto"
+                          className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-500 text-xs font-bold rounded-lg transition flex items-center gap-1.5 self-start sm:self-auto"
                         >
                           Ir para Jogo <ExternalLink className="w-3 h-3" />
                         </button>
@@ -1552,7 +1701,7 @@ export default function Home() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-xs text-slate-500 bg-[#0d131f] p-6 rounded-xl border border-slate-800 text-center">
+                  <div className={`text-xs ${themeTextMuted} ${themeInnerCard} p-6 rounded-xl border text-center`}>
                     Ainda não existem jogos registados em nome deste observador no Match Center.
                   </div>
                 )}
@@ -1563,41 +1712,37 @@ export default function Home() {
         );
       })()}
 
-      {/* MODAL PARA EXIBIR PARÂMETROS DO PILAR SELECIONADO (3. PERCENTIL LIMPO) */}
+      {/* MODAL DESDOBRAMENTO DO PILAR */}
       {selectedPillarDetail && selectedPlayer && (() => {
         const playerCleanName = extractPlayerBaseName(selectedPlayer.name);
         const isGK = (selectedPlayer.position || '').toLowerCase().includes('goalkeeper') || (selectedPlayer.position || '').toLowerCase().includes('gk');
         const posKey = isGK ? '_gk' : '_field';
         
         const rawEntry = algorithmData[`${playerCleanName}${posKey}`] || algorithmData[playerCleanName] || [];
+        const safeArray = Array.isArray(rawEntry) ? rawEntry : (rawEntry && typeof rawEntry === 'object' && Object.keys(rawEntry).length > 0 ? [{ tag: 'Atual', row: rawEntry }] : []);
 
-const safeArray = Array.isArray(rawEntry) 
-  ? rawEntry 
-  : (rawEntry && typeof rawEntry === 'object' && Object.keys(rawEntry).length > 0 ? [{ tag: 'Atual', row: rawEntry }] : []);
-
-const sortedEntry = [...safeArray].sort((a, b) => {
-  if (a.tag === 'Atual') return -1;
-  if (b.tag === 'Atual') return 1;
-  return (b.tag || '').localeCompare(a.tag || '');
-});
+        const sortedEntry = [...safeArray].sort((a, b) => {
+          if (a.tag === 'Atual') return -1;
+          if (b.tag === 'Atual') return 1;
+          return (b.tag || '').localeCompare(a.tag || '');
+        });
 
         const activeItem = sortedEntry[selectedSeasonIdx] || sortedEntry[0];
         const playerAlgo = activeItem?.row;
-        
         const metrics = PILLAR_METRICS_MAP[selectedPillarDetail] || [];
 
         return (
           <div className="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="bg-[#151c2c] border border-blue-500/40 w-full max-w-lg rounded-2xl shadow-2xl p-5 md:p-6 space-y-5 animate-in fade-in zoom-in-95">
-              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+            <div className={`${themeCard} border border-blue-500/40 w-full max-w-lg rounded-2xl shadow-2xl p-5 md:p-6 space-y-5 animate-in fade-in zoom-in-95`}>
+              <div className={`flex justify-between items-center border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-3`}>
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-blue-600/20 text-blue-400 rounded-lg border border-blue-500/30"><Info className="w-5 h-5"/></div>
+                  <div className="p-2 bg-blue-600/20 text-blue-500 rounded-lg border border-blue-500/30"><Info className="w-5 h-5"/></div>
                   <div>
-                    <h3 className="font-bold text-white text-base">Desdobramento: {selectedPillarDetail}</h3>
-                    <p className="text-xs text-slate-400">{selectedPlayer.name} {activeItem?.tag ? `(${activeItem.tag})` : ''}</p>
+                    <h3 className="font-bold text-base">Desdobramento: {selectedPillarDetail}</h3>
+                    <p className={`text-xs ${themeTextMuted}`}>{selectedPlayer.name} {activeItem?.tag ? `(${activeItem.tag})` : ''}</p>
                   </div>
                 </div>
-                <button onClick={() => setSelectedPillarDetail(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition"><X className="w-4 h-4"/></button>
+                <button onClick={() => setSelectedPillarDetail(null)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-full text-slate-400 hover:text-white transition`}><X className="w-4 h-4"/></button>
               </div>
 
               <div className="space-y-3">
@@ -1606,18 +1751,17 @@ const sortedEntry = [...safeArray].sort((a, b) => {
                   const pctVal = playerAlgo ? playerAlgo[m.pctKey] : null;
 
                   return (
-                    <div key={idx} className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800/80 flex items-center justify-between">
+                    <div key={idx} className={`${themeInnerCard} p-3.5 rounded-xl border flex items-center justify-between`}>
                       <div>
-                        <span className="block text-xs font-bold text-slate-200 mb-0.5">{m.label}</span>
-                        <div className="flex items-center gap-3 text-[11px] text-slate-400">
-                          <span>Bruto: <strong className="text-white font-bold">{rawVal !== undefined && rawVal !== null ? parseFloat(rawVal).toFixed(2) : 'N/D'}</strong></span>
+                        <span className="block text-xs font-bold mb-0.5">{m.label}</span>
+                        <div className={`flex items-center gap-3 text-[11px] ${themeTextMuted}`}>
+                          <span>Bruto: <strong className="font-bold">{rawVal !== undefined && rawVal !== null ? parseFloat(rawVal).toFixed(2) : 'N/D'}</strong></span>
                           <span>•</span>
-                          {/* LIMPEZA DO SIMBOLO DE PERCENTAGEM */}
-                          <span>Percentil: <strong className="text-emerald-400 font-bold">{pctVal !== undefined && pctVal !== null ? `${parseFloat(pctVal).toFixed(1)} Pct` : 'N/D'}</strong></span>
+                          <span>Percentil: <strong className="text-emerald-500 font-bold">{pctVal !== undefined && pctVal !== null ? `${parseFloat(pctVal).toFixed(1)} Pct` : 'N/D'}</strong></span>
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <span className="text-xs font-bold text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/20">Peso: {m.weight}</span>
+                        <span className="text-xs font-bold text-blue-500 bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/20">Peso: {m.weight}</span>
                       </div>
                     </div>
                   );
@@ -1625,7 +1769,7 @@ const sortedEntry = [...safeArray].sort((a, b) => {
               </div>
 
               <div className="pt-2 flex justify-end">
-                <button onClick={() => setSelectedPillarDetail(null)} className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs">
+                <button onClick={() => setSelectedPillarDetail(null)} className={`px-5 py-2.5 ${isDarkMode ? 'bg-slate-800 text-slate-200' : 'bg-slate-200 text-slate-800'} font-bold rounded-xl text-xs`}>
                   Fechar
                 </button>
               </div>
@@ -1637,38 +1781,38 @@ const sortedEntry = [...safeArray].sort((a, b) => {
       {/* MODAL EDITAR HIGHLIGHT INDIVIDUAL */}
       {editingHighlight && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#151c2c] border border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-start border-b border-slate-800 pb-4">
+          <div className={`${themeCard} border w-full max-w-lg rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200`}>
+            <div className={`flex justify-between items-start border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-4`}>
               <div className="flex items-center gap-3 min-w-0">
                 {editingHighlight.player.photo ? (
                   <img src={editingHighlight.player.photo} alt={editingHighlight.player.name} className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover border border-slate-700 flex-shrink-0" />
                 ) : (
-                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm md:text-base flex-shrink-0">
+                  <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold text-sm md:text-base flex-shrink-0`}>
                     {(editingHighlight.player.name || 'J').charAt(0)}
                   </div>
                 )}
                 <div className="min-w-0">
-                  <h3 className="font-bold text-white text-sm md:text-base truncate">Editar: {editingHighlight.player.name}</h3>
-                  <p className="text-[10px] md:text-xs text-slate-400 mt-0.5 truncate">{editingHighlight.matchName}</p>
+                  <h3 className="font-bold text-sm md:text-base truncate">Editar: {editingHighlight.player.name}</h3>
+                  <p className={`text-[10px] md:text-xs ${themeTextMuted} mt-0.5 truncate`}>{editingHighlight.matchName}</p>
                 </div>
               </div>
-              <button onClick={() => setEditingHighlight(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition flex-shrink-0">
+              <button onClick={() => setEditingHighlight(null)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-full text-slate-400 hover:text-white transition flex-shrink-0`}>
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleSaveSingleHighlight} className="space-y-4 text-xs md:text-sm">
               <div>
-                <label className="block text-slate-400 font-bold mb-2">Avaliação Individual</label>
+                <label className={`block ${themeTextMuted} font-bold mb-2`}>Avaliação Individual</label>
                 <textarea 
                   rows={6} required placeholder="Escreve a tua avaliação técnica/tática..."
                   value={editingHighlight.notes} onChange={e => setEditingHighlight({ ...editingHighlight, notes: e.target.value })}
-                  className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-slate-200 focus:outline-none focus:border-blue-500 font-sans leading-relaxed resize-none shadow-inner"
+                  className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-blue-500 font-sans leading-relaxed resize-none shadow-inner ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'}`}
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-2 border-t border-slate-800 mt-4">
-                <button type="button" onClick={() => setEditingHighlight(null)} className="flex-1 md:flex-none px-4 py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl">Cancelar</button>
+              <div className={`flex justify-end gap-3 pt-2 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} mt-4`}>
+                <button type="button" onClick={() => setEditingHighlight(null)} className={`flex-1 md:flex-none px-4 py-2.5 ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} font-bold rounded-xl`}>Cancelar</button>
                 <button type="submit" disabled={savingHighlight} className="flex-1 md:flex-none px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
                   {savingHighlight ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar Observação'}
                 </button>
@@ -1681,41 +1825,41 @@ const sortedEntry = [...safeArray].sort((a, b) => {
       {/* MODAL ADICIONAR HIGHLIGHT */}
       {isAddHighlightOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#151c2c] border border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+          <div className={`${themeCard} border w-full max-w-lg rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200`}>
+            <div className={`flex justify-between items-center border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-3`}>
               <div>
-                <h3 className="font-bold text-white text-base md:text-sm">Adicionar Atleta</h3>
-                <p className="text-[10px] md:text-xs text-slate-400 mt-0.5 truncate max-w-[250px]">{isAddHighlightOpen.matchName}</p>
+                <h3 className="font-bold text-base md:text-sm">Adicionar Atleta</h3>
+                <p className={`text-[10px] md:text-xs ${themeTextMuted} mt-0.5 truncate max-w-[250px]`}>{isAddHighlightOpen.matchName}</p>
               </div>
-              <button onClick={() => setIsAddHighlightOpen(null)} className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-full"><X className="w-4 h-4" /></button>
+              <button onClick={() => setIsAddHighlightOpen(null)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} text-slate-400 hover:text-white rounded-full`}><X className="w-4 h-4" /></button>
             </div>
 
             <form onSubmit={handleAddHighlightSubmit} className="space-y-4 text-sm md:text-xs">
               <div>
                 <div className="flex justify-between items-center mb-1.5">
-                  <label className="text-slate-400 font-bold">Procurar na Base de Dados</label>
-                  <button type="button" onClick={() => openNewPlayerModalForMatch(isAddHighlightOpen.matchName)} className="text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/20 flex items-center gap-1 font-bold text-[10px] md:text-xs">
+                  <label className={`${themeTextMuted} font-bold`}>Procurar na Base de Dados</label>
+                  <button type="button" onClick={() => openNewPlayerModalForMatch(isAddHighlightOpen.matchName)} className="text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/20 flex items-center gap-1 font-bold text-[10px] md:text-xs">
                     <UserPlus className="w-3 h-3" /> Novo Atleta
                   </button>
                 </div>
                 <CustomSelect
                   options={players.map(p => ({ value: p.id, label: `${p.name} (${p.position})`, image: p.photo }))}
                   value={newHighlightData.playerId} onChange={val => setNewHighlightData({ ...newHighlightData, playerId: val })}
-                  placeholder="Pesquisar atleta..." searchable={true}
+                  placeholder="Pesquisar atleta..." searchable={true} isDarkMode={isDarkMode}
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 font-bold mb-1.5">Avaliação</label>
+                <label className={`block ${themeTextMuted} font-bold mb-1.5`}>Avaliação</label>
                 <textarea 
                   rows={4} required placeholder="Análise individual do atleta..."
                   value={newHighlightData.notes} onChange={e => setNewHighlightData({ ...newHighlightData, notes: e.target.value })}
-                  className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-slate-200 font-sans focus:outline-none focus:border-blue-500 resize-none shadow-inner"
+                  className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-blue-500 font-sans resize-none shadow-inner ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'}`}
                 />
               </div>
 
-              <div className="flex gap-3 pt-4 border-t border-slate-800 mt-4">
-                <button type="button" onClick={() => setIsAddHighlightOpen(null)} className="flex-1 px-4 py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl">Cancelar</button>
+              <div className={`flex gap-3 pt-4 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} mt-4`}>
+                <button type="button" onClick={() => setIsAddHighlightOpen(null)} className={`flex-1 px-4 py-2.5 ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} font-bold rounded-xl`}>Cancelar</button>
                 <button type="submit" className="flex-1 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl">Adicionar Destaque</button>
               </div>
             </form>
@@ -1726,61 +1870,62 @@ const sortedEntry = [...safeArray].sort((a, b) => {
       {/* MODAL PRÉ-JOGO */}
       {isRegisterOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#151c2c] border border-slate-800 w-full max-w-xl rounded-2xl shadow-2xl p-5 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
-            <div className="flex justify-between items-center mb-5 border-b border-slate-800 pb-4">
+          <div className={`${themeCard} border w-full max-w-xl rounded-2xl shadow-2xl p-5 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]`}>
+            <div className={`flex justify-between items-center mb-5 border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-4`}>
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-blue-600/20 border border-blue-500/30 text-blue-400 rounded-xl"><Trophy className="w-5 h-5" /></div>
+                <div className="p-2.5 bg-blue-600/20 border border-blue-500/30 text-blue-500 rounded-xl"><Trophy className="w-5 h-5" /></div>
                 <div>
-                  <h2 className="text-base md:text-lg font-bold text-white">Agendar Novo Jogo</h2>
-                  <p className="text-[10px] md:text-xs text-slate-400 mt-0.5">Criar partida na agenda</p>
+                  <h2 className="text-base md:text-lg font-bold">Agendar Novo Jogo</h2>
+                  <p className={`text-[10px] md:text-xs ${themeTextMuted} mt-0.5`}>Criar partida na agenda</p>
                 </div>
               </div>
-              <button onClick={() => setIsRegisterOpen(false)} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+              <button onClick={() => setIsRegisterOpen(false)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-full text-slate-400 hover:text-white`}><X className="w-5 h-5" /></button>
             </div>
 
             <form onSubmit={handlePreGameSubmit} className="space-y-4 text-xs md:text-sm">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-slate-400 font-bold mb-1.5">Equipa Casa</label>
-                  <CustomSelect options={teams.map(t => ({ value: t.id, label: t.name, image: t.logo }))} value={preGameData.homeTeamId} onChange={val => setPreGameData({ ...preGameData, homeTeamId: val })} placeholder="Procurar..." searchable={true} />
+                  <label className={`block ${themeTextMuted} font-bold mb-1.5`}>Equipa Casa</label>
+                  <CustomSelect options={teams.map(t => ({ value: t.id, label: t.name, image: t.logo }))} value={preGameData.homeTeamId} onChange={val => setPreGameData({ ...preGameData, homeTeamId: val })} placeholder="Procurar..." searchable={true} isDarkMode={isDarkMode} />
                 </div>
                 <div>
-                  <label className="block text-slate-400 font-bold mb-1.5">Equipa Visitante</label>
-                  <CustomSelect options={teams.map(t => ({ value: t.id, label: t.name, image: t.logo }))} value={preGameData.awayTeamId} onChange={val => setPreGameData({ ...preGameData, awayTeamId: val })} placeholder="Procurar..." searchable={true} />
+                  <label className={`block ${themeTextMuted} font-bold mb-1.5`}>Equipa Visitante</label>
+                  <CustomSelect options={teams.map(t => ({ value: t.id, label: t.name, image: t.logo }))} value={preGameData.awayTeamId} onChange={val => setPreGameData({ ...preGameData, awayTeamId: val })} placeholder="Procurar..." searchable={true} isDarkMode={isDarkMode} />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-slate-400 font-bold mb-1.5">Data do Jogo</label>
-                  <input type="date" required value={preGameData.gameDate} onChange={e => setPreGameData({ ...preGameData, gameDate: e.target.value })} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-blue-500" />
+                  <label className={`block ${themeTextMuted} font-bold mb-1.5`}>Data do Jogo</label>
+                  <input type="date" required value={preGameData.gameDate} onChange={e => setPreGameData({ ...preGameData, gameDate: e.target.value })} className={`w-full border rounded-xl p-3 focus:outline-none focus:border-blue-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'}`} />
                 </div>
                 <div>
-                  <label className="block text-slate-400 font-bold mb-1.5">Tipo de Observação</label>
-                  <CustomSelect options={[{ value: '🏟️ Live', label: 'Live', icon: '🏟️' }, { value: '💻 Stream', label: 'Stream', icon: '💻' }]} value={preGameData.type} onChange={val => setPreGameData({ ...preGameData, type: val })} placeholder="Selecionar..." />
+                  <label className={`block ${themeTextMuted} font-bold mb-1.5`}>Tipo de Observação</label>
+                  <CustomSelect options={[{ value: '🏟️ Live', label: 'Live', icon: '🏟️' }, { value: '💻 Stream', label: 'Stream', icon: '💻' }]} value={preGameData.type} onChange={val => setPreGameData({ ...preGameData, type: val })} placeholder="Selecionar..." isDarkMode={isDarkMode} />
                 </div>
               </div>
 
               <div>
-                <label className="block text-slate-400 font-bold mb-1.5 flex items-center justify-between">
+                <label className={`block ${themeTextMuted} font-bold mb-1.5 flex items-center justify-between`}>
                   <span>Scouts Observadores</span>
-                  <span className="text-[9px] bg-slate-800 text-slate-500 px-2 py-0.5 rounded font-normal">Auto-preenchido</span>
+                  <span className={`text-[9px] ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} px-2 py-0.5 rounded font-normal`}>Auto-preenchido</span>
                 </label>
                 <CustomMultiSelect 
                   options={displayScouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
                   selectedIds={preGameData.scoutIds} 
                   onChange={(ids: string[]) => setPreGameData({ ...preGameData, scoutIds: ids })} 
                   placeholder="Selecionar Scouts..." 
+                  isDarkMode={isDarkMode}
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 font-bold mb-1.5">Competição / Liga</label>
-                <CustomSelect options={competitions.map(c => ({ value: c.id, label: c.name }))} value={preGameData.competitionId} onChange={val => setPreGameData({ ...preGameData, competitionId: val })} placeholder="Procurar Competição..." searchable={true} />
+                <label className={`block ${themeTextMuted} font-bold mb-1.5`}>Competição / Liga</label>
+                <CustomSelect options={competitions.map(c => ({ value: c.id, label: c.name }))} value={preGameData.competitionId} onChange={val => setPreGameData({ ...preGameData, competitionId: val })} placeholder="Procurar Competição..." searchable={true} isDarkMode={isDarkMode} />
               </div>
 
-              <div className="flex gap-3 pt-4 border-t border-slate-800 mt-6">
-                <button type="button" onClick={() => setIsRegisterOpen(false)} className="flex-1 px-4 py-3 bg-slate-800 text-slate-300 font-bold rounded-xl">Cancelar</button>
+              <div className={`flex gap-3 pt-4 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} mt-6`}>
+                <button type="button" onClick={() => setIsRegisterOpen(false)} className={`flex-1 px-4 py-3 ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} font-bold rounded-xl`}>Cancelar</button>
                 <button type="submit" disabled={submittingPre} className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
                   {submittingPre ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Agendar Jogo'}
                 </button>
@@ -1790,32 +1935,32 @@ const sortedEntry = [...safeArray].sort((a, b) => {
         </div>
       )}
 
-      {/* MINI-MODAL: CRIAR NOVO ATLETA */}
+{/* MINI-MODAL: CRIAR NOVO ATLETA */}
       {isNewPlayerOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
-          <div className="bg-[#151c2c] border border-slate-800 w-full max-w-md rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-white text-base md:text-sm flex items-center gap-2">
-                <UserPlus className="w-4 h-4 text-emerald-400" /> Criar Atleta
+          <div className={`${themeCard} border w-full max-w-md rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95`}>
+            <div className={`flex justify-between items-center border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-3`}>
+              <h3 className="font-bold text-base md:text-sm flex items-center gap-2">
+                <UserPlus className="w-4 h-4 text-emerald-500" /> Criar Atleta
               </h3>
-              <button onClick={() => setIsNewPlayerOpen(false)} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
+              <button onClick={() => setIsNewPlayerOpen(false)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-full text-slate-400 hover:text-white`}><X className="w-4 h-4" /></button>
             </div>
 
             <form onSubmit={handleCreateNewPlayer} className="space-y-4 text-xs md:text-sm">
               <div>
-                <label className="block text-slate-400 mb-1.5 font-bold">Nome Completo</label>
-                <input type="text" required value={newPlayerData.name} onChange={e => setNewPlayerData({ ...newPlayerData, name: e.target.value })} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-slate-200 focus:outline-none focus:border-emerald-500" />
+                <label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Nome Completo</label>
+                <input type="text" required value={newPlayerData.name} onChange={e => setNewPlayerData({ ...newPlayerData, name: e.target.value })} className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-emerald-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'}`} />
               </div>
               <div>
-                <label className="block text-slate-400 mb-1.5 font-bold">Clube Atual (Filtrado pelo Jogo)</label>
-                <CustomSelect options={(availableMatchTeams.length > 0 ? availableMatchTeams : teams).map(t => ({ value: t.id, label: t.name, image: t.logo }))} value={newPlayerData.clubId} onChange={val => setNewPlayerData({ ...newPlayerData, clubId: val })} placeholder="Selecionar Clube..." searchable={true} />
+                <label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Clube Atual</label>
+                <CustomSelect options={(availableMatchTeams.length > 0 ? availableMatchTeams : teams).map(t => ({ value: t.id, label: t.name, image: t.logo }))} value={newPlayerData.clubId} onChange={val => setNewPlayerData({ ...newPlayerData, clubId: val })} placeholder="Selecionar Clube..." searchable={true} isDarkMode={isDarkMode} />
               </div>
               <div>
-                <label className="block text-slate-400 mb-1.5 font-bold">Posição Principal</label>
-                <CustomSelect options={POSITIONS_OPTIONS.map(pos => ({ value: pos, label: pos }))} value={newPlayerData.position} onChange={val => setNewPlayerData({ ...newPlayerData, position: val })} placeholder="Selecionar..." searchable={true} />
+                <label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Posição Principal</label>
+                <CustomSelect options={POSITIONS_OPTIONS.map(pos => ({ value: pos, label: pos }))} value={newPlayerData.position} onChange={val => setNewPlayerData({ ...newPlayerData, position: val })} placeholder="Selecionar..." searchable={true} isDarkMode={isDarkMode} />
               </div>
-              <div className="flex gap-3 pt-4 border-t border-slate-800 mt-4">
-                <button type="button" onClick={() => setIsNewPlayerOpen(false)} className="flex-1 py-3 bg-slate-800 text-slate-300 font-bold rounded-xl">Voltar</button>
+              <div className={`flex gap-3 pt-4 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} mt-4`}>
+                <button type="button" onClick={() => setIsNewPlayerOpen(false)} className={`flex-1 py-3 ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} font-bold rounded-xl`}>Voltar</button>
                 <button type="submit" disabled={creatingPlayer} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-900/20">
                   {creatingPlayer ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar Atleta'}
                 </button>
@@ -1858,36 +2003,37 @@ const sortedEntry = [...safeArray].sort((a, b) => {
 
         return (
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-            <div className="bg-[#151c2c] border border-slate-800 w-full max-w-4xl h-[90vh] flex flex-col rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+            <div className={`${themeCard} border w-full max-w-4xl h-[90vh] flex flex-col rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden`}>
               
-              <div className="bg-[#151c2c] border-b border-slate-800 p-5 md:p-8 flex-shrink-0 relative">
-                <button onClick={() => setSelectedPlayer(null)} className="absolute top-4 right-4 md:top-6 md:right-6 p-2 md:p-2.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition z-10"><X className="w-5 h-5" /></button>
+              <div className={`${themeCard} border-b p-5 md:p-8 flex-shrink-0 relative`}>
+                <button onClick={() => setSelectedPlayer(null)} className={`absolute top-4 right-4 md:top-6 md:right-6 p-2 md:p-2.5 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-full text-slate-400 hover:text-white transition z-10`}><X className="w-5 h-5" /></button>
                 <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6 mt-2 md:mt-0">
-                  {selectedPlayer.photo ? <img src={selectedPlayer.photo} alt={selectedPlayer.name} className="w-20 h-20 md:w-28 md:h-28 rounded-2xl object-cover border-4 border-[#0d131f] shadow-xl bg-[#0d131f]" /> : <div className="w-20 h-20 md:w-28 md:h-28 rounded-2xl bg-[#0d131f] border-4 border-slate-800 flex items-center justify-center text-slate-400 font-bold text-3xl shadow-xl">{(selectedPlayer.name || 'J').charAt(0)}</div>}
+                  {selectedPlayer.photo ? <img src={selectedPlayer.photo} alt={selectedPlayer.name} className="w-20 h-20 md:w-28 md:h-28 rounded-2xl object-cover border-4 border-slate-700 shadow-xl" /> : <div className={`w-20 h-20 md:w-28 md:h-28 rounded-2xl ${isDarkMode ? 'bg-[#0d131f] border-slate-800' : 'bg-slate-100 border-slate-300'} border-4 flex items-center justify-center text-slate-400 font-bold text-3xl shadow-xl`}>{(selectedPlayer.name || 'J').charAt(0)}</div>}
                   <div className="text-center md:text-left flex-1">
-                    <h2 className="text-xl md:text-3xl font-black text-white mb-2 tracking-tight">{selectedPlayer.name}</h2>
+                    <h2 className="text-xl md:text-3xl font-black mb-2 tracking-tight">{selectedPlayer.name}</h2>
                     <div className="flex flex-wrap justify-center md:justify-start items-center gap-2 md:gap-3 text-xs md:text-sm">
                       <span className="bg-blue-600 text-white px-3 py-1 md:py-1.5 rounded-lg font-bold shadow-md shadow-blue-900/20">{selectedPlayer.position}</span>
-                      <div className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 md:py-1.5 rounded-lg border border-slate-700 text-slate-200 font-medium">{selectedPlayer.clubLogo ? <img src={selectedPlayer.clubLogo} alt={selectedPlayer.club} className="w-4 h-4 md:w-5 md:h-5 object-contain" /> : <Shield className="w-4 h-4 text-blue-400" />}<span className="truncate max-w-[120px] md:max-w-none">{selectedPlayer.club}</span></div>
-                      <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 md:py-1.5 rounded-lg font-bold uppercase tracking-wide flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> {selectedPlayer.status}</span>
+                      <div className={`flex items-center gap-1.5 ${isDarkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-200 border-slate-300'} px-3 py-1 md:py-1.5 rounded-lg border font-medium`}>{selectedPlayer.clubLogo ? <img src={selectedPlayer.clubLogo} alt={selectedPlayer.club} className="w-4 h-4 md:w-5 md:h-5 object-contain" /> : <Shield className="w-4 h-4 text-blue-500" />}<span className="truncate max-w-[120px] md:max-w-none">{selectedPlayer.club}</span></div>
+                      <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 px-3 py-1 md:py-1.5 rounded-lg font-bold uppercase tracking-wide flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> {selectedPlayer.status}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto bg-[#0d131f] p-4 md:p-8">
+              <div className={`flex-1 overflow-y-auto ${themeBg} p-4 md:p-8`}>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
-                  <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left"><span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Idade</span><span className="text-white text-lg font-black">{selectedPlayer.age !== 'N/D' ? `${selectedPlayer.age} anos` : '--'}</span></div>
-                  <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left"><span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Nacionalidade</span><span className="text-white text-base md:text-lg font-black flex items-center justify-center md:justify-start gap-1.5 truncate w-full"><Flag className="w-3.5 h-3.5 text-slate-400 flex-shrink-0"/> <span className="truncate">{selectedPlayer.nationality || '--'}</span></span></div>
-                  <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left"><span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Pé / Altura</span><span className="text-white text-lg font-black">{selectedPlayer.foot || '-'} • {selectedPlayer.height || '-'}</span></div>
-                  <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left bg-blue-900/10 border-blue-900/30"><span className="text-blue-500/70 text-[10px] uppercase font-bold tracking-widest block mb-1">Jogos Vistos</span><span className="text-blue-400 text-2xl font-black">{getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length}</span></div>
+                  <div className={`${themeCard} p-4 rounded-2xl border flex flex-col justify-center items-center md:items-start text-center md:text-left`}><span className={`${themeTextMuted} text-[10px] uppercase font-bold tracking-widest block mb-1`}>Idade</span><span className="text-lg font-black">{selectedPlayer.age !== 'N/D' ? `${selectedPlayer.age} anos` : '--'}</span></div>
+                  <div className={`${themeCard} p-4 rounded-2xl border flex flex-col justify-center items-center md:items-start text-center md:text-left`}><span className={`${themeTextMuted} text-[10px] uppercase font-bold tracking-widest block mb-1`}>Nacionalidade</span><span className="text-base md:text-lg font-black flex items-center justify-center md:justify-start gap-1.5 truncate w-full"><Flag className="w-3.5 h-3.5 text-slate-400 flex-shrink-0"/> <span className="truncate">{selectedPlayer.nationality || '--'}</span></span></div>
+                  <div className={`${themeCard} p-4 rounded-2xl border flex flex-col justify-center items-center md:items-start text-center md:text-left`}><span className={`${themeTextMuted} text-[10px] uppercase font-bold tracking-widest block mb-1`}>Pé / Altura</span><span className="text-lg font-black">{selectedPlayer.foot || '-'} • {selectedPlayer.height || '-'}</span></div>
+                  <div className={`${themeCard} p-4 rounded-2xl border flex flex-col justify-center items-center md:items-start text-center md:text-left bg-blue-900/10 border-blue-900/30`}><span className="text-blue-500/70 text-[10px] uppercase font-bold tracking-widest block mb-1">Jogos Vistos</span><span className="text-blue-500 text-2xl font-black">{getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length}</span></div>
                 </div>
 
-                <div className="flex gap-4 md:gap-8 border-b border-slate-800 text-xs md:text-sm font-bold mb-6 overflow-x-auto no-scrollbar pb-1">
-                  <button onClick={() => setProfileTab('timeline')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'timeline' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}><FileText className="w-4 h-4" /> Observações & Timeline</button>
-                  <button onClick={() => setProfileTab('algo')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'algo' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}><BarChart3 className="w-4 h-4" /> Looker Studio (Algoritmo)</button>
+                {/* TABS DO PERFIL (RENOMEADO PARA "Ratings") */}
+                <div className={`flex gap-4 md:gap-8 border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} text-xs md:text-sm font-bold mb-6 overflow-x-auto no-scrollbar pb-1`}>
+                  <button onClick={() => setProfileTab('timeline')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'timeline' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-400 hover:text-slate-200'}`}><FileText className="w-4 h-4" /> Observações & Timeline</button>
+                  <button onClick={() => setProfileTab('algo')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'algo' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-400 hover:text-slate-200'}`}><BarChart3 className="w-4 h-4" /> Ratings</button>
                   {canSeeMarket && (
-                    <button onClick={() => setProfileTab('market')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'market' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}>
+                    <button onClick={() => setProfileTab('market')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'market' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
                       <Briefcase className="w-4 h-4" /> Mercado & Decisão
                     </button>
                   )}
@@ -1896,39 +2042,38 @@ const sortedEntry = [...safeArray].sort((a, b) => {
                 {profileTab === 'timeline' && (
                   <div className="space-y-6">
                     {getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length > 0 ? (
-                      <div className="relative border-l-2 border-slate-800/80 ml-3 md:ml-4 space-y-8 pb-4">
+                      <div className={`relative border-l-2 ${isDarkMode ? 'border-slate-800' : 'border-slate-300'} ml-3 md:ml-4 space-y-8 pb-4`}>
                         {getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).map((report, idx) => (
                           <div key={idx} className="relative pl-6 md:pl-8">
-                            <div className="absolute w-4 h-4 bg-blue-500 rounded-full left-[-9px] top-1 border-4 border-[#0d131f] shadow-sm"></div>
-                            <div className="bg-[#151c2c] p-4 md:p-5 rounded-2xl border border-slate-800 shadow-sm">
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-slate-800/60 pb-3">
-                                <div><h4 className="font-bold text-white text-sm md:text-base leading-tight">{report.matchName}</h4><div className="flex items-center gap-2 text-[10px] md:text-xs text-slate-400 mt-1"><span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {report.gameDate}</span></div></div>
+                            <div className="absolute w-4 h-4 bg-blue-500 rounded-full left-[-9px] top-1 border-4 border-slate-900 shadow-sm"></div>
+                            <div className={`${themeCard} p-4 md:p-5 rounded-2xl border shadow-sm`}>
+                              <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-3`}>
+                                <div><h4 className="font-bold text-sm md:text-base leading-tight">{report.matchName}</h4><div className={`flex items-center gap-2 text-[10px] md:text-xs ${themeTextMuted} mt-1`}><span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {report.gameDate}</span></div></div>
                                 <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                                  <div className="bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50 flex items-center gap-1.5 text-[10px] md:text-xs font-medium text-slate-300"><UserCheck className="w-3 h-3 text-blue-400"/> Scout: {report.scout}</div>
-                                  <button onClick={() => navigateToMatch(report.matchId)} className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5">Ir para Jogo <ExternalLink className="w-3 h-3" /></button>
+                                  <div className={`px-3 py-1.5 rounded-lg border flex items-center gap-1.5 text-[10px] md:text-xs font-medium ${isDarkMode ? 'bg-slate-800/50 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-700'}`}><UserCheck className="w-3 h-3 text-blue-500"/> Scout: {report.scout}</div>
+                                  <button onClick={() => navigateToMatch(report.matchId)} className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-500 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5">Ir para Jogo <ExternalLink className="w-3 h-3" /></button>
                                 </div>
                               </div>
-                              <div className="text-xs md:text-sm text-slate-300 leading-relaxed font-sans whitespace-pre-wrap">{report.note}</div>
+                              <div className="text-xs md:text-sm leading-relaxed font-sans whitespace-pre-wrap">{report.note}</div>
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="text-center py-12 bg-[#151c2c] rounded-2xl border border-slate-800 border-dashed"><FileText className="w-8 h-8 mx-auto text-slate-600 mb-3" /><p className="text-sm text-slate-400 font-medium">Ainda não existem observações de jogo para este atleta.</p><p className="text-xs text-slate-500 mt-1">As avaliações individuais feitas no Match Center aparecerão aqui.</p></div>
+                      <div className={`text-center py-12 ${themeCard} rounded-2xl border border-dashed`}><FileText className="w-8 h-8 mx-auto text-slate-400 mb-3" /><p className="text-sm font-medium">Ainda não existem observações de jogo para este atleta.</p><p className={`text-xs ${themeTextMuted} mt-1`}>As avaliações individuais feitas no Match Center aparecerão aqui.</p></div>
                     )}
                   </div>
                 )}
 
-                {/* VISTA DO ALGORITMO */}
+                {/* VISTA RATINGS */}
                 {profileTab === 'algo' && (
                   <div className="space-y-6 animate-in fade-in duration-300">
                     {sortedEntry.length > 0 && playerAlgo ? (
                       <>
-                        {/* SELETOR DE ÉPOCA / CONTEXTO */}
                         {sortedEntry.length > 1 && (
-                          <div className="flex items-center gap-3 bg-[#151c2c] p-3.5 rounded-2xl border border-purple-500/30">
-                            <span className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5 flex-shrink-0">
-                              <Calendar className="w-4 h-4 text-purple-400" /> Contexto / Épocas:
+                          <div className={`flex items-center gap-3 ${themeCard} p-3.5 rounded-2xl border border-purple-500/30`}>
+                            <span className="text-xs font-bold text-purple-500 uppercase tracking-wider flex items-center gap-1.5 flex-shrink-0">
+                              <Calendar className="w-4 h-4 text-purple-500" /> Contexto / Épocas:
                             </span>
                             <div className="flex gap-2 overflow-x-auto no-scrollbar">
                               {sortedEntry.map((item, idx) => (
@@ -1938,7 +2083,7 @@ const sortedEntry = [...safeArray].sort((a, b) => {
                                   className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 ${
                                     selectedSeasonIdx === idx
                                       ? 'bg-purple-600 text-white shadow-md'
-                                      : 'bg-[#0d131f] text-slate-400 hover:text-white border border-slate-800'
+                                      : `${themeInnerCard} border text-slate-400`
                                   }`}
                                 >
                                   {item.tag}
@@ -1948,43 +2093,40 @@ const sortedEntry = [...safeArray].sort((a, b) => {
                           </div>
                         )}
 
-                        {/* 2. REMOÇÃO DA CAIXA OBS. INTRANET (AGORA APENAS 2 COLUNAS) */}
-                        <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800 grid grid-cols-2 gap-3 text-center">
-                          <div className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800/80">
-                            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-0.5">Jogos Disputados</span>
-                            <span className="text-xl font-black text-emerald-400">{playerAlgo['Matches played'] || '--'}</span>
+                        <div className={`${themeCard} p-4 rounded-2xl border grid grid-cols-2 gap-3 text-center`}>
+                          <div className={`${themeInnerCard} p-3.5 rounded-xl border`}>
+                            <span className={`text-[10px] ${themeTextMuted} uppercase font-bold block mb-0.5`}>Jogos Disputados</span>
+                            <span className="text-xl font-black text-emerald-500">{playerAlgo['Matches played'] || '--'}</span>
                           </div>
-                          <div className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800/80">
-                            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-0.5 flex items-center justify-center gap-1">
-                              <Clock className="w-3 h-3 text-blue-400"/> Minutos Jogados
+                          <div className={`${themeInnerCard} p-3.5 rounded-xl border`}>
+                            <span className={`text-[10px] ${themeTextMuted} uppercase font-bold block mb-0.5 flex items-center justify-center gap-1`}>
+                              <Clock className="w-3 h-3 text-blue-500"/> Minutos Jogados
                             </span>
-                            <span className="text-xl font-black text-blue-400">{playerAlgo['Minutes'] ? `${playerAlgo['Minutes']}'` : '--'}</span>
+                            <span className="text-xl font-black text-blue-500">{playerAlgo['Minutes'] ? `${playerAlgo['Minutes']}'` : '--'}</span>
                           </div>
                         </div>
 
-                        {/* CARTÃO DE NOTA BRUTA DO PERFIL TOP 1 */}
-                        <div className="bg-[#151c2c] p-6 rounded-2xl border border-purple-500/30 relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div className={`${themeCard} p-6 rounded-2xl border border-purple-500/30 relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4`}>
                           <div className="space-y-1 text-center md:text-left">
-                            <span className="text-[10px] uppercase font-bold tracking-widest text-purple-400 flex items-center gap-1 justify-center md:justify-start">
+                            <span className="text-[10px] uppercase font-bold tracking-widest text-purple-500 flex items-center gap-1 justify-center md:justify-start">
                               <Cpu className="w-3.5 h-3.5" /> Perfil Principal {activeItem?.tag ? `(${activeItem.tag})` : ''}
                             </span>
-                            <h3 className="text-2xl font-black text-white">{playerAlgo.Top_Profile_1_Name || playerAlgo.Melhor_Perfil || 'N/D'}</h3>
-                            <p className="text-xs text-slate-400">Fase da Carreira: <span className="text-emerald-400 font-bold">{playerAlgo.Fase_Carreira || 'N/D'}</span> • Tier: <span className="text-purple-300 font-bold">{playerAlgo.Scout_Tier || 'N/D'}</span></p>
+                            <h3 className="text-2xl font-black">{playerAlgo.Top_Profile_1_Name || playerAlgo.Melhor_Perfil || 'N/D'}</h3>
+                            <p className={`text-xs ${themeTextMuted}`}>Fase da Carreira: <span className="text-emerald-500 font-bold">{playerAlgo.Fase_Carreira || 'N/D'}</span> • Tier: <span className="text-purple-400 font-bold">{playerAlgo.Scout_Tier || 'N/D'}</span></p>
                           </div>
                           
                           <div className="bg-purple-900/20 px-6 py-3.5 rounded-xl border border-purple-500/30 text-center min-w-[120px]">
                             <span className="block text-[10px] text-purple-400 uppercase font-bold">Nota</span>
-                            <span className="text-3xl font-black text-purple-300">{playerAlgo.Top_Profile_1_Score || playerAlgo.Nota_Melhor_Perfil || '0'}</span>
+                            <span className="text-3xl font-black text-purple-400">{playerAlgo.Top_Profile_1_Score || playerAlgo.Nota_Melhor_Perfil || '0'}</span>
                           </div>
                         </div>
 
-                        {/* PILARES DE DESEMPENHO */}
-                        <div className="bg-[#151c2c] p-6 rounded-2xl border border-slate-800 space-y-4">
+                        <div className={`${themeCard} p-6 rounded-2xl border space-y-4`}>
                           <div className="flex justify-between items-center">
-                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                              <Award className="w-4 h-4 text-blue-400"/> Pilares de Desempenho
+                            <h4 className={`text-xs font-bold ${themeTextMuted} uppercase tracking-wider flex items-center gap-2`}>
+                              <Award className="w-4 h-4 text-blue-500"/> Pilares de Desempenho
                             </h4>
-                            <span className="text-[10px] text-slate-500 font-medium">Clica num pilar para ver os valores brutos e percentis</span>
+                            <span className={`text-[10px] ${themeTextMuted} font-medium`}>Clica num pilar para ver os detalhes</span>
                           </div>
 
                           <div className={`grid grid-cols-2 ${isGK ? 'md:grid-cols-2' : 'md:grid-cols-4'} gap-3`}>
@@ -2000,14 +2142,14 @@ const sortedEntry = [...safeArray].sort((a, b) => {
                                 <button 
                                   key={idx} 
                                   onClick={() => setSelectedPillarDetail(pilar.title)}
-                                  className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800/80 hover:border-blue-500/50 transition text-left group flex flex-col justify-between"
+                                  className={`${themeInnerCard} p-3.5 rounded-xl border hover:border-blue-500/50 transition text-left group flex flex-col justify-between`}
                                 >
-                                  <span className="block text-[10px] text-slate-400 font-bold mb-1 group-hover:text-blue-400 transition">{pilar.title}</span>
+                                  <span className={`block text-[10px] ${themeTextMuted} font-bold mb-1 group-hover:text-blue-500 transition`}>{pilar.title}</span>
                                   <div className="flex items-center justify-between mt-1">
-                                    <span className="text-lg font-bold text-white">{val ? numVal.toFixed(1) : '--'}</span>
+                                    <span className="text-lg font-bold">{val ? numVal.toFixed(1) : '--'}</span>
                                     
                                     {delta !== null && (
-                                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${delta >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${delta >= 0 ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
                                         {delta >= 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)} vs Mediana
                                       </span>
                                     )}
@@ -2017,37 +2159,13 @@ const sortedEntry = [...safeArray].sort((a, b) => {
                             })}
                           </div>
                         </div>
-
-                        {/* PONTOS FORTES / TOP ATRIBUTOS DO JOGADOR */}
-                        <div className="bg-[#151c2c] p-6 rounded-2xl border border-slate-800 space-y-3">
-                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                            <TrendingUp className="w-4 h-4 text-emerald-400"/> Pontos Fortes em Destaque (Top Atributos)
-                          </h4>
-                          <p className="text-xs text-slate-500">Métricas onde o atleta regista maior pontuação de acordo com o algoritmo.</p>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-                            {[
-                              { name: playerAlgo['Top_Attr_1_Name'], val: playerAlgo['Top_Attr_1_Val'] },
-                              { name: playerAlgo['Top_Attr_2_Name'], val: playerAlgo['Top_Attr_2_Val'] },
-                              { name: playerAlgo['Top_Attr_3_Name'], val: playerAlgo['Top_Attr_3_Val'] },
-                              { name: playerAlgo['Top_Attr_4_Name'], val: playerAlgo['Top_Attr_4_Val'] },
-                              { name: playerAlgo['Top_Attr_5_Name'], val: playerAlgo['Top_Attr_5_Val'] },
-                            ].filter(a => a.name).map((attr, idx) => (
-                              <div key={idx} className="bg-[#0d131f] p-3 rounded-xl border border-slate-800/60 flex items-center justify-between">
-                                <span className="text-xs text-slate-300 font-medium">{attr.name}</span>
-                                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/20">
-                                  {attr.val ? parseFloat(attr.val).toFixed(1) : 'N/D'}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
                       </>
                     ) : (
-                      <div className="flex flex-col items-center justify-center py-20 bg-[#151c2c] rounded-2xl border border-slate-800 border-dashed text-center px-4">
-                        <BarChart3 className="w-12 h-12 text-slate-600 mb-4" />
-                        <h3 className="text-lg font-bold text-white mb-2">Sem Dados de Algoritmo Registados</h3>
-                        <p className="text-sm text-slate-400 max-w-md">
-                          Este atleta ainda não foi associado a um ficheiro de métricas. Faça o upload do ficheiro Excel no <strong>Painel Admin</strong> para carregar automaticamente os ratings.
+                      <div className={`flex flex-col items-center justify-center py-20 ${themeCard} rounded-2xl border border-dashed text-center px-4`}>
+                        <BarChart3 className="w-12 h-12 text-slate-400 mb-4" />
+                        <h3 className="text-lg font-bold mb-2">Sem Dados de Ratings Registados</h3>
+                        <p className={`text-sm ${themeTextMuted} max-w-md`}>
+                          Este atleta ainda não foi associado a um ficheiro de métricas. Faça o upload do ficheiro Excel no <strong>Painel Admin</strong> para carregar os ratings.
                         </p>
                       </div>
                     )}
@@ -2055,18 +2173,16 @@ const sortedEntry = [...safeArray].sort((a, b) => {
                 )}
 
                 {profileTab === 'market' && canSeeMarket && (
-                  <div className="bg-[#151c2c] p-6 md:p-8 rounded-2xl border border-blue-500/20 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/5 rounded-full blur-3xl"></div>
-                    
-                    <div className="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
+                  <div className={`${themeCard} p-6 md:p-8 rounded-2xl border border-blue-500/20 relative overflow-hidden`}>
+                    <div className="flex items-center justify-between mb-6 border-b border-slate-700/40 pb-4">
                       <div>
-                        <h3 className="text-sm md:text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                          <Briefcase className="w-5 h-5 text-blue-400" /> Direção Desportiva
+                        <h3 className="text-sm md:text-base font-bold uppercase tracking-wider flex items-center gap-2">
+                          <Briefcase className="w-5 h-5 text-blue-500" /> Direção Desportiva
                         </h3>
-                        <p className="text-xs text-slate-400 mt-1">Informações confidenciais e notas de viabilidade de mercado.</p>
+                        <p className={`text-xs ${themeTextMuted} mt-1`}>Informações confidenciais e notas de viabilidade de mercado.</p>
                       </div>
                       {!canEditMarket && (
-                        <div className="bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-xs font-bold text-slate-400 flex items-center gap-1.5">
+                        <div className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${themeTextMuted} flex items-center gap-1.5`}>
                           <Lock className="w-3 h-3" /> Modo Leitura
                         </div>
                       )}
@@ -2075,25 +2191,18 @@ const sortedEntry = [...safeArray].sort((a, b) => {
                     <div className="space-y-5 relative z-10">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Prioridade de Contratação</label>
-                          <input type="text" disabled={!canEditMarket} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-white focus:outline-none focus:border-blue-500 disabled:opacity-70 text-sm font-medium" placeholder="Ex: Prioridade Máxima (Verão)" defaultValue="Em avaliação" />
+                          <label className={`block text-xs font-bold ${themeTextMuted} uppercase tracking-wider mb-2`}>Prioridade de Contratação</label>
+                          <input type="text" disabled={!canEditMarket} className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-blue-500 text-sm font-medium ${isDarkMode ? 'bg-[#0d131f] border-slate-800' : 'bg-slate-100 border-slate-300'}`} placeholder="Ex: Prioridade Máxima (Verão)" defaultValue="Em avaliação" />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Valor de Mercado / Salário Base</label>
-                          <input type="text" disabled={!canEditMarket} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-emerald-400 focus:outline-none focus:border-blue-500 disabled:opacity-70 text-sm font-bold" placeholder="Ex: 50.000€" defaultValue="N/D" />
+                          <label className={`block text-xs font-bold ${themeTextMuted} uppercase tracking-wider mb-2`}>Valor de Mercado / Salário Base</label>
+                          <input type="text" disabled={!canEditMarket} className={`w-full border rounded-xl p-3.5 text-emerald-500 focus:outline-none focus:border-blue-500 text-sm font-bold ${isDarkMode ? 'bg-[#0d131f] border-slate-800' : 'bg-slate-100 border-slate-300'}`} placeholder="Ex: 50.000€" defaultValue="N/D" />
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Notas Confidenciais / Estado do Negócio</label>
-                        <textarea rows={4} disabled={!canEditMarket} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-70 text-sm resize-none" placeholder="Ex: Contacto inicial estabelecido com o agente. Jogador prefere continuar no estrangeiro." defaultValue="Aguarda avaliação final do treinador antes de prosseguir com contacto formal." />
+                        <label className={`block text-xs font-bold ${themeTextMuted} uppercase tracking-wider mb-2`}>Notas Confidenciais / Estado do Negócio</label>
+                        <textarea rows={4} disabled={!canEditMarket} className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-blue-500 text-sm resize-none ${isDarkMode ? 'bg-[#0d131f] border-slate-800' : 'bg-slate-100 border-slate-300'}`} placeholder="Notas..." defaultValue="Aguarda avaliação final do treinador." />
                       </div>
-                      {canEditMarket && (
-                        <div className="flex justify-end pt-2">
-                          <button className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 text-sm">
-                            Guardar Alterações de Mercado
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -2111,59 +2220,59 @@ const sortedEntry = [...safeArray].sort((a, b) => {
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="bg-[#151c2c] border border-slate-800 w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl shadow-2xl p-5 md:p-6 space-y-6">
+            <div className={`${themeCard} border w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl shadow-2xl p-5 md:p-6 space-y-6`}>
               
-              <div className="flex justify-between items-start border-b border-slate-800/80 pb-4">
+              <div className={`flex justify-between items-start border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-4`}>
                 <div className="flex items-center gap-4">
                   {selectedTeam.logo ? (
                     <img src={selectedTeam.logo} alt={selectedTeam.name} className="w-14 h-14 md:w-16 md:h-16 object-contain p-1.5 bg-slate-900 rounded-xl border border-slate-800 flex-shrink-0" />
                   ) : (
-                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold flex-shrink-0">
-                      <Building2 className="w-7 h-7" />
+                    <div className={`w-14 h-14 md:w-16 md:h-16 rounded-xl ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold flex-shrink-0`}>
+                      <Building2 className="w-7 h-7 text-slate-400" />
                     </div>
                   )}
                   <div>
-                    <h2 className="text-xl md:text-2xl font-bold text-white">{selectedTeam.name}</h2>
-                    <p className="text-xs text-blue-400 font-medium mt-1">
+                    <h2 className="text-xl md:text-2xl font-bold">{selectedTeam.name}</h2>
+                    <p className="text-xs text-blue-500 font-medium mt-1">
                       {selectedTeam.competition && selectedTeam.competition !== 'N/D' ? selectedTeam.competition : ''}
-                      {selectedTeam.competition && selectedTeam.competition !== 'N/D' && selectedTeam.country ? <span className="text-slate-500"> • </span> : ''}
+                      {selectedTeam.competition && selectedTeam.competition !== 'N/D' && selectedTeam.country ? <span className="text-slate-400"> • </span> : ''}
                       {selectedTeam.country && <span className="text-slate-400">{selectedTeam.country}</span>}
                     </p>
                   </div>
                 </div>
-                <button onClick={() => setSelectedTeam(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition">
+                <button onClick={() => setSelectedTeam(null)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-full text-slate-400 hover:text-white transition`}>
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
-                  <span className="text-xs text-slate-500 block mb-1 font-semibold">Jogos Observados</span>
-                  <span className="text-xl font-bold text-emerald-400">{teamMatches.length} Partidas</span>
+                <div className={`${themeInnerCard} p-4 rounded-xl border`}>
+                  <span className={`text-xs ${themeTextMuted} block mb-1 font-semibold`}>Jogos Observados</span>
+                  <span className="text-xl font-bold text-emerald-500">{teamMatches.length} Partidas</span>
                 </div>
-                <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
-                  <span className="text-xs text-slate-500 block mb-1 font-semibold">Estatuto de Observação</span>
-                  <span className="text-xl font-bold text-blue-400">{selectedTeam.status || 'Monitored'}</span>
+                <div className={`${themeInnerCard} p-4 rounded-xl border`}>
+                  <span className={`text-xs ${themeTextMuted} block mb-1 font-semibold`}>Estatuto de Observação</span>
+                  <span className="text-xl font-bold text-blue-500">{selectedTeam.status || 'Monitored'}</span>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Atletas de Interesse na Base de Dados ({teamPlayers.length})</h3>
+                <h3 className={`text-xs md:text-sm font-bold ${themeTextMuted} uppercase tracking-wider mb-3`}>Atletas de Interesse na Base de Dados ({teamPlayers.length})</h3>
                 {teamPlayers.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {teamPlayers.map(p => (
-                      <div key={p.id} className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800 flex items-center justify-between hover:border-slate-700 transition">
+                      <div key={p.id} className={`${themeInnerCard} p-3.5 rounded-xl border flex items-center justify-between`}>
                         <div className="flex items-center gap-3 min-w-0">
                           {p.photo ? (
                             <img src={p.photo} alt={p.name} className="w-10 h-10 rounded-full object-cover border border-slate-700 bg-slate-800 flex-shrink-0" />
                           ) : (
-                            <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-xs flex-shrink-0">
+                            <div className={`w-10 h-10 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold text-xs flex-shrink-0`}>
                               {(p.name || 'J').charAt(0)}
                             </div>
                           )}
                           <div className="min-w-0">
-                            <h4 className="font-bold text-white text-sm truncate">{p.name}</h4>
-                            <p className="text-xs text-blue-400 font-medium mt-0.5 truncate">{p.position}</p>
+                            <h4 className="font-bold text-sm truncate">{p.name}</h4>
+                            <p className="text-xs text-blue-500 font-medium mt-0.5 truncate">{p.position}</p>
                           </div>
                         </div>
                         <button 
@@ -2172,7 +2281,7 @@ const sortedEntry = [...safeArray].sort((a, b) => {
                             setSelectedPlayer(p);
                             setProfileTab('timeline');
                           }}
-                          className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-xs font-bold rounded-lg transition flex-shrink-0 ml-2"
+                          className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-500 border border-blue-500/30 text-xs font-bold rounded-lg transition flex-shrink-0 ml-2"
                         >
                           Ver Perfil
                         </button>
@@ -2180,35 +2289,35 @@ const sortedEntry = [...safeArray].sort((a, b) => {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-xs text-slate-500 bg-[#0d131f] p-4 rounded-xl border border-slate-800 text-center">
+                  <div className={`text-xs ${themeTextMuted} ${themeInnerCard} p-4 rounded-xl border text-center`}>
                     Ainda não existem atletas desta equipa registados na base de dados.
                   </div>
                 )}
               </div>
 
               <div>
-                <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Histórico de Jogos Observados ({teamMatches.length})</h3>
+                <h3 className={`text-xs md:text-sm font-bold ${themeTextMuted} uppercase tracking-wider mb-3`}>Histórico de Jogos Observados ({teamMatches.length})</h3>
                 {teamMatches.length > 0 ? (
                   <div className="space-y-2.5">
                     {teamMatches.map(m => (
-                      <div key={m.id} className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div key={m.id} className={`${themeInnerCard} p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2`}>
                         <div>
-                          <h4 className="font-bold text-white text-sm">{m.matchName}</h4>
-                          <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+                          <h4 className="font-bold text-sm">{m.matchName}</h4>
+                          <div className={`flex items-center gap-2 text-xs ${themeTextMuted} mt-1`}>
                             <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {m.gameDate}</span>
                             <span>•</span>
-                            <span className="text-blue-400 font-medium">{m.competition}</span>
+                            <span className="text-blue-500 font-medium">{m.competition}</span>
                             <span>•</span>
-                            <span className="bg-slate-800 px-1.5 py-0.5 rounded text-[10px] text-slate-300">{m.type}</span>
+                            <span className={`${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} px-1.5 py-0.5 rounded text-[10px]`}>{m.type}</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                          <div className="bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50 text-xs text-slate-300 font-medium flex items-center gap-1.5">
-                            <UserCheck className="w-3.5 h-3.5 text-blue-400"/> Scout: {m.scout}
+                          <div className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 ${isDarkMode ? 'bg-slate-800/60 border-slate-700/50' : 'bg-slate-100 border-slate-300'}`}>
+                            <UserCheck className="w-3.5 h-3.5 text-blue-500"/> Scout: {m.scout}
                           </div>
                           <button 
                             onClick={() => navigateToMatch(m.id)}
-                            className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5"
+                            className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-500 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5"
                           >
                             Ir para Jogo <ExternalLink className="w-3 h-3" />
                           </button>
@@ -2217,7 +2326,7 @@ const sortedEntry = [...safeArray].sort((a, b) => {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-xs text-slate-500 bg-[#0d131f] p-4 rounded-xl border border-slate-800 text-center">
+                  <div className={`text-xs ${themeTextMuted} ${themeInnerCard} p-4 rounded-xl border text-center`}>
                     Ainda não foram registados jogos observados desta equipa no Match Center.
                   </div>
                 )}
@@ -2231,3 +2340,5 @@ const sortedEntry = [...safeArray].sort((a, b) => {
     </main>
   );
 }
+
+
