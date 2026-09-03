@@ -664,7 +664,11 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
         await loadData();
         showToast("Oportunidade registada com sucesso!");
       } else {
-        showToast("Erro ao gravar no Airtable.");
+        // Agora vamos ler o erro que o Airtable nos está a dar
+        const errorData = await res.json();
+        console.error("Detalhe do Erro:", errorData);
+        const errorMessage = errorData.error?.error?.message || "Erro desconhecido";
+        showToast(`Erro Airtable: ${errorMessage}`);
       }
     } catch (err) {
       console.error(err);

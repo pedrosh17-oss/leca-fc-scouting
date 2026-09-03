@@ -96,13 +96,18 @@ export async function POST(request: Request) {
                 },
               },
             ],
+            typecast: true // Força o Airtable a aceitar os dados
           }),
         });
 
-        if (createPlayerRes.ok) {
-          const newPlayerData = await createPlayerRes.json();
-          targetPlayerId = newPlayerData.records[0].id;
+        if (!createPlayerRes.ok) {
+            const errP = await createPlayerRes.json();
+            console.error("Erro ao criar Player:", errP);
+            return NextResponse.json({ error: errP }, { status: createPlayerRes.status });
         }
+
+        const newPlayerData = await createPlayerRes.json();
+        targetPlayerId = newPlayerData.records[0].id;
       }
     }
 
@@ -127,13 +132,13 @@ export async function POST(request: Request) {
       'Notas Diretor Desportivo': notesDD || '',
     };
 
+    if (offerDate) {
+      marketFields['Data da Oferta'] = offerDate;
+    }
+
     if (vetoDate) {
       marketFields['Data do Veto'] = vetoDate;
     }
-
-    if (offerDate) {
-        marketFields['Data da Oferta'] = offerDate;
-      }
 
     if (targetPlayerId) {
       marketFields['Jogador'] = [targetPlayerId];
@@ -144,11 +149,13 @@ export async function POST(request: Request) {
       headers,
       body: JSON.stringify({
         records: [{ fields: marketFields }],
+        typecast: true // Força o Airtable a formatar tudo o que faltar
       }),
     });
 
     if (!marketRes.ok) {
       const err = await marketRes.json();
+      console.error("Erro ao criar Oportunidade de Mercado:", err);
       return NextResponse.json({ error: err }, { status: marketRes.status });
     }
 
