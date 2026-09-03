@@ -412,8 +412,8 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
   const [selectedPlayer, setSelectedPlayer] = useState<any | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<any | null>(null);
   const [selectedScout, setSelectedScout] = useState<any | null>(null);
-  const [profileTab, setProfileTab] = useState<'timeline' | 'algo' | 'market'>('timeline');
-
+  const [profileTab, setProfileTab] = useState<'timeline' | 'algo' | 'market' | 'reports'>('timeline');
+  
   // ALGORITMO
   const [selectedPillarDetail, setSelectedPillarDetail] = useState<string | null>(null);
   const [algorithmData, setAlgorithmData] = useState<Record<string, { tag: string; row: any }[]>>({});
