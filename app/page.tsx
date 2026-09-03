@@ -6,7 +6,7 @@ import {
   UserCheck, X, Activity, FileText, BarChart3, Briefcase, Flag, Building2,
   Zap, Crosshair, BrainCircuit, ExternalLink, Globe, Loader2, UserPlus, LogOut, CheckCircle2,
   Menu, LayoutDashboard, ArrowRight, Star, Edit3, Lock, Sliders, Settings, CheckSquare, Target,
-  Upload, Award, TrendingUp, Cpu, Info, Clock, Sun, Moon, Filter
+  Upload, Award, TrendingUp, Cpu, Info, Clock, Sun, Moon, Filter, Sparkles
 } from 'lucide-react';
 
 import * as XLSX from 'xlsx';
