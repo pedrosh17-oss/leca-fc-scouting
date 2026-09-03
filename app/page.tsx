@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 
 import * as XLSX from 'xlsx';
+import localforage from 'localforage'; // 🆕 NOVO: Base de dados gigante e veloz para o browser!
 
 const TACTICS_OPTIONS = [
   '1-4-3-3', '1-4-4-2', '1-4-2-4', '1-4-1-3-2', '1-4-1-4-1', '1-4-2-3-1', 
@@ -312,21 +313,18 @@ export default function Home() {
   const [selectedScout, setSelectedScout] = useState<any | null>(null);
   const [profileTab, setProfileTab] = useState<'timeline' | 'algo' | 'market'>('timeline');
 
-  // ESTADOS DO ALGORITMO E SELETOR DE ÉPOCAS
   const [selectedPillarDetail, setSelectedPillarDetail] = useState<string | null>(null);
   const [algorithmData, setAlgorithmData] = useState<Record<string, { tag: string; row: any }[]>>({});
   const [selectedSeasonIdx, setSelectedSeasonIdx] = useState<number>(0);
   const [uploadingExcel, setUploadingExcel] = useState(false);
 
-  // GESTÃO DE MERCADOS ADMIN
   const [scoutMarketAssignments, setScoutMarketAssignments] = useState<Record<string, string[]>>({});
   const [selectedAdminScoutId, setSelectedAdminScoutId] = useState<string>('');
-  const [adminMarkets, setAdminMarkets] = useState<string[]>([
-    'Liga 3 (Portugal)', 'Campeonato de Portugal', 'Liga Revelação (Sub-23)', 'S19 Nacional', 'América do Sul (Prospeção)'
-  ]);
+  
+  // 4. Limpeza da lista de admin markets
+  const [adminMarkets, setAdminMarkets] = useState<string[]>([]);
   const [newMarketInput, setNewMarketInput] = useState('');
 
-  // FORMS
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [submittingPre, setSubmittingPre] = useState(false);
   const [preGameData, setPreGameData] = useState({ homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutIds: [] as string[], type: '' });
@@ -399,10 +397,13 @@ export default function Home() {
     if (savedAssignments) {
       try { setScoutMarketAssignments(JSON.parse(savedAssignments)); } catch (e) {}
     }
-    const savedAlgo = localStorage.getItem('leca_algo_data');
-    if (savedAlgo) {
-      try { setAlgorithmData(JSON.parse(savedAlgo)); } catch (e) {}
-    }
+    
+    // 1. CARREGAMENTO DOS DADOS COM LOCALFORAGE
+    localforage.getItem('leca_algo_data').then((savedAlgo) => {
+      if (savedAlgo) {
+        setAlgorithmData(savedAlgo as Record<string, any>);
+      }
+    }).catch(e => console.error("Erro no localforage: ", e));
   }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -450,8 +451,10 @@ export default function Home() {
         });
 
         setAlgorithmData(newAlgoData);
-        localStorage.setItem('leca_algo_data', JSON.stringify(newAlgoData));
-        showToast(`Ficheiro processado! ${rawData.length} registos inseridos no histórico.`);
+        // GRAVAÇÃO COM LOCALFORAGE
+        localforage.setItem('leca_algo_data', newAlgoData).then(() => {
+          showToast(`Ficheiro processado! ${rawData.length} registos inseridos no histórico e guardados no browser.`);
+        });
       } catch (error) {
         showToast("Erro ao processar o ficheiro Excel.");
       } finally {
@@ -1111,7 +1114,7 @@ export default function Home() {
                             <h4 className="font-bold text-blue-400 uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">Editar Detalhes do Jogo</h4>
                             
                             <div className="mb-4">
-                              <label className="block text-slate-400 mb-1.5 font-bold">Scouts Observadores</label>
+                              <label className="block text-slate-400 mb-1.5 font-bold">Scouts Observadores (Podes adicionar ou remover)</label>
                               <CustomMultiSelect 
                                 options={displayScouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
                                 selectedIds={reportData.scoutIds} 
@@ -1342,7 +1345,7 @@ export default function Home() {
                     <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} className="hidden" disabled={uploadingExcel} />
                   </label>
                   <span className="text-[11px] text-slate-500">
-                    Processamento 100% interno (sem escrita no Airtable).
+                    Processamento 100% interno (via LocalForage - Persistente).
                   </span>
                 </div>
               </div>
@@ -1523,7 +1526,7 @@ export default function Home() {
         );
       })()}
 
-      {/* MODAL PARA EXIBIR PARÂMETROS DO PILAR SELECIONADO COM VALOR BRUTO + PERCENTIL (% PCT) */}
+      {/* MODAL PARA EXIBIR PARÂMETROS DO PILAR SELECIONADO COM PESOS E PERCENTIL LIMPO */}
       {selectedPillarDetail && selectedPlayer && (() => {
         const playerCleanName = extractPlayerBaseName(selectedPlayer.name);
         const isGK = (selectedPlayer.position || '').toLowerCase().includes('goalkeeper') || (selectedPlayer.position || '').toLowerCase().includes('gk');
@@ -1568,7 +1571,7 @@ export default function Home() {
                         <div className="flex items-center gap-3 text-[11px] text-slate-400">
                           <span>Bruto: <strong className="text-white font-bold">{rawVal !== undefined && rawVal !== null ? parseFloat(rawVal).toFixed(2) : 'N/D'}</strong></span>
                           <span>•</span>
-                          <span>Percentil: <strong className="text-emerald-400 font-bold">{pctVal !== undefined && pctVal !== null ? `${parseFloat(pctVal).toFixed(1)}%` : 'N/D'}</strong></span>
+                          <span>Percentil: <strong className="text-emerald-400 font-bold">{pctVal !== undefined && pctVal !== null ? `${parseFloat(pctVal).toFixed(1)} Pct` : 'N/D'}</strong></span>
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
@@ -1916,7 +1919,7 @@ export default function Home() {
                             <span className="text-xl font-black text-blue-400">{playerAlgo['Minutes'] ? `${playerAlgo['Minutes']}'` : '--'}</span>
                           </div>
                           <div className="bg-[#0d131f] p-3 rounded-xl border border-slate-800/80">
-                            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-0.5">Obs. Leça FC</span>
+                            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-0.5">Obs. Intranet</span>
                             <span className="text-xl font-black text-purple-400">{getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length}</span>
                           </div>
                         </div>
