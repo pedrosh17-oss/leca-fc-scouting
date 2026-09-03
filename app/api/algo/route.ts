@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { put, list } from '@vercel/blob';
+import { list } from '@vercel/blob';
+import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 
 export const runtime = 'nodejs';
 
@@ -15,22 +16,30 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
-  try {
-    const formData = await req.formData();
-    const file = formData.get('file') as File;
-    
-    if (!file) {
-      return NextResponse.json({ error: 'Ficheiro em falta' }, { status: 400 });
-    }
+export async function POST(request: Request): Promise<NextResponse> {
+  const body = (await request.json()) as HandleUploadBody;
 
-    const blob = await put('algo-data.xlsx', file, {
-      access: 'public',
-      addRandomSuffix: false,
+  try {
+    const jsonResponse = await handleUpload({
+      body,
+      request,
+      onBeforeGenerateToken: async () => {
+        return {
+          allowedContentTypes: [
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-excel',
+            'application/octet-stream',
+          ],
+        };
+      },
+      onUploadCompleted: async () => {},
     });
 
-    return NextResponse.json({ success: true, url: blob.url });
+    return NextResponse.json(jsonResponse);
   } catch (error) {
-    return NextResponse.json({ error: 'Erro no Blob' }, { status: 500 });
+    return NextResponse.json(
+      { error: (error as Error).message },
+      { status: 400 },
+    );
   }
 }

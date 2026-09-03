@@ -416,10 +416,10 @@ export default function Home() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-  
+
     setUploadingExcel(true);
     const reader = new FileReader();
-  
+
     reader.onload = async (evt) => {
       try {
         const bstr = evt.target?.result;
@@ -427,34 +427,35 @@ export default function Home() {
         const wsName = wb.SheetNames[0];
         const ws = wb.Sheets[wsName];
         const rawData: any[] = XLSX.utils.sheet_to_json(ws);
-  
+
         const newAlgoData: Record<string, { tag: string; row: any }[]> = {};
-  
+
         rawData.forEach((row) => {
           const rawPlayerStr = row.Player || row.Player_ID || '';
           const cleanName = extractPlayerBaseName(rawPlayerStr);
           const tag = extractContextTag(row);
-  
+
           if (cleanName) {
             const isGK = (row.Position || row.Setor_Avaliacao || '').toLowerCase().includes('gk');
             const key = `${cleanName}${isGK ? '_gk' : '_field'}`;
-  
+
             if (!newAlgoData[key]) newAlgoData[key] = [];
             newAlgoData[key].push({ tag, row });
-  
+
             if (!newAlgoData[cleanName]) newAlgoData[cleanName] = [];
             newAlgoData[cleanName].push({ tag, row });
           }
         });
-  
+
         setAlgorithmData(newAlgoData);
         await localforage.setItem('leca_algo_data', newAlgoData);
-  
+
+        // Enviar o ficheiro .xlsx diretamente via FormData
         const formData = new FormData();
         formData.append('file', file);
-  
+
         const res = await fetch('/api/algo', { method: 'POST', body: formData });
-  
+
         if (res.ok) {
           showToast(`Ficheiro sincronizado na Cloud! Telemóveis atualizados.`);
         } else {
@@ -466,7 +467,7 @@ export default function Home() {
         setUploadingExcel(false);
       }
     };
-  
+
     reader.readAsBinaryString(file);
   };
 
