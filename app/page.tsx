@@ -59,21 +59,18 @@ function cleanPlayerName(str: string): string {
     .trim();
 }
 
-// LÓGICA CORRIGIDA: Extrai a tag de época com base na coluna Player_ID ou Competição
 function extractContextTag(row: any): string {
   const idStr = row.Player_ID || '';
   const match = idStr.match(/\(([^)]+)\)/);
   
   if (match) {
-    const content = match[1]; // Ex: "Leça - CP_25_26" ou "Atlético Malveira"
+    const content = match[1];
     if (content.includes('-')) {
-      // Separa pelo traço e devolve a segunda parte (ex: "CP_25_26")
       const parts = content.split('-');
       return parts[parts.length - 1].trim(); 
     }
   }
   
-  // Fallback: se não tiver época no nome, usa a competição atual
   if (row.Competição && row.Competição !== 'N/D') {
     return row.Competição;
   }
@@ -81,7 +78,6 @@ function extractContextTag(row: any): string {
   return 'Atual';
 }
 
-// Estrutura de Métricas e Pesos por Pilar
 const PILLAR_METRICS_MAP: Record<string, { label: string; statKey: string; weight: string }[]> = {
   'GK Defesa': [
     { label: 'GK xG Prevented / 90', statKey: 'GK xG Prevented per 90', weight: '40%' },
@@ -407,7 +403,6 @@ export default function Home() {
     }
   }, []);
 
-  // UPLOAD DO EXCEL - AGRUPAMENTO MULTI-ÉPOCA
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -423,7 +418,7 @@ export default function Home() {
         const ws = wb.Sheets[wsName];
         const rawData: any[] = XLSX.utils.sheet_to_json(ws);
 
-        const newAlgoData: Record<string, { tag: string; row: any }[]> = { ...algorithmData };
+        const newAlgoData: Record<string, { tag: string; row: any }[]> = {}; // Limpa memória anterior
 
         rawData.forEach((row) => {
           const rawPlayerStr = row.Player || row.Player_ID || '';
@@ -442,7 +437,6 @@ export default function Home() {
               newAlgoData[key].push({ tag, row });
             }
 
-            // Fallback genérico para a pesquisa normal
             if (!newAlgoData[cleanName]) newAlgoData[cleanName] = [];
             const fallbackIdx = newAlgoData[cleanName].findIndex(item => item.tag === tag);
             if (fallbackIdx >= 0) {
@@ -1314,7 +1308,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 5: PAINEL ADMIN (UPLOAD DE EXCEL) */}
+        {/* TAB 5: PAINEL ADMIN */}
         {activeTab === 'admin' && isAdmin && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div className="bg-[#151c2c] border border-purple-500/30 p-6 md:p-8 rounded-2xl shadow-xl relative overflow-hidden space-y-8">
@@ -1326,7 +1320,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* UPLOAD DO FICHEIRO XLSX DE ALGORITMO */}
               <div className="bg-[#0d131f] p-5 md:p-6 rounded-xl border border-purple-500/40 space-y-4 relative overflow-hidden">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-purple-400 uppercase tracking-wider flex items-center gap-2">
@@ -1352,7 +1345,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* ESPAÇO RESERVADO PARA TAREFAS FUTURAS */}
               <div className="bg-[#0d131f] p-5 md:p-6 rounded-xl border border-slate-800 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
@@ -1360,10 +1352,9 @@ export default function Home() {
                   </h3>
                   <span className="text-[10px] bg-purple-500/20 text-purple-300 font-bold px-2 py-0.5 rounded border border-purple-500/30">Módulo em Estruturação</span>
                 </div>
-                <p className="text-xs text-slate-400">Espaço reservado para envio de diretivas de observação individuais (ex: &quot;Acompanhar atleta X no próximo fim de semana&quot;).</p>
+                <p className="text-xs text-slate-400">Espaço reservado para envio de diretivas de observação individuais.</p>
               </div>
 
-              {/* GESTÃO DE MERCADOS PRIORITÁRIOS DA SAD */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-slate-800">
                 <div className="space-y-4">
                   <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
@@ -1461,7 +1452,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* MERCADOS ATRIBUÍDOS COM EDIÇÃO DIRETA NO CARTÃO */}
               <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -1537,8 +1527,17 @@ export default function Home() {
         const isGK = (selectedPlayer.position || '').toLowerCase().includes('goalkeeper') || (selectedPlayer.position || '').toLowerCase().includes('gk');
         const posKey = isGK ? '_gk' : '_field';
         
+        // Assegurar que vamos buscar a época correta dentro da lista ordenada!
         const rawEntry = algorithmData[`${playerCleanName}${posKey}`] || algorithmData[playerCleanName] || [];
-        const activeItem = rawEntry[selectedSeasonIdx] || rawEntry[0];
+        
+        // ORDENAÇÃO: Forçamos que a tag 'Atual' fique sempre na posição 0
+        const sortedEntry = [...rawEntry].sort((a, b) => {
+          if (a.tag === 'Atual') return -1;
+          if (b.tag === 'Atual') return 1;
+          return b.tag.localeCompare(a.tag);
+        });
+
+        const activeItem = sortedEntry[selectedSeasonIdx] || sortedEntry[0];
         const playerAlgo = activeItem?.row;
         
         const metrics = PILLAR_METRICS_MAP[selectedPillarDetail] || [];
@@ -1775,6 +1774,131 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* MODAL PERFIL EQUIPA */}
+      {selectedTeam && (() => {
+        const teamPlayers = players.filter(p => (p.club || '').toLowerCase() === (selectedTeam.name || '').toLowerCase());
+        const teamMatches = matches.filter(m => (m.matchName || '').toLowerCase().includes((selectedTeam.name || '').toLowerCase()));
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="bg-[#151c2c] border border-slate-800 w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl shadow-2xl p-5 md:p-6 space-y-6">
+              
+              <div className="flex justify-between items-start border-b border-slate-800/80 pb-4">
+                <div className="flex items-center gap-4">
+                  {selectedTeam.logo ? (
+                    <img src={selectedTeam.logo} alt={selectedTeam.name} className="w-14 h-14 md:w-16 md:h-16 object-contain p-1.5 bg-slate-900 rounded-xl border border-slate-800 flex-shrink-0" />
+                  ) : (
+                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold flex-shrink-0">
+                      <Building2 className="w-7 h-7" />
+                    </div>
+                  )}
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-bold text-white">{selectedTeam.name}</h2>
+                    <p className="text-xs text-blue-400 font-medium mt-1">
+                      {selectedTeam.competition && selectedTeam.competition !== 'N/D' ? selectedTeam.competition : ''}
+                      {selectedTeam.competition && selectedTeam.competition !== 'N/D' && selectedTeam.country ? <span className="text-slate-500"> • </span> : ''}
+                      {selectedTeam.country && <span className="text-slate-400">{selectedTeam.country}</span>}
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setSelectedTeam(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
+                  <span className="text-xs text-slate-500 block mb-1 font-semibold">Jogos Observados</span>
+                  <span className="text-xl font-bold text-emerald-400">{teamMatches.length} Partidas</span>
+                </div>
+                <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
+                  <span className="text-xs text-slate-500 block mb-1 font-semibold">Estatuto de Observação</span>
+                  <span className="text-xl font-bold text-blue-400">{selectedTeam.status || 'Monitored'}</span>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Atletas de Interesse na Base de Dados ({teamPlayers.length})</h3>
+                {teamPlayers.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {teamPlayers.map(p => (
+                      <div key={p.id} className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800 flex items-center justify-between hover:border-slate-700 transition">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {p.photo ? (
+                            <img src={p.photo} alt={p.name} className="w-10 h-10 rounded-full object-cover border border-slate-700 bg-slate-800 flex-shrink-0" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-xs flex-shrink-0">
+                              {(p.name || 'J').charAt(0)}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <h4 className="font-bold text-white text-sm truncate">{p.name}</h4>
+                            <p className="text-xs text-blue-400 font-medium mt-0.5 truncate">{p.position}</p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            setSelectedTeam(null);
+                            setSelectedPlayer(p);
+                            setProfileTab('timeline');
+                          }}
+                          className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-xs font-bold rounded-lg transition flex-shrink-0 ml-2"
+                        >
+                          Ver Perfil
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-500 bg-[#0d131f] p-4 rounded-xl border border-slate-800 text-center">
+                    Ainda não existem atletas desta equipa registados na base de dados.
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Histórico de Jogos Observados ({teamMatches.length})</h3>
+                {teamMatches.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {teamMatches.map(m => (
+                      <div key={m.id} className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <h4 className="font-bold text-white text-sm">{m.matchName}</h4>
+                          <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {m.gameDate}</span>
+                            <span>•</span>
+                            <span className="text-blue-400 font-medium">{m.competition}</span>
+                            <span>•</span>
+                            <span className="bg-slate-800 px-1.5 py-0.5 rounded text-[10px] text-slate-300">{m.type}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                          <div className="bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50 text-xs text-slate-300 font-medium flex items-center gap-1.5">
+                            <UserCheck className="w-3.5 h-3.5 text-blue-400"/> Scout: {m.scout}
+                          </div>
+                          <button 
+                            onClick={() => navigateToMatch(m.id)}
+                            className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5"
+                          >
+                            Ir para Jogo <ExternalLink className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-500 bg-[#0d131f] p-4 rounded-xl border border-slate-800 text-center">
+                    Ainda não foram registados jogos observados desta equipa no Match Center.
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
+
     </main>
   );
 }
