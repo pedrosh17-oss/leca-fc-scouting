@@ -2113,10 +2113,21 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                   </div>
                 </div>
               </div>
-
               <div className={`flex-1 overflow-y-auto ${themeBg} p-4 md:p-8`}>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
-                  <div className={`${themeCard} p-4 rounded-2xl border flex flex-col justify-center items-center md:items-start text-center md:text-left`}><span className={`${themeTextMuted} text-[10px] uppercase font-bold tracking-widest block mb-1`}>Idade</span><span className="text-lg font-black">{selectedPlayer.age !== 'N/D' ? `${selectedPlayer.age} anos` : '--'}</span></div>
+                  <div className={`${themeCard} p-4 rounded-2xl border flex flex-col justify-center items-center md:items-start text-center md:text-left`}>
+                    <span className={`${themeTextMuted} text-[10px] uppercase font-bold tracking-widest block mb-1`}>Idade</span>
+                    <div className="flex flex-col items-center md:items-start">
+                      <span className="text-lg font-black leading-tight">
+                        {selectedPlayer.age !== 'N/D' ? `${selectedPlayer.age} anos` : '--'}
+                      </span>
+                      {(selectedPlayer.birthDate || selectedPlayer.birthYear) && (
+                        <span className={`text-[11px] ${themeTextMuted} font-semibold mt-0.5`}>
+                          {selectedPlayer.birthDate || `(${selectedPlayer.birthYear})`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                   <div className={`${themeCard} p-4 rounded-2xl border flex flex-col justify-center items-center md:items-start text-center md:text-left`}><span className={`${themeTextMuted} text-[10px] uppercase font-bold tracking-widest block mb-1`}>Nacionalidade</span><span className="text-base md:text-lg font-black flex items-center justify-center md:justify-start gap-1.5 truncate w-full"><Flag className="w-3.5 h-3.5 text-slate-400 flex-shrink-0"/> <span className="truncate">{selectedPlayer.nationality || '--'}</span></span></div>
                   <div className={`${themeCard} p-4 rounded-2xl border flex flex-col justify-center items-center md:items-start text-center md:text-left`}><span className={`${themeTextMuted} text-[10px] uppercase font-bold tracking-widest block mb-1`}>Pé / Altura</span><span className="text-lg font-black">{selectedPlayer.foot || '-'} • {selectedPlayer.height || '-'}</span></div>
                   <div className={`${themeCard} p-4 rounded-2xl border flex flex-col justify-center items-center md:items-start text-center md:text-left bg-blue-900/10 border-blue-900/30`}><span className="text-blue-500/70 text-[10px] uppercase font-bold tracking-widest block mb-1">Jogos Vistos</span><span className="text-blue-500 text-2xl font-black">{getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length}</span></div>
