@@ -479,7 +479,8 @@ export default function Home() {
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'players' | 'teams' | 'matches' | 'scouts' | 'admin' | 'stats'>('dashboard');
   const [comparePlayerKeyA, setComparePlayerKeyA] = useState<string>('');
-const [comparePlayerKeyB, setComparePlayerKeyB] = useState<string>('');
+  const [comparePlayerKeyB, setComparePlayerKeyB] = useState<string>('');
+  const [comparePlayerKeyC, setComparePlayerKeyC] = useState<string>(''); // ADICIONA ESTA LINHA
   const [players, setPlayers] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [matches, setMatches] = useState<any[]>([]);
@@ -1178,32 +1179,36 @@ const uniqueBirthYears: string[] = Array.from(new Set(
 
               items.forEach((item, seasonIdx) => {
                 const row = item.row || {};
-                const pName = row.Player || row.Player_ID || key;
-                const pTeam = row.Team_Calc || row.Team || row.Equipa || '';
+                const rawName = row.Player || row.Player_ID || key;
+                const cleanPlayerName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
+                const teamName = row.Team_Calc || row.Team || '';
                 const seasonTag = item.tag || extractContextTag(row) || 'Atual';
-                
-                // Limpar nome para remover ID em parentesis e ter o visual clean
-                const cleanName = pName.replace(/\s*\([^)]*\)/g, '').trim();
 
-                let label = cleanName;
-                if (pTeam && seasonTag) {
-                  label += ` (${pTeam} - ${seasonTag})`;
-                } else if (pTeam) {
-                  label += ` (${pTeam})`;
+                const dbMatch = players.find(p => {
+                  const dbClean = extractPlayerBaseName(p.name);
+                  const dbLastName = dbClean.split(/\s+/).pop() || '';
+                  const rowLastName = extractPlayerBaseName(cleanPlayerName).split(/\s+/).pop() || '';
+                  return dbLastName && rowLastName && dbLastName === rowLastName && dbLastName.length > 2;
+                });
+
+                const displayName = (dbMatch && dbMatch.name.length > cleanPlayerName.length)
+                  ? `${cleanPlayerName} / ${dbMatch.name}`
+                  : cleanPlayerName;
+
+                let label = displayName;
+                if (teamName && seasonTag) {
+                  label += ` (${teamName} - ${seasonTag})`;
+                } else if (teamName) {
+                  label += ` (${teamName})`;
                 } else if (seasonTag) {
                   label += ` (${seasonTag})`;
                 }
 
                 const optionValue = `${key}___${seasonIdx}`;
-                // Chave para evitar duplicados exatos (Mesmo jogador, mesma época, mesmo clube)
-                const dedupKey = `${cleanName}_${pTeam}_${seasonTag}`.toLowerCase();
+                const dedupKey = `${extractPlayerBaseName(cleanPlayerName)}_${extractPlayerBaseName(teamName)}_${seasonTag}`.toLowerCase();
 
                 if (!optionsMap.has(dedupKey)) {
-                  optionsMap.set(dedupKey, {
-                    value: optionValue,
-                    label: label,
-                    row: row
-                  });
+                  optionsMap.set(dedupKey, { value: optionValue, label: label, row: row });
                 }
               });
             });
@@ -1224,11 +1229,15 @@ const uniqueBirthYears: string[] = Array.from(new Set(
 
           const rowA = getRowFromOptionValue(comparePlayerKeyA);
           const rowB = getRowFromOptionValue(comparePlayerKeyB);
+          const rowC = getRowFromOptionValue(comparePlayerKeyC);
 
           const nameA = rowA?.Player || rowA?.Player_ID || 'Jogador A';
           const nameB = rowB?.Player || rowB?.Player_ID || 'Jogador B';
+          const nameC = rowC?.Player || rowC?.Player_ID || 'Jogador C';
+          
           const cleanNameA = nameA.replace(/\s*\([^)]*\)/g, '').trim();
           const cleanNameB = nameB.replace(/\s*\([^)]*\)/g, '').trim();
+          const cleanNameC = nameC.replace(/\s*\([^)]*\)/g, '').trim();
 
           const pillars = [
             { axis: 'Defesa', key: 'Defesa' },
@@ -1245,71 +1254,125 @@ const uniqueBirthYears: string[] = Array.from(new Set(
             axis: p.axis,
             A: rowA && rowA[p.key] ? parseFloat(rowA[p.key]) || 0 : 0,
             B: rowB && rowB[p.key] ? parseFloat(rowB[p.key]) || 0 : 0,
+            C: rowC && rowC[p.key] ? parseFloat(rowC[p.key]) || 0 : 0,
           }));
 
           return (
             <div className="space-y-6 animate-in fade-in duration-300">
               <div className={`${themeCard} p-6 rounded-2xl border border-blue-500/30 shadow-xl space-y-6`}>
-                <div className="flex items-center justify-between border-b border-slate-700/40 pb-4">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-b border-slate-700/40 pb-4 gap-4">
                   <div>
                     <h2 className="text-base md:text-lg font-bold uppercase tracking-wider flex items-center gap-2">
                       <BarChart3 className="w-5 h-5 text-blue-500" /> Comparador Head-to-Head (H2H)
                     </h2>
                     <p className={`text-xs ${themeTextMuted} mt-0.5`}>
-                      Seleciona dois atletas da base de dados para comparar os 8 pilares de desempenho em radar.
+                      Compara até 3 atletas nos 8 pilares de desempenho principais.
                     </p>
                   </div>
-                  <span className="text-xs bg-blue-500/20 text-blue-400 font-bold px-3 py-1 rounded-xl border border-blue-500/30">
+                  <span className="text-xs bg-blue-500/20 text-blue-400 font-bold px-3 py-1.5 rounded-xl border border-blue-500/30">
                     {algoOptions.length} Opções Disponíveis
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* SELETOR A */}
                   <div>
                     <label className="block text-xs font-bold text-blue-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Jogador A (Azul)
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Jogador A
                     </label>
-                    <CustomSelect 
-                      options={algoOptions}
-                      value={comparePlayerKeyA}
-                      onChange={setComparePlayerKeyA}
-                      placeholder="Pesquisar Jogador A..."
-                      searchable={true}
-                      isDarkMode={isDarkMode}
-                    />
+                    <CustomSelect options={algoOptions} value={comparePlayerKeyA} onChange={setComparePlayerKeyA} placeholder="Procurar A..." searchable={true} isDarkMode={isDarkMode} />
                   </div>
-
+                  {/* SELETOR B */}
                   <div>
                     <label className="block text-xs font-bold text-pink-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-pink-500" /> Jogador B (Rosa)
+                      <span className="w-2.5 h-2.5 rounded-full bg-pink-500" /> Jogador B
                     </label>
-                    <CustomSelect 
-                      options={algoOptions}
-                      value={comparePlayerKeyB}
-                      onChange={setComparePlayerKeyB}
-                      placeholder="Pesquisar Jogador B..."
-                      searchable={true}
-                      isDarkMode={isDarkMode}
-                    />
+                    <CustomSelect options={algoOptions} value={comparePlayerKeyB} onChange={setComparePlayerKeyB} placeholder="Procurar B..." searchable={true} isDarkMode={isDarkMode} />
+                  </div>
+                  {/* SELETOR C */}
+                  <div>
+                    <label className="block text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Jogador C
+                    </label>
+                    <CustomSelect options={algoOptions} value={comparePlayerKeyC} onChange={setComparePlayerKeyC} placeholder="Procurar C..." searchable={true} isDarkMode={isDarkMode} />
                   </div>
                 </div>
 
-                {comparePlayerKeyA || comparePlayerKeyB ? (
-                  <div className={`${themeInnerCard} p-6 rounded-2xl border flex flex-col items-center justify-center min-h-[380px]`}>
-                    <RadarChart 
-                      playerAName={cleanNameA}
-                      playerBName={cleanNameB}
-                      colorA="#3b82f6"
-                      colorB="#ec4899"
-                      data={chartData}
-                    />
+                {/* GRÁFICO RADAR */}
+                {comparePlayerKeyA || comparePlayerKeyB || comparePlayerKeyC ? (
+                  <div className="pt-4">
+                    <div className={`${themeInnerCard} p-6 rounded-2xl border flex flex-col items-center justify-center min-h-[380px]`}>
+                      <RadarChart 
+                        playerAName={rowA ? cleanNameA : ''}
+                        playerBName={rowB ? cleanNameB : undefined}
+                        playerCName={rowC ? cleanNameC : undefined}
+                        colorA="#3b82f6" colorB="#ec4899" colorC="#10b981"
+                        data={chartData}
+                      />
+                    </div>
+
+                    {/* GRELHA DE DADOS NUMÉRICOS (CARDS POR PILAR) */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+                      {pillars.map((p) => {
+                        const valA = rowA && rowA[p.key] ? parseFloat(rowA[p.key]) : null;
+                        const valB = rowB && rowB[p.key] ? parseFloat(rowB[p.key]) : null;
+                        const valC = rowC && rowC[p.key] ? parseFloat(rowC[p.key]) : null;
+                        
+                        // Descobrir qual é o valor mais alto para o destacar
+                        const maxVal = Math.max(...[valA, valB, valC].filter(v => v !== null) as number[]);
+
+                        return (
+                          <div key={p.key} className={`${themeInnerCard} p-3.5 rounded-xl border flex flex-col space-y-2.5 hover:border-slate-600 transition`}>
+                            <span className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider text-center border-b border-slate-700/50 pb-2">
+                              {p.axis}
+                            </span>
+                            
+                            {rowA && (
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5 overflow-hidden pr-2">
+                                  <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"/>
+                                  <span className="text-[10px] md:text-xs truncate text-slate-300">{cleanNameA.split(' ')[0]}</span>
+                                </div>
+                                <span className={`text-xs ${valA === maxVal && valA !== null ? 'font-black text-white bg-slate-800 px-1.5 rounded' : 'font-semibold text-slate-400'}`}>
+                                  {valA?.toFixed(1) || '-'}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {rowB && (
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5 overflow-hidden pr-2">
+                                  <span className="w-2 h-2 rounded-full bg-pink-500 flex-shrink-0"/>
+                                  <span className="text-[10px] md:text-xs truncate text-slate-300">{cleanNameB.split(' ')[0]}</span>
+                                </div>
+                                <span className={`text-xs ${valB === maxVal && valB !== null ? 'font-black text-white bg-slate-800 px-1.5 rounded' : 'font-semibold text-slate-400'}`}>
+                                  {valB?.toFixed(1) || '-'}
+                                </span>
+                              </div>
+                            )}
+
+                            {rowC && (
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5 overflow-hidden pr-2">
+                                  <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"/>
+                                  <span className="text-[10px] md:text-xs truncate text-slate-300">{cleanNameC.split(' ')[0]}</span>
+                                </div>
+                                <span className={`text-xs ${valC === maxVal && valC !== null ? 'font-black text-white bg-slate-800 px-1.5 rounded' : 'font-semibold text-slate-400'}`}>
+                                  {valC?.toFixed(1) || '-'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 ) : (
                   <div className={`text-center py-16 ${themeInnerCard} rounded-2xl border border-dashed text-xs md:text-sm space-y-2`}>
                     <Info className="w-8 h-8 text-slate-500 mx-auto" />
                     <p className="font-bold text-slate-300">Nenhum atleta selecionado</p>
                     <p className={`${themeTextMuted} text-xs`}>
-                      Escolha pelo menos um atleta nos seletores acima para gerar o gráfico radar.
+                      Escolha pelo menos um atleta nos seletores acima para gerar o gráfico radar e a grelha de pontuações.
                     </p>
                   </div>
                 )}
