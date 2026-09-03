@@ -88,86 +88,68 @@ function extractContextTag(row: any): string {
 function getPlayerAlgoEntries(player: any, algorithmData: Record<string, any[]>) {
   if (!player || !algorithmData) return [];
 
-  const cleanTargetName = extractPlayerBaseName(player.name);
-  const targetParts = cleanTargetName.split(/\s+/).filter(Boolean);
-  const targetFirst = targetParts[0] || '';
-  const targetLast = targetParts.length > 1 ? targetParts[targetParts.length - 1] : '';
-  
-  const targetClub = extractPlayerBaseName(player.club || '');
-  const targetAge = Number(player.age);
-  const targetNat = extractPlayerBaseName(player.nationality || '');
+  const cleanName = extractPlayerBaseName(player.name);
+  const cleanClub = extractPlayerBaseName(player.club || '');
+  const playerAge = Number(player.age);
+  const isGK = (player.position || '').toLowerCase().includes('goalkeeper') || (player.position || '').toLowerCase().includes('gk');
+  const posSuffix = isGK ? '_gk' : '_field';
 
-  let bestMatch: any[] = [];
-  let bestScore = -1;
+  // 1. TENTATIVA DIRETA: Chave Única de Nome + Clube
+  const exactKey = `${cleanName}_${cleanClub}${posSuffix}`;
+  if (algorithmData[exactKey] && algorithmData[exactKey].length > 0) {
+    return algorithmData[exactKey];
+  }
 
-  // Avalia todas as chaves carregadas do Excel
-  for (const entries of Object.values(algorithmData)) {
-    if (!entries || entries.length === 0) continue;
-    
-    // Verifica o primeiro registo de cada chave para comparar os metadados
-    const row = entries[0].row;
-    const rowName = extractPlayerBaseName(row.Player || '');
-    if (!rowName) continue;
+  // 2. TENTATIVA POR NOME BASE (Com validação estrita de Clube e Idade)
+  const genericKey = `${cleanName}${posSuffix}`;
+  const genericEntries = algorithmData[genericKey] || algorithmData[cleanName];
 
-    const rowParts = rowName.split(/\s+/).filter(Boolean);
-    const rowFirst = rowParts[0] || '';
-    const rowLast = rowParts.length > 1 ? rowParts[rowParts.length - 1] : '';
-    
-    const rowClub = extractPlayerBaseName(row.Team_Calc || row.Team || '');
-    const rowAge = Number(row.Age);
-    const rowNat = extractPlayerBaseName(row.Nationality || '');
+  if (genericEntries && genericEntries.length > 0) {
+    const validEntries = genericEntries.filter(e => {
+      const rowClub = extractPlayerBaseName(e.row?.Team_Calc || e.row?.Team || '');
+      const rowAge = Number(e.row?.Age);
 
-    let score = 0;
-    let isNameMatch = false;
-    let isAbbrev = false;
+      const isClubMatch = !cleanClub || !rowClub || rowClub.includes(cleanClub) || cleanClub.includes(rowClub);
+      const isAgeMatch = isNaN(playerAge) || isNaN(rowAge) || Math.abs(playerAge - rowAge) <= 1;
 
-    // 1. COMPATIBILIDADE DE NOME
-    if (cleanTargetName === rowName || cleanTargetName.includes(rowName) || rowName.includes(cleanTargetName)) {
-        isNameMatch = true;
-        score += 10; // Match Exato ou Substring (Muito Forte)
-    } else if (targetFirst && targetLast && rowFirst && rowLast) {
-        // Verifica padrão "C. Niang" <-> "Cheikh Niang"
-        const matchFirstInitial = rowFirst[0] === targetFirst[0] && rowLast === targetLast;
-        // Verifica padrão "Cheikh N." <-> "Cheikh Niang"
-        const matchLastInitial = rowFirst === targetFirst && rowLast[0] === targetLast[0];
-        
-        if (matchFirstInitial || matchLastInitial) {
-            isNameMatch = true;
-            isAbbrev = true;
-            score += 5; // Match por Abreviatura (Moderado)
+      return isClubMatch && isAgeMatch;
+    });
+
+    if (validEntries.length > 0) return validEntries;
+  }
+
+  // 3. TENTATIVA DE ABREVIATURA ESTRITA (ex: "C. Niang" <-> "Cheikh Niang")
+  const nameParts = cleanName.split(/\s+/).filter(Boolean);
+  const lastName = nameParts[nameParts.length - 1];
+  const firstInitial = nameParts[0]?.[0];
+
+  if (lastName && lastName.length > 2) {
+    for (const [key, entries] of Object.entries(algorithmData)) {
+      if (!entries || entries.length === 0) continue;
+      
+      const row = entries[0].row;
+      const rawRowPlayer = extractPlayerBaseName(row.Player || '');
+      const rowParts = rawRowPlayer.split(/\s+/).filter(Boolean);
+      const rowLastName = rowParts[rowParts.length - 1];
+      const rowFirstInitial = rowParts[0]?.[0];
+
+      // Exige que o APELIDO e a INICIAL sejam rigorosamente IGUAIS
+      if (rowLastName === lastName && rowFirstInitial === firstInitial) {
+        const rowClub = extractPlayerBaseName(row.Team_Calc || row.Team || '');
+        const rowAge = Number(row.Age);
+
+        const isClubMatch = cleanClub && rowClub && (cleanClub.includes(rowClub) || rowClub.includes(cleanClub));
+        const isAgeMatch = !isNaN(playerAge) && !isNaN(rowAge) && Math.abs(playerAge - rowAge) <= 1;
+
+        // Só aceita se o Clube OU a Idade confirmarem a identidade
+        if (isClubMatch || isAgeMatch) {
+          return entries;
         }
-    }
-
-    // Se o nome não bate certo de nenhuma forma, salta para o próximo
-    if (!isNameMatch) continue;
-
-    // 2. METADADOS DE DESEMPATE E CONFIRMAÇÃO
-    let contextMatches = 0;
-
-    if (targetClub && rowClub && (targetClub.includes(rowClub) || rowClub.includes(targetClub))) {
-        score += 3;
-        contextMatches++;
-    }
-    if (!isNaN(targetAge) && !isNaN(rowAge) && Math.abs(targetAge - rowAge) <= 1) {
-        score += 2;
-        contextMatches++;
-    }
-    if (targetNat && rowNat && (targetNat.includes(rowNat) || rowNat.includes(targetNat))) {
-        score += 2;
-        contextMatches++;
-    }
-
-    // SEGURANÇA: Se for uma abreviatura, exigimos pelo menos 1 metadado igual (Clube, Idade ou Nacionalidade)
-    if (isAbbrev && contextMatches === 0) continue;
-
-    // Guarda o perfil que obtiver a maior pontuação global
-    if (score > bestScore) {
-        bestScore = score;
-        bestMatch = entries;
+      }
     }
   }
 
-  return bestMatch;
+  return [];
 }
 
 const PILLAR_METRICS_MAP: Record<string, { label: string; statKey: string; pctKey: string; weight: string }[]> = {
