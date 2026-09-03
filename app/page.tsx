@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Users, Trophy, Shield, Search, Plus, ChevronDown, ChevronUp, Calendar, 
   UserCheck, X, Activity, FileText, BarChart3, Briefcase, Flag, Building2,
@@ -511,11 +511,66 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
   const [selectedScout, setSelectedScout] = useState<any | null>(null);
   const [profileTab, setProfileTab] = useState<'timeline' | 'algo' | 'market' | 'reports'>('timeline');
 
+  
+
   // ALGORITMO
   const [selectedPillarDetail, setSelectedPillarDetail] = useState<string | null>(null);
   const [algorithmData, setAlgorithmData] = useState<Record<string, { tag: string; row: any }[]>>({});
   const [selectedSeasonIdx, setSelectedSeasonIdx] = useState<number>(0);
   const [uploadingExcel, setUploadingExcel] = useState(false);
+
+  // OTIMIZAÇÃO DE PERFORMANCE (Processa os 8.000+ atletas uma só vez em memória)
+  const algoOptions = useMemo(() => {
+    if (!algorithmData) return [];
+
+    const lastNameMap = new Map<string, string>();
+    players.forEach(p => {
+      const dbClean = extractPlayerBaseName(p.name);
+      const dbLastName = dbClean.split(/\s+/).pop() || '';
+      if (dbLastName && dbLastName.length > 2 && !lastNameMap.has(dbLastName)) {
+        lastNameMap.set(dbLastName, p.name);
+      }
+    });
+
+    const optionsMap = new Map<string, { value: string; label: string; row: any }>();
+
+    Object.entries(algorithmData).forEach(([key, items]) => {
+      if (!items || key.endsWith('_gk')) return;
+
+      items.forEach((item, seasonIdx) => {
+        const row = item.row || {};
+        const rawName = row.Player || row.Player_ID || key;
+        const cleanPlayerName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
+        const teamName = row.Team_Calc || row.Team || '';
+        const seasonTag = item.tag || extractContextTag(row) || 'Atual';
+
+        const rowLastName = extractPlayerBaseName(cleanPlayerName).split(/\s+/).pop() || '';
+        const dbMatchName = lastNameMap.get(rowLastName);
+
+        const displayName = (dbMatchName && dbMatchName.length > cleanPlayerName.length)
+          ? `${cleanPlayerName} / ${dbMatchName}`
+          : cleanPlayerName;
+
+        let label = displayName;
+        if (teamName && seasonTag) {
+          label += ` (${teamName} - ${seasonTag})`;
+        } else if (teamName) {
+          label += ` (${teamName})`;
+        } else if (seasonTag) {
+          label += ` (${seasonTag})`;
+        }
+
+        const optionValue = `${key}___${seasonIdx}`;
+        const dedupKey = `${extractPlayerBaseName(cleanPlayerName)}_${extractPlayerBaseName(teamName)}_${seasonTag}`.toLowerCase();
+
+        if (!optionsMap.has(dedupKey)) {
+          optionsMap.set(dedupKey, { value: optionValue, label, row });
+        }
+      });
+    });
+
+    return Array.from(optionsMap.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [algorithmData, players]);
 
   // MERCADOS ADMIN
   const [scoutMarketAssignments, setScoutMarketAssignments] = useState<Record<string, string[]>>({});
@@ -1169,53 +1224,8 @@ const uniqueBirthYears: string[] = Array.from(new Set(
 
       <div className="max-w-6xl mx-auto px-4 md:px-0 mt-4 md:mt-0">
 
-        {/* TAB STATS & COMPARADOR H2H */}
-        {activeTab === 'stats' && (() => {
-          const algoOptions = (() => {
-            const optionsMap = new Map<string, { value: string; label: string; row: any }>();
-
-            Object.entries(algorithmData).forEach(([key, items]) => {
-              if (!items || key.endsWith('_gk')) return;
-
-              items.forEach((item, seasonIdx) => {
-                const row = item.row || {};
-                const rawName = row.Player || row.Player_ID || key;
-                const cleanPlayerName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
-                const teamName = row.Team_Calc || row.Team || '';
-                const seasonTag = item.tag || extractContextTag(row) || 'Atual';
-
-                const dbMatch = players.find(p => {
-                  const dbClean = extractPlayerBaseName(p.name);
-                  const dbLastName = dbClean.split(/\s+/).pop() || '';
-                  const rowLastName = extractPlayerBaseName(cleanPlayerName).split(/\s+/).pop() || '';
-                  return dbLastName && rowLastName && dbLastName === rowLastName && dbLastName.length > 2;
-                });
-
-                const displayName = (dbMatch && dbMatch.name.length > cleanPlayerName.length)
-                  ? `${cleanPlayerName} / ${dbMatch.name}`
-                  : cleanPlayerName;
-
-                let label = displayName;
-                if (teamName && seasonTag) {
-                  label += ` (${teamName} - ${seasonTag})`;
-                } else if (teamName) {
-                  label += ` (${teamName})`;
-                } else if (seasonTag) {
-                  label += ` (${seasonTag})`;
-                }
-
-                const optionValue = `${key}___${seasonIdx}`;
-                const dedupKey = `${extractPlayerBaseName(cleanPlayerName)}_${extractPlayerBaseName(teamName)}_${seasonTag}`.toLowerCase();
-
-                if (!optionsMap.has(dedupKey)) {
-                  optionsMap.set(dedupKey, { value: optionValue, label: label, row: row });
-                }
-              });
-            });
-
-            return Array.from(optionsMap.values()).sort((a, b) => a.label.localeCompare(b.label));
-          })();
-
+       {/* TAB STATS & COMPARADOR H2H */}
+       {activeTab === 'stats' && (() => {
           const getRowFromOptionValue = (optValue: string) => {
             if (!optValue) return null;
             const parts = optValue.split('___');
