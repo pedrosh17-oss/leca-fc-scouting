@@ -718,13 +718,16 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
     ...POSITIONS_OPTIONS.map(pos => ({ value: pos, label: pos }))
   ];
   
-  const uniqueBirthYears = Array.from(new Set(
-    players.map(p => {
+  // Anos de Nascimento únicos com filtro estrito de tipo
+const uniqueBirthYears: string[] = Array.from(new Set(
+  players
+    .map(p => {
       if (p.birthYear) return String(p.birthYear);
       if (p.age && p.age !== 'N/D') return String(2026 - Number(p.age));
       return null;
-    }).filter(Boolean)
-  )).sort((a, b) => Number(b) - Number(a));
+    })
+    .filter((y): y is string => Boolean(y))
+)).sort((a, b) => Number(b) - Number(a));
   
   const filteredPlayers = players.filter(p => {
     const query = search.toLowerCase();
@@ -1106,13 +1109,13 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
               />
 
               {/* Ano de Nascimento */}
-              <CustomSelect 
-                options={[{ value: 'All', label: 'Todos os Anos Nasc.' }, ...uniqueBirthYears.map(y => ({ value: y, label: `Ano: ${y}` }))]} 
-                value={birthYearFilter} 
-                onChange={setBirthYearFilter} 
-                placeholder="Ano de Nascimento"
-                isDarkMode={isDarkMode}
-              />
+<CustomSelect 
+  options={[{ value: 'All', label: 'Todos os Anos Nasc.' }, ...uniqueBirthYears.map(y => ({ value: String(y), label: `Ano: ${y}` }))]} 
+  value={birthYearFilter} 
+  onChange={setBirthYearFilter} 
+  placeholder="Ano de Nascimento"
+  isDarkMode={isDarkMode}
+/>
             </div>
 
             {/* FAIXA ETÁRIA (DESLIZANTE) */}
