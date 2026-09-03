@@ -450,19 +450,30 @@ export default function Home() {
         setAlgorithmData(newAlgoData);
         await localforage.setItem('leca_algo_data', newAlgoData);
 
-        // Enviar o ficheiro .xlsx diretamente via FormData
-        const formData = new FormData();
-        formData.append('file', file);
+        // 1. Obter token de autorização (pedido leve de 1 KB)
+        const tokenRes = await fetch('/api/algo', { method: 'POST' });
+        const { token } = await tokenRes.json();
 
-        const res = await fetch('/api/algo', { method: 'POST', body: formData });
+        if (!token) throw new Error('Sem token Vercel');
 
-        if (res.ok) {
-          showToast(`Ficheiro sincronizado na Cloud! Telemóveis atualizados.`);
+        // 2. Enviar o ficheiro de 7 MB DIRETO do Browser para a Cloud Vercel Blob (bypassa o limite de 4.5MB)
+        const uploadRes = await fetch('https://blob.vercel-storage.com/algo-data.xlsx', {
+          method: 'PUT',
+          headers: {
+            'authorization': `Bearer ${token}`,
+            'x-api-version': '7',
+          },
+          body: file,
+        });
+
+        if (uploadRes.ok) {
+          showToast(`Ficheiro de 7MB sincronizado na Cloud! Telemóveis atualizados.`);
         } else {
           showToast(`Guardado no PC local.`);
         }
       } catch (error) {
-        showToast("Erro ao processar ficheiro Excel.");
+        console.error(error);
+        showToast("Erro ao sincronizar com a Cloud.");
       } finally {
         setUploadingExcel(false);
       }
@@ -470,6 +481,7 @@ export default function Home() {
 
     reader.readAsBinaryString(file);
   };
+
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
