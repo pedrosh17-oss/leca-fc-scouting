@@ -55,6 +55,40 @@ function getUserTitle(name: string): string {
   return 'Scout do Clube';
 }
 
+function renderFormattedMarkdown(text: string) {
+  if (!text) return null;
+  const lines = text.split('\n');
+  
+  return (
+    <div className="space-y-1 text-slate-200">
+      {lines.map((line, idx) => {
+        // Linhas de separação (---)
+        if (line.trim() === '---') {
+          return <hr key={idx} className="my-4 border-slate-700/60" />;
+        }
+
+        // Subtituição do marcador **texto** por <strong>
+        const parts = line.split(/(\*\*.*?\*\*)/g);
+        
+        return (
+          <p key={idx} className={line.trim() === '' ? 'h-2' : 'min-h-[1.25rem] leading-relaxed'}>
+            {parts.map((part, pIdx) => {
+              if (part.startsWith('**') && part.endsWith('**')) {
+                return (
+                  <strong key={pIdx} className="font-bold text-white">
+                    {part.slice(2, -2)}
+                  </strong>
+                );
+              }
+              return part;
+            })}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 function extractPlayerBaseName(str: string): string {
   if (!str) return '';
   return str
