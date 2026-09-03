@@ -477,7 +477,9 @@ export default function Home() {
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'players' | 'teams' | 'matches' | 'scouts' | 'admin'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'players' | 'teams' | 'matches' | 'scouts' | 'admin' | 'stats'>('dashboard');
+  const [comparePlayerKeyA, setComparePlayerKeyA] = useState<string>('');
+const [comparePlayerKeyB, setComparePlayerKeyB] = useState<string>('');
   const [players, setPlayers] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [matches, setMatches] = useState<any[]>([]);
@@ -1143,6 +1145,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
           </div>
 
           {renderMobileMenuButton('dashboard', <LayoutDashboard className="w-5 h-5"/>, 'Início / Painel')}
+          {renderMobileMenuButton('stats', <BarChart3 className="w-5 h-5"/>, 'Stats & Comparador')}
           {renderMobileMenuButton('players', <Users className="w-5 h-5"/>, 'Base de Jogadores', players.length)}
           {renderMobileMenuButton('teams', <Building2 className="w-5 h-5"/>, 'Equipas', teams.length)}
           {renderMobileMenuButton('matches', <Trophy className="w-5 h-5"/>, 'Match Center', matches.length)}
@@ -1154,6 +1157,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
       {/* DESKTOP TABS */}
       <div className="hidden md:flex max-w-6xl mx-auto mb-6 flex-wrap gap-3 px-6 md:px-0">
         <button onClick={() => setActiveTab('dashboard')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><LayoutDashboard className="w-4 h-4" /> Início</button>
+        <button onClick={() => setActiveTab('stats')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'stats' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><BarChart3 className="w-4 h-4" /> Stats</button>
         <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><Users className="w-4 h-4" /> Base de Jogadores ({players.length})</button>
         <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><Building2 className="w-4 h-4" /> Equipas ({teams.length})</button>
         <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><Trophy className="w-4 h-4" /> Match Center ({matches.length})</button>
@@ -1164,7 +1168,119 @@ const uniqueBirthYears: string[] = Array.from(new Set(
       </div>
 
       <div className="max-w-6xl mx-auto px-4 md:px-0 mt-4 md:mt-0">
-        
+
+        {/* TAB STATS & COMPARADOR H2H */}
+        {activeTab === 'stats' && (() => {
+          const algoOptions = Object.entries(algorithmData)
+            .filter(([key]) => !key.endsWith('_gk'))
+            .map(([key, items]) => {
+              const row = items[0]?.row || {};
+              const pName = row.Player || row.Player_ID || key;
+              const pTeam = row.Team_Calc || row.Team || '';
+              return {
+                value: key,
+                label: pTeam ? `${pName} (${pTeam})` : pName
+              };
+            })
+            .sort((a, b) => a.label.localeCompare(b.label));
+
+          const itemsA = comparePlayerKeyA ? algorithmData[comparePlayerKeyA] : null;
+          const itemsB = comparePlayerKeyB ? algorithmData[comparePlayerKeyB] : null;
+
+          const rowA = itemsA?.[0]?.row;
+          const rowB = itemsB?.[0]?.row;
+
+          const nameA = rowA?.Player || rowA?.Player_ID || 'Jogador A';
+          const nameB = rowB?.Player || rowB?.Player_ID || 'Jogador B';
+
+          const pillars = [
+            { axis: 'Defesa', key: 'Defesa' },
+            { axis: 'Jogo Aéreo', key: 'Jogo Aéreo' },
+            { axis: 'Construção', key: 'Construção' },
+            { axis: 'Criação', key: 'Criação' },
+            { axis: 'Cruzamento', key: 'Cruzamento' },
+            { axis: '1v1', key: 'Capacidade 1v1' },
+            { axis: 'Profundidade', key: 'Profundidade' },
+            { axis: 'Finalização', key: 'Finalização' },
+          ];
+
+          const chartData = pillars.map(p => ({
+            axis: p.axis,
+            A: rowA && rowA[p.key] ? parseFloat(rowA[p.key]) || 0 : 0,
+            B: rowB && rowB[p.key] ? parseFloat(rowB[p.key]) || 0 : 0,
+          }));
+
+          return (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className={`${themeCard} p-6 rounded-2xl border border-blue-500/30 shadow-xl space-y-6`}>
+                <div className="flex items-center justify-between border-b border-slate-700/40 pb-4">
+                  <div>
+                    <h2 className="text-base md:text-lg font-bold uppercase tracking-wider flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5 text-blue-500" /> Comparador Head-to-Head (H2H)
+                    </h2>
+                    <p className={`text-xs ${themeTextMuted} mt-0.5`}>
+                      Seleciona dois atletas da base de dados para comparar os 8 pilares de desempenho em radar.
+                    </p>
+                  </div>
+                  <span className="text-xs bg-blue-500/20 text-blue-400 font-bold px-3 py-1 rounded-xl border border-blue-500/30">
+                    {algoOptions.length} Atletas Disponíveis
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-blue-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Jogador A (Azul)
+                    </label>
+                    <CustomSelect 
+                      options={algoOptions}
+                      value={comparePlayerKeyA}
+                      onChange={setComparePlayerKeyA}
+                      placeholder="Pesquisar Jogador A..."
+                      searchable={true}
+                      isDarkMode={isDarkMode}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-pink-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-pink-500" /> Jogador B (Rosa)
+                    </label>
+                    <CustomSelect 
+                      options={algoOptions}
+                      value={comparePlayerKeyB}
+                      onChange={setComparePlayerKeyB}
+                      placeholder="Pesquisar Jogador B..."
+                      searchable={true}
+                      isDarkMode={isDarkMode}
+                    />
+                  </div>
+                </div>
+
+                {comparePlayerKeyA || comparePlayerKeyB ? (
+                  <div className={`${themeInnerCard} p-6 rounded-2xl border flex flex-col items-center justify-center min-h-[380px]`}>
+                    <RadarChart 
+                      playerAName={nameA}
+                      playerBName={nameB}
+                      colorA="#3b82f6"
+                      colorB="#ec4899"
+                      data={chartData}
+                    />
+                  </div>
+                ) : (
+                  <div className={`text-center py-16 ${themeInnerCard} rounded-2xl border border-dashed text-xs md:text-sm space-y-2`}>
+                    <Info className="w-8 h-8 text-slate-500 mx-auto" />
+                    <p className="font-bold text-slate-300">Nenhum atleta selecionado</p>
+                    <p className={`${themeTextMuted} text-xs`}>
+                      Escolha pelo menos um atleta nos seletores acima para gerar o gráfico radar.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* TAB 0: DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6 animate-in fade-in duration-300">
@@ -1258,35 +1374,6 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* COMPONENTES DE TESTE: COMPARADOR RADAR H2H */}
-            <div className={`${themeCard} p-6 rounded-2xl border border-blue-500/30 shadow-xl space-y-4`}>
-              <div className="flex items-center justify-between border-b border-slate-700/40 pb-3">
-                <h3 className="text-xs md:text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-blue-500" /> Comparador H2H Interativo (Demo)
-                </h3>
-                <span className="text-[10px] bg-blue-500/20 text-blue-400 font-bold px-2 py-0.5 rounded border border-blue-500/30">
-                  Visualização Radar
-                </span>
-              </div>
-
-              <RadarChart 
-                playerAName="Lucas Moreira"
-                playerBName="Rodrigo Silva"
-                colorA="#3b82f6"
-                colorB="#ec4899"
-                data={[
-                  { axis: 'Defesa', A: 22.4, B: 71.2 },
-                  { axis: 'Jogo Aéreo', A: 59.3, B: 45.3 },
-                  { axis: 'Construção', A: 26.9, B: 53.3 },
-                  { axis: 'Criação', A: 59.6, B: 61.1 },
-                  { axis: 'Cruzamento', A: 36.7, B: 59.3 },
-                  { axis: '1v1', A: 57.2, B: 66.4 },
-                  { axis: 'Profundidade', A: 54.6, B: 51.9 },
-                  { axis: 'Finalização', A: 48.0, B: 39.3 },
-                ]}
-              />
             </div>
           </div>
         )}
