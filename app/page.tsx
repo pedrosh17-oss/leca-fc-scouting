@@ -285,6 +285,45 @@ function CustomMultiSelect({
   );
 }
 
+// FUNÇÃO AUXILIAR PARA O VERCEL BLOB
+const parseExcelBuffer = (arrayBuffer: ArrayBuffer) => {
+  const wb = XLSX.read(arrayBuffer, { type: 'array' });
+  const wsName = wb.SheetNames[0];
+  const ws = wb.Sheets[wsName];
+  const rawData: any[] = XLSX.utils.sheet_to_json(ws);
+
+  const parsedData: Record<string, { tag: string; row: any }[]> = {};
+
+  rawData.forEach((row) => {
+    const rawPlayerStr = row.Player || row.Player_ID || '';
+    const cleanName = extractPlayerBaseName(rawPlayerStr);
+    const tag = extractContextTag(row);
+
+    if (cleanName) {
+      const isGK = (row.Position || row.Setor_Avaliacao || '').toLowerCase().includes('gk');
+      const key = `${cleanName}${isGK ? '_gk' : '_field'}`;
+
+      if (!parsedData[key]) parsedData[key] = [];
+      const existingIdx = parsedData[key].findIndex(item => item.tag === tag);
+      if (existingIdx >= 0) {
+        parsedData[key][existingIdx] = { tag, row };
+      } else {
+        parsedData[key].push({ tag, row });
+      }
+
+      if (!parsedData[cleanName]) parsedData[cleanName] = [];
+      const fallbackIdx = parsedData[cleanName].findIndex(item => item.tag === tag);
+      if (fallbackIdx >= 0) {
+        parsedData[cleanName][fallbackIdx] = { tag, row };
+      } else {
+        parsedData[cleanName].push({ tag, row });
+      }
+    }
+  });
+
+  return parsedData;
+};
+
 export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authScoutId, setAuthScoutId] = useState<string | null>(null);
@@ -320,6 +359,7 @@ export default function Home() {
 
   // GESTÃO DE MERCADOS ADMIN
   const [scoutMarketAssignments, setScoutMarketAssignments] = useState<Record<string, string[]>>({});
+  const [selectedAdminScoutId, setSelectedAdminScoutId] = useState<string>('');
   const [adminMarkets, setAdminMarkets] = useState<string[]>([]);
   const [newMarketInput, setNewMarketInput] = useState('');
 
@@ -358,7 +398,7 @@ export default function Home() {
         fetch('/api/teams').catch(() => ({ json: () => ({ teams: [] }) })),
         fetch('/api/matches').catch(() => ({ json: () => ({ matches: [], competitions: [] }) })),
         fetch('/api/scouts').catch(() => ({ json: () => ({ scouts: [] }) })),
-        fetch('/api/algo').catch(() => ({ json: () => ({ algoData: {} }) }))
+        fetch('/api/algo').catch(() => ({ json: () => ({ url: null }) }))
       ]);
       
       const dataP = await resP.json(); 
@@ -372,12 +412,20 @@ export default function Home() {
       if (dataM.matches) setMatches(dataM.matches);
       if (dataM.competitions) setCompetitions(dataM.competitions);
       
-      // LÊ DA ROTA DA API O EXCEL QUE VEM DA VERCEL BLOB
-      if (dataAlgo.algoData && Object.keys(dataAlgo.algoData).length > 0) {
-        setAlgorithmData(dataAlgo.algoData);
-        localforage.setItem('leca_algo_data', dataAlgo.algoData);
+      // SINCRONIZAÇÃO COM VERCEL BLOB PARA TELEMÓVEIS
+      if (dataAlgo.url) {
+        try {
+          const excelRes = await fetch(dataAlgo.url, { cache: 'no-store' });
+          if (excelRes.ok) {
+            const arrayBuffer = await excelRes.arrayBuffer();
+            const parsedAlgo = parseExcelBuffer(arrayBuffer);
+            setAlgorithmData(parsedAlgo);
+            localforage.setItem('leca_algo_data', parsedAlgo);
+          }
+        } catch (e) {
+          console.error("Erro ao ler Excel da Cloud", e);
+        }
       } else {
-        // Fallback Local
         localforage.getItem('leca_algo_data').then((savedAlgo) => {
           if (savedAlgo) setAlgorithmData(savedAlgo as Record<string, any>);
         });
@@ -420,54 +468,25 @@ export default function Home() {
 
     reader.onload = async (evt) => {
       try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
-        const wsName = wb.SheetNames[0];
-        const ws = wb.Sheets[wsName];
-        const rawData: any[] = XLSX.utils.sheet_to_json(ws);
+        const arrayBuffer = evt.target?.result as ArrayBuffer;
+        const parsedAlgo = parseExcelBuffer(arrayBuffer);
 
-        const newAlgoData: Record<string, { tag: string; row: any }[]> = {};
+        setAlgorithmData(parsedAlgo);
+        localforage.setItem('leca_algo_data', parsedAlgo);
 
-        rawData.forEach((row) => {
-          const rawPlayerStr = row.Player || row.Player_ID || '';
-          const cleanName = extractPlayerBaseName(rawPlayerStr);
-          const tag = extractContextTag(row);
-
-          if (cleanName) {
-            const isGK = (row.Position || row.Setor_Avaliacao || '').toLowerCase().includes('gk');
-            const key = `${cleanName}${isGK ? '_gk' : '_field'}`;
-
-            if (!newAlgoData[key]) newAlgoData[key] = [];
-            const existingIdx = newAlgoData[key].findIndex(item => item.tag === tag);
-            if (existingIdx >= 0) {
-              newAlgoData[key][existingIdx] = { tag, row };
-            } else {
-              newAlgoData[key].push({ tag, row });
-            }
-
-            if (!newAlgoData[cleanName]) newAlgoData[cleanName] = [];
-            const fallbackIdx = newAlgoData[cleanName].findIndex(item => item.tag === tag);
-            if (fallbackIdx >= 0) {
-              newAlgoData[cleanName][fallbackIdx] = { tag, row };
-            } else {
-              newAlgoData[cleanName].push({ tag, row });
-            }
-          }
-        });
-
-        setAlgorithmData(newAlgoData);
-        localforage.setItem('leca_algo_data', newAlgoData);
+        // Upload do ficheiro bruto para a Vercel
+        const formData = new FormData();
+        formData.append('file', file);
 
         const res = await fetch('/api/algo', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newAlgoData)
+          body: formData
         });
 
         if (res.ok) {
-          showToast(`Ficheiro sincronizado na Cloud! Telemóveis atualizados.`);
+          showToast(`Ficheiro sincronizado na Cloud! Todos os telemóveis têm agora acesso.`);
         } else {
-          showToast(`Ficheiro lido apenas localmente.`);
+          showToast(`Carregado localmente. Erro ao sincronizar Cloud.`);
         }
       } catch (error) {
         showToast("Erro ao processar o ficheiro Excel.");
@@ -476,7 +495,7 @@ export default function Home() {
       }
     };
 
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -1418,7 +1437,7 @@ export default function Home() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-400 font-medium">Versão da Intranet</span>
-                      <span className="text-purple-400 font-bold">Leça FC Scouting v2.7</span>
+                      <span className="text-purple-400 font-bold">Leça FC Scouting v2.8</span>
                     </div>
                   </div>
                 </div>
@@ -1585,7 +1604,6 @@ export default function Home() {
                         <div className="flex items-center gap-3 text-[11px] text-slate-400">
                           <span>Bruto: <strong className="text-white font-bold">{rawVal !== undefined && rawVal !== null ? parseFloat(rawVal).toFixed(2) : 'N/D'}</strong></span>
                           <span>•</span>
-                          {/* LIMPEZA DO SIMBOLO DE PERCENTAGEM */}
                           <span>Percentil: <strong className="text-emerald-400 font-bold">{pctVal !== undefined && pctVal !== null ? `${parseFloat(pctVal).toFixed(1)} Pct` : 'N/D'}</strong></span>
                         </div>
                       </div>
