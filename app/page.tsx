@@ -121,7 +121,7 @@ function CustomSelect({
 }
 
 function CustomMultiSelect({
-  options, selectedIds, onChange, placeholder = 'Selecionar...', className = ''
+  options, selectedIds, onChange, placeholder = 'Selecionar Scouts...', className = ''
 }: {
   options: Array<{ value: string; label: string; image?: string | null }>;
   selectedIds: string[];
@@ -216,9 +216,13 @@ export default function Home() {
   const [selectedScout, setSelectedScout] = useState<any | null>(null);
   const [profileTab, setProfileTab] = useState<'timeline' | 'algo' | 'market'>('timeline');
 
-  // GESTÃO DE MERCADOS E TAREFAS POR SCOUT (ADMIN)
+  // GESTÃO DE MERCADOS ADMIN
   const [scoutMarketAssignments, setScoutMarketAssignments] = useState<Record<string, string[]>>({});
   const [selectedAdminScoutId, setSelectedAdminScoutId] = useState<string>('');
+  const [adminMarkets, setAdminMarkets] = useState<string[]>([
+    'Liga 3 (Portugal)', 'Campeonato de Portugal', 'Liga Revelação (Sub-23)', 'S19 Nacional', 'América do Sul (Prospeção)'
+  ]);
+  const [newMarketInput, setNewMarketInput] = useState('');
 
   // FORMS
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
@@ -226,7 +230,8 @@ export default function Home() {
   const [preGameData, setPreGameData] = useState({ homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutIds: [] as string[], type: '' });
 
   const [submittingReport, setSubmittingReport] = useState(false);
-  const [reportData, setReportData] = useState({ homeTactic: '', awayTactic: '', tempo: '', intensity: '', technical: '', pressure: '', notes: '' });
+  // Adicionado scoutIds ao estado de edição do jogo
+  const [reportData, setReportData] = useState({ homeTactic: '', awayTactic: '', tempo: '', intensity: '', technical: '', pressure: '', notes: '', scoutIds: [] as string[] });
 
   const [editingHighlight, setEditingHighlight] = useState<{ matchId: string; matchName: string; player: any; highlightId: string | null; notes: string; } | null>(null);
   const [savingHighlight, setSavingHighlight] = useState(false);
@@ -269,6 +274,7 @@ export default function Home() {
       
       if (dataS.scouts) {
         setScouts(dataS.scouts);
+        // Initialize Auth from local storage if scouts are loaded
         const savedAuthId = localStorage.getItem('leca_scout_auth');
         if (savedAuthId) {
           const user = dataS.scouts.find((s: any) => s.id === savedAuthId);
@@ -359,6 +365,10 @@ export default function Home() {
   const toggleMatch = (id: string) => setExpandedMatchId(expandedMatchId === id ? null : id);
 
   const startEditMatchContext = (match: any) => {
+    // Cruza os nomes em texto que vêm do match com os IDs reais do sistema para a Dropdown Multipla
+    const scoutNames = match.scout ? match.scout.split(',').map((s: string) => s.trim()) : [];
+    const matchedScoutIds = scouts.filter(s => scoutNames.includes(s.name)).map(s => s.id);
+
     setReportData({
       homeTactic: match.homeTactic && match.homeTactic !== '-' ? match.homeTactic : '',
       awayTactic: match.awayTactic && match.awayTactic !== '-' ? match.awayTactic : '',
@@ -367,6 +377,7 @@ export default function Home() {
       technical: match.technical && match.technical !== '-' ? match.technical : '',
       pressure: match.pressure && match.pressure !== '-' ? match.pressure : '',
       notes: match.notes || '',
+      scoutIds: matchedScoutIds // Campo recém-adicionado
     });
     setExpandedMatchEdit(editingMatchId === match.id ? null : match.id);
   };
@@ -382,7 +393,7 @@ export default function Home() {
     setSubmittingReport(true);
     try {
       const res = await fetch('/api/matches', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ matchId, ...reportData }), });
-      if (res.ok) { setExpandedMatchEdit(null); await loadData(); showToast("Dados coletivos atualizados!"); }
+      if (res.ok) { setExpandedMatchEdit(null); await loadData(); showToast("Dados do jogo atualizados!"); }
     } catch (err) { console.error(err); } finally { setSubmittingReport(false); }
   };
 
@@ -422,6 +433,19 @@ export default function Home() {
         setIsNewPlayerOpen(false); setNewPlayerData({ name: '', clubId: '', position: '' }); showToast(`Atleta "${data.player.name}" criado!`);
       }
     } catch (err) { console.error(err); } finally { setCreatingPlayer(false); }
+  };
+
+  const handleAddMarket = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMarketInput.trim()) return;
+    setAdminMarkets([...adminMarkets, newMarketInput.trim()]);
+    setNewMarketInput('');
+    showToast("Mercado adicionado à lista prioritária!");
+  };
+
+  const handleRemoveMarket = (index: number) => {
+    setAdminMarkets(adminMarkets.filter((_, i) => i !== index));
+    showToast("Mercado removido!");
   };
 
   const filteredPlayers = players.filter(p => {
@@ -738,7 +762,6 @@ export default function Home() {
                 ))}
               </div>
             </div>
-
           </div>
         )}
 
@@ -900,7 +923,7 @@ export default function Home() {
                           </div>
                           {canEditMatches && (
                             <button onClick={() => startEditMatchContext(match)} className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-3 md:py-2 bg-blue-600/20 border border-blue-500/30 text-blue-400 rounded-xl md:rounded-lg font-bold hover:bg-blue-600/30 transition">
-                              <Edit3 className="w-4 h-4" /> {isEditingContext ? 'Fechar' : 'Editar Táticas'}
+                              <Edit3 className="w-4 h-4" /> {isEditingContext ? 'Fechar' : 'Editar Jogo'}
                             </button>
                           )}
                         </div>
@@ -908,7 +931,18 @@ export default function Home() {
                         {/* MATCH CONTEXT EDITOR */}
                         {isEditingContext && canEditMatches && (
                           <div className="bg-[#151c2c] md:bg-[#0d131f] p-4 md:p-5 rounded-xl border border-blue-500/30 space-y-4 text-xs md:text-sm shadow-inner animate-in fade-in slide-in-from-top-2">
-                            <h4 className="font-bold text-blue-400 uppercase tracking-wider mb-2">Editor de Métricas do Jogo</h4>
+                            <h4 className="font-bold text-blue-400 uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">Editar Detalhes do Jogo</h4>
+                            
+                            <div className="mb-4">
+                              <label className="block text-slate-400 mb-1.5 font-bold">Scouts Observadores (Podes adicionar ou remover)</label>
+                              <CustomMultiSelect 
+                                options={displayScouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
+                                selectedIds={reportData.scoutIds} 
+                                onChange={(ids: string[]) => setReportData({ ...reportData, scoutIds: ids })} 
+                                placeholder="Selecionar Scouts que acompanharam o jogo..." 
+                              />
+                            </div>
+
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div>
                                 <label className="block text-slate-400 mb-1.5 font-bold">Tática Casa</label>
@@ -1138,7 +1172,7 @@ export default function Home() {
                       <CustomMultiSelect 
                         options={competitions.map(c => ({ value: c.name, label: c.name }))} 
                         selectedIds={scoutMarketAssignments[selectedAdminScoutId] || []} 
-                        onChange={ids => handleSaveScoutMarkets(selectedAdminScoutId, ids)} 
+                        onChange={(ids: string[]) => handleSaveScoutMarkets(selectedAdminScoutId, ids)} 
                         placeholder="Atribuir ligas..." 
                       />
                     </div>
@@ -1154,7 +1188,7 @@ export default function Home() {
                   </h3>
                   <span className="text-[10px] bg-purple-500/20 text-purple-300 font-bold px-2 py-0.5 rounded border border-purple-500/30">Módulo em Estruturação</span>
                 </div>
-                <p className="text-xs text-slate-400">Espaço reservado para envio de diretivas de observação individuais (ex: *"Acompanhar atleta X no próximo fim de semana"*).</p>
+                <p className="text-xs text-slate-400">Espaço reservado para envio de diretivas de observação individuais (ex: "Acompanhar atleta X no próximo fim de semana").</p>
               </div>
 
               {/* MÓDULO 3: GESTÃO DE MERCADOS PRIORITÁRIOS DA SAD */}
@@ -1401,7 +1435,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL PRÉ-JOGO */}
+      {/* MODAL PRÉ-JOGO (COM LISTA DE SCOUTS FILTRADA) */}
       {isRegisterOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-xl rounded-2xl shadow-2xl p-5 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
@@ -1447,7 +1481,7 @@ export default function Home() {
                 <CustomMultiSelect 
                   options={displayScouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
                   selectedIds={preGameData.scoutIds} 
-                  onChange={ids => setPreGameData({ ...preGameData, scoutIds: ids })} 
+                  onChange={(ids: string[]) => setPreGameData({ ...preGameData, scoutIds: ids })} 
                   placeholder="Selecionar Scouts..." 
                 />
               </div>
@@ -1503,7 +1537,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* PERFIL DETALHADO DO JOGADOR */}
+      {/* PERFIL DETALHADO DO JOGADOR (INCLUI NOVA ABA DE MERCADO) */}
       {selectedPlayer && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
           <div className="bg-[#151c2c] border border-slate-800 w-full max-w-4xl h-[90vh] flex flex-col rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
