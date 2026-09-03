@@ -320,6 +320,11 @@ export default function Home() {
   // FILTROS DE JOGADORES
   const [playerPositionFilter, setPlayerPositionFilter] = useState('All');
   const [playerStatusFilter, setPlayerStatusFilter] = useState('All');
+  const [minAgeFilter, setMinAgeFilter] = useState<number>(15);
+const [maxAgeFilter, setMaxAgeFilter] = useState<number>(40);
+const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
+  
+
 
   // FILTROS DE EQUIPAS
   const [teamFilterStatus, setTeamFilterStatus] = useState('All');
@@ -708,12 +713,32 @@ export default function Home() {
   const uniquePlayerPositions = Array.from(new Set(players.map(p => p.position).filter(Boolean))).sort();
   const uniquePlayerStatuses = Array.from(new Set(players.map(p => p.status).filter(Boolean))).sort();
 
+  const cleanPositionOptions = [
+    { value: 'All', label: 'Todas as Posições' },
+    ...POSITIONS_OPTIONS.map(pos => ({ value: pos, label: pos }))
+  ];
+  
+  const uniqueBirthYears = Array.from(new Set(
+    players.map(p => {
+      if (p.birthYear) return String(p.birthYear);
+      if (p.age && p.age !== 'N/D') return String(2026 - Number(p.age));
+      return null;
+    }).filter(Boolean)
+  )).sort((a, b) => Number(b) - Number(a));
+  
   const filteredPlayers = players.filter(p => {
     const query = search.toLowerCase();
-    const matchSearch = (p.name || '').toLowerCase().includes(query) || (p.club || '').toLowerCase().includes(query) || (p.position || '').toLowerCase().includes(query);
-    const matchPos = playerPositionFilter === 'All' || p.position === playerPositionFilter;
+    const matchSearch = (p.name || '').toLowerCase().includes(query) || (p.club || '').toLowerCase().includes(query);
+    const matchPos = playerPositionFilter === 'All' || (p.position || '').toLowerCase().includes(playerPositionFilter.toLowerCase());
     const matchStatus = playerStatusFilter === 'All' || p.status === playerStatusFilter;
-    return matchSearch && matchPos && matchStatus;
+    
+    const ageNum = Number(p.age);
+    const matchAge = isNaN(ageNum) || (ageNum >= minAgeFilter && ageNum <= maxAgeFilter);
+    
+    const playerYear = p.birthYear || (p.age && p.age !== 'N/D' ? String(2026 - Number(p.age)) : '');
+    const matchYear = birthYearFilter === 'All' || playerYear === birthYearFilter;
+  
+    return matchSearch && matchPos && matchStatus && matchAge && matchYear;
   });
   
   const displayedPlayers = search || playerPositionFilter !== 'All' || playerStatusFilter !== 'All' ? filteredPlayers : filteredPlayers.slice(0, visibleCount);
@@ -1045,36 +1070,81 @@ export default function Home() {
         )}
 
 {/* TAB 1: PLAYERS (COM NOVOS FILTROS) */}
+        {/* TAB 1: PLAYERS (COM FILTROS AVANÇADOS) */}
         {activeTab === 'players' && (
-          <div className="animate-in fade-in duration-300">
-            <div className="flex flex-col md:flex-row gap-3 md:gap-4 mb-5 md:mb-6">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-4 md:top-3.5 text-slate-400 w-4 h-4 md:w-5 md:h-5" />
+          <div className="animate-in fade-in duration-300 space-y-4">
+            
+            {/* BARRA SUPERIOR E FILTROS DROPDOWN */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="relative md:col-span-1">
+                <Search className="absolute left-4 top-3.5 text-slate-400 w-4 h-4" />
                 <input 
                   type="text" 
-                  placeholder="Pesquisar atleta, clube, posição..." 
+                  placeholder="Pesquisar atleta ou clube..." 
                   value={search} 
                   onChange={(e) => { setSearch(e.target.value); setVisibleCount(20); }} 
-                  className={`w-full border rounded-xl py-4 md:py-3.5 pl-12 pr-4 text-sm md:text-base focus:outline-none focus:border-blue-500 shadow-sm ${isDarkMode ? 'bg-[#151c2c] border-slate-800 text-slate-200' : 'bg-white border-slate-300 text-slate-800'}`} 
+                  className={`w-full border rounded-xl py-3 pl-11 pr-4 text-xs md:text-sm focus:outline-none focus:border-blue-500 shadow-sm ${isDarkMode ? 'bg-[#151c2c] border-slate-800 text-slate-200' : 'bg-white border-slate-300 text-slate-800'}`} 
                 />
               </div>
 
-              {/* NOVOS FILTROS DE POSIÇÃO E ESTATUTO */}
-              <div className="flex flex-col sm:flex-row gap-3">
-                <CustomSelect 
-                  options={[{ value: 'All', label: 'Todas as Posições' }, ...uniquePlayerPositions.map(p => ({ value: p, label: p }))]} 
-                  value={playerPositionFilter} 
-                  onChange={setPlayerPositionFilter} 
-                  className="w-full sm:w-48"
-                  isDarkMode={isDarkMode}
-                />
-                <CustomSelect 
-                  options={[{ value: 'All', label: 'Todos os Estatutos' }, ...uniquePlayerStatuses.map(s => ({ value: s, label: s }))]} 
-                  value={playerStatusFilter} 
-                  onChange={setPlayerStatusFilter} 
-                  className="w-full sm:w-48"
-                  isDarkMode={isDarkMode}
-                />
+              {/* Posições puras */}
+              <CustomSelect 
+                options={cleanPositionOptions} 
+                value={playerPositionFilter} 
+                onChange={setPlayerPositionFilter} 
+                placeholder="Todas as Posições"
+                isDarkMode={isDarkMode}
+              />
+
+              {/* Estado de Observação */}
+              <CustomSelect 
+                options={[{ value: 'All', label: 'Todos os Estados de Observação' }, ...uniquePlayerStatuses.map(s => ({ value: s, label: s }))]} 
+                value={playerStatusFilter} 
+                onChange={setPlayerStatusFilter} 
+                placeholder="Estado de Observação"
+                isDarkMode={isDarkMode}
+              />
+
+              {/* Ano de Nascimento */}
+              <CustomSelect 
+                options={[{ value: 'All', label: 'Todos os Anos Nasc.' }, ...uniqueBirthYears.map(y => ({ value: y, label: `Ano: ${y}` }))]} 
+                value={birthYearFilter} 
+                onChange={setBirthYearFilter} 
+                placeholder="Ano de Nascimento"
+                isDarkMode={isDarkMode}
+              />
+            </div>
+
+            {/* FAIXA ETÁRIA (DESLIZANTE) */}
+            <div className={`${themeCard} p-4 rounded-xl border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs`}>
+              <div className="flex items-center gap-2 font-bold">
+                <Filter className="w-4 h-4 text-blue-500" />
+                <span>Faixa Etária: <strong className="text-blue-500 font-black">{minAgeFilter} - {maxAgeFilter} anos</strong></span>
+              </div>
+              
+              <div className="flex items-center gap-4 w-full sm:w-2/3">
+                <div className="flex items-center gap-2 flex-1">
+                  <span className={themeTextMuted}>Mín: {minAgeFilter}</span>
+                  <input 
+                    type="range" 
+                    min="15" 
+                    max="40" 
+                    value={minAgeFilter} 
+                    onChange={(e) => setMinAgeFilter(Math.min(Number(e.target.value), maxAgeFilter - 1))}
+                    className="w-full accent-blue-600 cursor-pointer"
+                  />
+                </div>
+                <div className="flex items-center gap-2 flex-1">
+                  <span className={themeTextMuted}>Máx: {maxAgeFilter}</span>
+                  <input 
+                    type="range" 
+                    min="15" 
+                    max="40" 
+                    value={maxAgeFilter} 
+                    onChange={(e) => setMaxAgeFilter(Math.max(Number(e.target.value), minAgeFilter + 1))}
+                    className="w-full accent-blue-600 cursor-pointer"
+                  />
+                </div>
               </div>
             </div>
 
@@ -1082,6 +1152,7 @@ export default function Home() {
               <span>A mostrar {displayedPlayers.length} de {filteredPlayers.length} atletas.</span>
             </div>
 
+            {/* CARTÕES DE JOGADORES */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
               {displayedPlayers.map((player) => (
                 <div 
