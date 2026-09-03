@@ -49,7 +49,7 @@ function getUserTitle(name: string): string {
   return 'Scout do Clube';
 }
 
-function cleanPlayerName(str: string): string {
+function extractPlayerBaseName(str: string): string {
   if (!str) return '';
   return str
     .replace(/\s*\([^)]*\)/g, '')
@@ -57,6 +57,12 @@ function cleanPlayerName(str: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
+}
+
+function extractContextTag(str: string): string {
+  if (!str) return 'Atual';
+  const match = str.match(/\(([^)]+)\)/);
+  return match ? match[1].trim() : 'Atual';
 }
 
 // Estrutura de Métricas e Pesos por Pilar
@@ -292,17 +298,20 @@ export default function Home() {
   const [selectedScout, setSelectedScout] = useState<any | null>(null);
   const [profileTab, setProfileTab] = useState<'timeline' | 'algo' | 'market'>('timeline');
 
+  // ESTADOS DO ALGORITMO E SELETOR DE ÉPOCAS
   const [selectedPillarDetail, setSelectedPillarDetail] = useState<string | null>(null);
-
-  const [algorithmData, setAlgorithmData] = useState<Record<string, any>>({});
+  const [algorithmData, setAlgorithmData] = useState<Record<string, { tag: string; row: any }[]>>({});
+  const [selectedSeasonIdx, setSelectedSeasonIdx] = useState<number>(0);
   const [uploadingExcel, setUploadingExcel] = useState(false);
 
+  // GESTÃO DE MERCADOS ADMIN
   const [scoutMarketAssignments, setScoutMarketAssignments] = useState<Record<string, string[]>>({});
   const [adminMarkets, setAdminMarkets] = useState<string[]>([
     'Liga 3 (Portugal)', 'Campeonato de Portugal', 'Liga Revelação (Sub-23)', 'S19 Nacional', 'América do Sul (Prospeção)'
   ]);
   const [newMarketInput, setNewMarketInput] = useState('');
 
+  // FORMS
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [submittingPre, setSubmittingPre] = useState(false);
   const [preGameData, setPreGameData] = useState({ homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutIds: [] as string[], type: '' });
@@ -381,6 +390,7 @@ export default function Home() {
     }
   }, []);
 
+  // UPLOAD DO EXCEL - AGRUPAMENTO MULTI-ÉPOCA POR JOGADOR
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -396,20 +406,39 @@ export default function Home() {
         const ws = wb.Sheets[wsName];
         const rawData: any[] = XLSX.utils.sheet_to_json(ws);
 
-        const newAlgoData: Record<string, any> = { ...algorithmData };
+        const newAlgoData: Record<string, { tag: string; row: any }[]> = { ...algorithmData };
 
         rawData.forEach((row) => {
-          const cleanName = cleanPlayerName(row.Player || '');
+          const rawPlayerStr = row.Player || row.Player_ID || '';
+          const cleanName = extractPlayerBaseName(rawPlayerStr);
+          const tag = extractContextTag(rawPlayerStr);
+
           if (cleanName) {
-            const posKey = (row.Position || '').toLowerCase().includes('gk') || (row.Setor_Avaliacao || '').toLowerCase().includes('gk') ? '_gk' : '_field';
-            newAlgoData[`${cleanName}${posKey}`] = row;
-            newAlgoData[cleanName] = row;
+            const isGK = (row.Position || row.Setor_Avaliacao || '').toLowerCase().includes('gk');
+            const key = `${cleanName}${isGK ? '_gk' : '_field'}`;
+
+            if (!newAlgoData[key]) newAlgoData[key] = [];
+            const existingIdx = newAlgoData[key].findIndex(item => item.tag === tag);
+            if (existingIdx >= 0) {
+              newAlgoData[key][existingIdx] = { tag, row };
+            } else {
+              newAlgoData[key].push({ tag, row });
+            }
+
+            // Fallback para chave simples
+            if (!newAlgoData[cleanName]) newAlgoData[cleanName] = [];
+            const fallbackIdx = newAlgoData[cleanName].findIndex(item => item.tag === tag);
+            if (fallbackIdx >= 0) {
+              newAlgoData[cleanName][fallbackIdx] = { tag, row };
+            } else {
+              newAlgoData[cleanName].push({ tag, row });
+            }
           }
         });
 
         setAlgorithmData(newAlgoData);
         localStorage.setItem('leca_algo_data', JSON.stringify(newAlgoData));
-        showToast(`Ficheiro processado! ${rawData.length} atletas atualizados no algoritmo.`);
+        showToast(`Ficheiro processado! ${rawData.length} registos inseridos no histórico.`);
       } catch (error) {
         showToast("Erro ao processar o ficheiro Excel.");
       } finally {
@@ -632,6 +661,9 @@ export default function Home() {
     });
     return list.slice(0, 4);
   };
+
+  // Contagem real de atletas únicos no algoritmo (sem duplicados de chaves técnicas)
+  const uniqueAlgoPlayersCount = Object.keys(algorithmData).filter(k => !k.endsWith('_gk') && !k.endsWith('_field')).length;
 
   const renderMobileMenuButton = (id: typeof activeTab, icon: React.ReactNode, label: string, count?: number) => (
     <button 
@@ -916,7 +948,7 @@ export default function Home() {
               {displayedPlayers.map((player) => (
                 <div 
                   key={player.id} 
-                  onClick={() => { setSelectedPlayer(player); setProfileTab('timeline'); }}
+                  onClick={() => { setSelectedPlayer(player); setProfileTab('timeline'); setSelectedSeasonIdx(0); }}
                   className="bg-[#151c2c] border border-slate-800/80 rounded-xl p-4 md:p-5 flex flex-col hover:border-blue-500/50 transition cursor-pointer group shadow-sm"
                 >
                   <div className="flex items-center gap-4 mb-4">
@@ -1005,7 +1037,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 3: MATCHES */}
+        {/* TAB 3: MATCHES (MATCH CENTER) */}
         {activeTab === 'matches' && (
           <div className="animate-in fade-in duration-300">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5 md:mb-6">
@@ -1067,7 +1099,7 @@ export default function Home() {
                             <h4 className="font-bold text-blue-400 uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">Editar Detalhes do Jogo</h4>
                             
                             <div className="mb-4">
-                              <label className="block text-slate-400 mb-1.5 font-bold">Scouts Observadores</label>
+                              <label className="block text-slate-400 mb-1.5 font-bold">Scouts Observadores (Podes adicionar ou remover)</label>
                               <CustomMultiSelect 
                                 options={displayScouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
                                 selectedIds={reportData.scoutIds} 
@@ -1155,7 +1187,7 @@ export default function Home() {
                                         )}
                                         {!isUnidentified && (
                                           <button 
-                                            onClick={(e) => { e.stopPropagation(); setSelectedPlayer(fullP); setProfileTab('timeline'); }}
+                                            onClick={(e) => { e.stopPropagation(); setSelectedPlayer(fullP); setProfileTab('timeline'); setSelectedSeasonIdx(0); }}
                                             className="p-2 md:px-2.5 md:py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-xs font-medium rounded-lg transition flex items-center justify-center"
                                           >
                                             <Search className="w-4 h-4 md:mr-1.5" /> <span className="hidden md:block">Perfil</span>
@@ -1284,12 +1316,12 @@ export default function Home() {
                   <h3 className="text-sm font-bold text-purple-400 uppercase tracking-wider flex items-center gap-2">
                     <Upload className="w-4 h-4 text-purple-400" /> Upload de Métricas e Algoritmo (.XLSX)
                   </h3>
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded border border-emerald-500/30">
-                    {Object.keys(algorithmData).length} Atletas em Memória
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2.5 py-1 rounded border border-emerald-500/30">
+                    {uniqueAlgoPlayersCount} Atletas Únicos em Memória
                   </span>
                 </div>
                 <p className="text-xs text-slate-400">
-                  Selecione o ficheiro Excel com as métricas avançadas (Ratings, Percentis, Pilares de Desempenho). A aplicação faz a associação automática pelos nomes dos atletas.
+                  Selecione o ficheiro Excel com as métricas avançadas (Ratings, Pilares e Destaques). Se o ficheiro contiver a mesma pessoa em épocas/ligas diferentes, a app agrupa automaticamente o histórico sob a mesma ficha.
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
@@ -1360,7 +1392,7 @@ export default function Home() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-400 font-medium">Versão da Intranet</span>
-                      <span className="text-purple-400 font-bold">Leça FC Scouting v2.6</span>
+                      <span className="text-purple-400 font-bold">Leça FC Scouting v2.7</span>
                     </div>
                   </div>
                 </div>
@@ -1413,7 +1445,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* MERCADOS ATRIBUÍDOS COM EDIÇÃO DIRETA NO CARTÃO */}
               <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -1485,10 +1516,14 @@ export default function Home() {
 
       {/* MODAL PARA EXIBIR PARÂMETROS DO PILAR SELECIONADO COM PESOS */}
       {selectedPillarDetail && selectedPlayer && (() => {
-        const playerCleanName = cleanPlayerName(selectedPlayer.name);
+        const playerCleanName = extractPlayerBaseName(selectedPlayer.name);
         const isGK = (selectedPlayer.position || '').toLowerCase().includes('goalkeeper') || (selectedPlayer.position || '').toLowerCase().includes('gk');
         const posKey = isGK ? '_gk' : '_field';
-        const playerAlgo = algorithmData[`${playerCleanName}${posKey}`] || algorithmData[playerCleanName];
+        
+        const rawEntry = algorithmData[`${playerCleanName}${posKey}`] || algorithmData[playerCleanName] || [];
+        const activeItem = rawEntry[selectedSeasonIdx] || rawEntry[0];
+        const playerAlgo = activeItem?.row;
+        
         const metrics = PILLAR_METRICS_MAP[selectedPillarDetail] || [];
 
         return (
@@ -1499,7 +1534,7 @@ export default function Home() {
                   <div className="p-2 bg-blue-600/20 text-blue-400 rounded-lg border border-blue-500/30"><Info className="w-5 h-5"/></div>
                   <div>
                     <h3 className="font-bold text-white text-base">Desdobramento: {selectedPillarDetail}</h3>
-                    <p className="text-xs text-slate-400">{selectedPlayer.name}</p>
+                    <p className="text-xs text-slate-400">{selectedPlayer.name} {activeItem?.tag ? `(${activeItem.tag})` : ''}</p>
                   </div>
                 </div>
                 <button onClick={() => setSelectedPillarDetail(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition"><X className="w-4 h-4"/></button>
@@ -1726,13 +1761,15 @@ export default function Home() {
 
       {/* PERFIL DETALHADO DO JOGADOR */}
       {selectedPlayer && (() => {
-        const playerCleanName = cleanPlayerName(selectedPlayer.name);
+        const playerCleanName = extractPlayerBaseName(selectedPlayer.name);
         const isGK = (selectedPlayer.position || '').toLowerCase().includes('goalkeeper') || (selectedPlayer.position || '').toLowerCase().includes('gk');
         const posKey = isGK ? '_gk' : '_field';
         
-        const playerAlgo = algorithmData[`${playerCleanName}${posKey}`] || algorithmData[playerCleanName];
+        // Obtém a lista de registos do algoritmo para o jogador
+        const playerAlgoList: { tag: string; row: any }[] = algorithmData[`${playerCleanName}${posKey}`] || algorithmData[playerCleanName] || [];
+        const activeItem = playerAlgoList[selectedSeasonIdx] || playerAlgoList[0];
+        const playerAlgo = activeItem?.row;
 
-        // Mapeamento dos 8 Pilares (ou 2 Pilares se for GR)
         const pillarList = isGK ? [
           { title: 'GK Defesa', key: 'GK Defesa' },
           { title: 'GK Distribuicao', key: 'GK Distribuicao' },
@@ -1810,16 +1847,40 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* VISTA DO ALGORITMO REESTRUTURADA */}
+                {/* VISTA DO ALGORITMO (COM SELETOR DE ÉPOCAS) */}
                 {profileTab === 'algo' && (
                   <div className="space-y-6 animate-in fade-in duration-300">
-                    {playerAlgo ? (
+                    {playerAlgoList.length > 0 && playerAlgo ? (
                       <>
+                        {/* SELETOR DE ÉPOCA / CONTEXTO (APARECE QUANDO HÁ MAIS DE UM REGISTO) */}
+                        {playerAlgoList.length > 1 && (
+                          <div className="flex items-center gap-3 bg-[#151c2c] p-3.5 rounded-2xl border border-purple-500/30">
+                            <span className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5 flex-shrink-0">
+                              <Calendar className="w-4 h-4 text-purple-400" /> Época / Ligas Registadas:
+                            </span>
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                              {playerAlgoList.map((item, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => setSelectedSeasonIdx(idx)}
+                                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 ${
+                                    selectedSeasonIdx === idx
+                                      ? 'bg-purple-600 text-white shadow-md'
+                                      : 'bg-[#0d131f] text-slate-400 hover:text-white border border-slate-800'
+                                  }`}
+                                >
+                                  {item.tag}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {/* CARTÃO DE NOTA BRUTA DO PERFIL TOP 1 */}
                         <div className="bg-[#151c2c] p-6 rounded-2xl border border-purple-500/30 relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4">
                           <div className="space-y-1 text-center md:text-left">
                             <span className="text-[10px] uppercase font-bold tracking-widest text-purple-400 flex items-center gap-1 justify-center md:justify-start">
-                              <Cpu className="w-3.5 h-3.5" /> Perfil Principal
+                              <Cpu className="w-3.5 h-3.5" /> Perfil Principal {activeItem?.tag ? `(${activeItem.tag})` : ''}
                             </span>
                             <h3 className="text-2xl font-black text-white">{playerAlgo.Top_Profile_1_Name || playerAlgo.Melhor_Perfil || 'N/D'}</h3>
                             <p className="text-xs text-slate-400">Fase da Carreira: <span className="text-emerald-400 font-bold">{playerAlgo.Fase_Carreira || 'N/D'}</span> • Tier: <span className="text-purple-300 font-bold">{playerAlgo.Scout_Tier || 'N/D'}</span></p>
@@ -1831,7 +1892,7 @@ export default function Home() {
                           </div>
                         </div>
 
-                        {/* PILARES DE DESEMPENHO (COM VALORES BRUTOS E DELTA VS MEDIANA DA LIGA) */}
+                        {/* PILARES DE DESEMPENHO */}
                         <div className="bg-[#151c2c] p-6 rounded-2xl border border-slate-800 space-y-4">
                           <div className="flex justify-between items-center">
                             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
@@ -1842,11 +1903,9 @@ export default function Home() {
 
                           <div className={`grid grid-cols-2 ${isGK ? 'md:grid-cols-2' : 'md:grid-cols-4'} gap-3`}>
                             {pillarList.map((pilar, idx) => {
-                              // Lê a nota bruta do pilar no Excel
                               const val = playerAlgo[pilar.key];
                               const numVal = val ? parseFloat(val) : 0;
                               
-                              // Cálculo do Delta em relação à Mediana da Liga
                               const medianLiga = playerAlgo[`${pilar.title}_Median_Liga`];
                               const numMedian = medianLiga ? parseFloat(medianLiga) : null;
                               const delta = numMedian !== null ? numVal - numMedian : null;
