@@ -5,8 +5,11 @@ import {
   Users, Trophy, Shield, Search, Plus, ChevronDown, ChevronUp, Calendar, 
   UserCheck, X, Activity, FileText, BarChart3, Briefcase, Flag, Building2,
   Zap, Crosshair, BrainCircuit, ExternalLink, Globe, Loader2, UserPlus, LogOut, CheckCircle2,
-  Menu, LayoutDashboard, ArrowRight, Star, Edit3, Lock, Sliders, Settings, CheckSquare, Target
+  Menu, LayoutDashboard, ArrowRight, Star, Edit3, Lock, Sliders, Settings, CheckSquare, Target,
+  Upload, Award, TrendingUp, Cpu
 } from 'lucide-react';
+
+import * as XLSX from 'xlsx';
 
 const TACTICS_OPTIONS = [
   '1-4-3-3', '1-4-4-2', '1-4-2-4', '1-4-1-3-2', '1-4-1-4-1', '1-4-2-3-1', 
@@ -20,8 +23,6 @@ const POSITIONS_OPTIONS = [
 ];
 
 const METRIC_LEVELS = ['Low', 'Medium', 'High'];
-
-// PASSWORD GLOBAL DO DEPARTAMENTO
 const DEPT_PASSWORD = 'LECA'; 
 
 type Role = 'ADMIN' | 'DIRECTOR' | 'EXECUTIVE' | 'SCOUT';
@@ -46,6 +47,17 @@ function getUserTitle(name: string): string {
   if (lowerName.includes('josé luís') || lowerName.includes('jose luis')) return 'Presidente';
   if (lowerName.includes('andré da silva') || lowerName.includes('andre da silva')) return 'Diretor Geral';
   return 'Scout do Clube';
+}
+
+// Função de Limpeza e Mapeamento de Nomes (Fuzzy Normalization)
+function cleanPlayerName(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/\s*\([^)]*\)/g, '') // Remove conteúdo entre parênteses "Marcos Barbeiro (Atlético Malveira)" -> "Marcos Barbeiro"
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+    .toLowerCase()
+    .trim();
 }
 
 function CustomSelect({
@@ -109,7 +121,7 @@ function CustomSelect({
                 onClick={() => { onChange(opt.value); setIsOpen(false); setSearchTerm(''); }}
                 className={`w-full text-left px-3 py-3 md:py-2.5 rounded-lg transition flex items-center gap-2.5 ${opt.value === value ? 'bg-blue-600/20 text-blue-400 font-medium border border-blue-500/30' : 'text-slate-300 hover:bg-slate-800/80 hover:text-white border border-transparent'}`}
               >
-                {opt.image ? <img src={opt.image} alt="" className="w-6 h-6 object-contain rounded-md bg-slate-900 p-0.5 border border-slate-700" /> : opt.icon ? <span className="text-slate-400">{opt.icon}</span> : <span className="w-1.5 h-1.5 rounded-full bg-slate-700 flex-shrink-0" />}
+                {opt.image ? <img src={opt.image} alt="" className="w-6 h-6 object-contain rounded-md bg-[#0d131f] p-0.5 border border-slate-700" /> : opt.icon ? <span className="text-slate-400">{opt.icon}</span> : <span className="w-1.5 h-1.5 rounded-full bg-slate-700 flex-shrink-0" />}
                 <span className="truncate">{opt.label}</span>
               </button>
             ))
@@ -121,7 +133,7 @@ function CustomSelect({
 }
 
 function CustomMultiSelect({
-  options, selectedIds, onChange, placeholder = 'Selecionar Scouts...', className = ''
+  options, selectedIds, onChange, placeholder = 'Selecionar...', className = ''
 }: {
   options: Array<{ value: string; label: string; image?: string | null }>;
   selectedIds: string[];
@@ -216,6 +228,10 @@ export default function Home() {
   const [selectedScout, setSelectedScout] = useState<any | null>(null);
   const [profileTab, setProfileTab] = useState<'timeline' | 'algo' | 'market'>('timeline');
 
+  // ALGORITHM DATA CACHE (Armazenamento Interno do Excel)
+  const [algorithmData, setAlgorithmData] = useState<Record<string, any>>({});
+  const [uploadingExcel, setUploadingExcel] = useState(false);
+
   // GESTÃO DE MERCADOS ADMIN
   const [scoutMarketAssignments, setScoutMarketAssignments] = useState<Record<string, string[]>>({});
   const [selectedAdminScoutId, setSelectedAdminScoutId] = useState<string>('');
@@ -297,7 +313,48 @@ export default function Home() {
     if (savedAssignments) {
       try { setScoutMarketAssignments(JSON.parse(savedAssignments)); } catch (e) {}
     }
+    const savedAlgo = localStorage.getItem('leca_algo_data');
+    if (savedAlgo) {
+      try { setAlgorithmData(JSON.parse(savedAlgo)); } catch (e) {}
+    }
   }, []);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingExcel(true);
+    const reader = new FileReader();
+
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsName = wb.SheetNames[0];
+        const ws = wb.Sheets[wsName];
+        const rawData: any[] = XLSX.utils.sheet_to_json(ws);
+
+        const newAlgoData: Record<string, any> = { ...algorithmData };
+
+        rawData.forEach((row) => {
+          const cleanName = cleanPlayerName(row.Player || '');
+          if (cleanName) {
+            newAlgoData[cleanName] = row;
+          }
+        });
+
+        setAlgorithmData(newAlgoData);
+        localStorage.setItem('leca_algo_data', JSON.stringify(newAlgoData));
+        showToast(`Ficheiro processado! ${rawData.length} atletas atualizados no algoritmo.`);
+      } catch (error) {
+        showToast("Erro ao processar o ficheiro Excel.");
+      } finally {
+        setUploadingExcel(false);
+      }
+    };
+
+    reader.readAsBinaryString(file);
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -328,12 +385,10 @@ export default function Home() {
   // REGRAS DE PERMISSÕES RBAC
   const canCreateMatches = userRole === 'ADMIN' || userRole === 'SCOUT';
   const canEditMatches = userRole === 'ADMIN' || userRole === 'SCOUT';
-  // ATUALIZAÇÃO: Todos os perfis autenticados podem ver a aba Mercado (em Leitura ou Edição)
   const canSeeMarket = true;
   const canEditMarket = userRole === 'ADMIN' || userRole === 'DIRECTOR';
   const isAdmin = userRole === 'ADMIN';
 
-  // FILTRO: SCOUTS REAIS
   const displayScouts = scouts.filter(s => {
     const role = getRoleForUser(s.name);
     return role === 'SCOUT' || role === 'ADMIN';
@@ -709,7 +764,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* RECENT HIGHLIGHTS FEED */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-sm md:text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -911,7 +965,6 @@ export default function Home() {
                     {isExpanded && (
                       <div className="p-4 md:p-5 border-t border-slate-800 bg-[#0d131f] md:bg-[#111723] space-y-6 md:space-y-5">
                         
-                        {/* MATCH HEADER & METRICS */}
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#151c2c] md:bg-[#0d131f] p-4 rounded-xl border border-slate-800 text-xs md:text-sm gap-4">
                           <div className="space-y-2 md:space-y-1.5 w-full md:w-auto">
                             <div className="flex items-center gap-2 text-slate-300"><Shield className="w-4 h-4 text-slate-500"/> <strong>Táticas:</strong> {match.homeTactic} / {match.awayTactic}</div>
@@ -924,7 +977,6 @@ export default function Home() {
                           )}
                         </div>
 
-                        {/* MATCH CONTEXT EDITOR */}
                         {isEditingContext && canEditMatches && (
                           <div className="bg-[#151c2c] md:bg-[#0d131f] p-4 md:p-5 rounded-xl border border-blue-500/30 space-y-4 text-xs md:text-sm shadow-inner animate-in fade-in slide-in-from-top-2">
                             <h4 className="font-bold text-blue-400 uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">Editar Detalhes do Jogo</h4>
@@ -935,7 +987,7 @@ export default function Home() {
                                 options={displayScouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
                                 selectedIds={reportData.scoutIds} 
                                 onChange={(ids: string[]) => setReportData({ ...reportData, scoutIds: ids })} 
-                                placeholder="Selecionar Scouts que acompanharam o jogo..." 
+                                placeholder="Selecionar Scouts..." 
                               />
                             </div>
 
@@ -964,7 +1016,6 @@ export default function Home() {
                           </div>
                         )}
 
-                        {/* HIGHLIGHTS SECTION */}
                         <div>
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                             <h4 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider">Avaliações Individuais (Highlights)</h4>
@@ -1043,7 +1094,6 @@ export default function Home() {
                           )}
                         </div>
 
-                        {/* MÉTRICAS VISUAIS */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
                           <div className="bg-[#151c2c] p-3 md:p-4 rounded-xl border border-slate-800/60">
                              <span className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 uppercase tracking-wider font-bold mb-1"><Zap className="w-3.5 h-3.5"/> Ritmo</span>
@@ -1072,7 +1122,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 4: EQUIPA DE SCOUTS (MOSTRA OS MERCADOS REALMENTE ATRIBUÍDOS) */}
+        {/* TAB 4: EQUIPA DE SCOUTS */}
         {activeTab === 'scouts' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {displayScouts.map((scout) => {
@@ -1131,19 +1181,45 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 5: PAINEL ADMIN (ATRIBUIÇÃO DE MERCADOS E TAREFAS) */}
+        {/* TAB 5: PAINEL ADMIN (UPLOAD DE EXCEL E ATRIBUIÇÃO DE MERCADOS) */}
         {activeTab === 'admin' && isAdmin && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div className="bg-[#151c2c] border border-purple-500/30 p-6 md:p-8 rounded-2xl shadow-xl relative overflow-hidden space-y-8">
               <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
                 <div className="p-3 bg-purple-600/20 text-purple-400 rounded-xl border border-purple-500/30"><Sliders className="w-6 h-6"/></div>
                 <div>
-                  <h2 className="text-xl font-bold text-white">Painel de Gestão e Atribuição de Mercados</h2>
-                  <p className="text-xs text-slate-400">Gerir permissões, alvos de prospecção e associar campeonatos a cada Scout.</p>
+                  <h2 className="text-xl font-bold text-white">Painel do Head of Scouting (Administração)</h2>
+                  <p className="text-xs text-slate-400">Carregar dados analíticos em bulk e gerir mercados dos observadores.</p>
                 </div>
               </div>
 
-              {/* MÓDULO 1: ATRIBUIR CAMPEONATOS / MERCADOS A CADA SCOUT */}
+              {/* UPLOAD DO FICHEIRO XLSX DE ALGORITMO */}
+              <div className="bg-[#0d131f] p-5 md:p-6 rounded-xl border border-purple-500/40 space-y-4 relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-purple-400 uppercase tracking-wider flex items-center gap-2">
+                    <Upload className="w-4 h-4 text-purple-400" /> Upload de Métricas e Algoritmo (.XLSX)
+                  </h3>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded border border-emerald-500/30">
+                    {Object.keys(algorithmData).length} Atletas em Memória
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Selecione o ficheiro Excel com as métricas avançadas (Ratings, Percentis, Pilares de Desempenho). A aplicação faz a associação automática pelos nomes dos atletas.
+                </p>
+
+                <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
+                  <label className="w-full sm:w-auto px-6 py-3.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-purple-900/20 transition">
+                    {uploadingExcel ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    <span>{uploadingExcel ? 'A processar Excel...' : 'Carregar Ficheiro XLSX'}</span>
+                    <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} className="hidden" disabled={uploadingExcel} />
+                  </label>
+                  <span className="text-[11px] text-slate-500">
+                    Processamento 100% interno (sem escrita no Airtable).
+                  </span>
+                </div>
+              </div>
+
+              {/* MÓDULO: ATRIBUIR CAMPEONATOS A CADA SCOUT */}
               <div className="bg-[#0d131f] p-5 md:p-6 rounded-xl border border-slate-800 space-y-4">
                 <h3 className="text-sm font-bold text-purple-400 uppercase tracking-wider flex items-center gap-2">
                   <Target className="w-4 h-4 text-purple-400" /> Atribuir Campeonatos a um Scout
@@ -1164,7 +1240,7 @@ export default function Home() {
 
                   {selectedAdminScoutId && (
                     <div className="animate-in fade-in">
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">2. Selecionar Campeonatos do Airtable</label>
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">2. Selecionar Campeonatos</label>
                       <CustomMultiSelect 
                         options={competitions.map(c => ({ value: c.name, label: c.name }))} 
                         selectedIds={scoutMarketAssignments[selectedAdminScoutId] || []} 
@@ -1176,7 +1252,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* MÓDULO 2: ESPAÇO RESERVADO PARA TAREFAS FUTURAS */}
+              {/* ESPAÇO RESERVADO PARA TAREFAS FUTURAS */}
               <div className="bg-[#0d131f] p-5 md:p-6 rounded-xl border border-slate-800 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
@@ -1185,57 +1261,6 @@ export default function Home() {
                   <span className="text-[10px] bg-purple-500/20 text-purple-300 font-bold px-2 py-0.5 rounded border border-purple-500/30">Módulo em Estruturação</span>
                 </div>
                 <p className="text-xs text-slate-400">Espaço reservado para envio de diretivas de observação individuais (ex: &quot;Acompanhar atleta X no próximo fim de semana&quot;).</p>
-              </div>
-
-              {/* MÓDULO 3: GESTÃO DE MERCADOS PRIORITÁRIOS DA SAD */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-slate-800">
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                    <Globe className="w-4 h-4 text-purple-400" /> Mercados Alvo Globais do Leça FC
-                  </h3>
-                  <form onSubmit={handleAddMarket} className="flex gap-2">
-                    <input 
-                      type="text" 
-                      placeholder="Ex: América do Sul (Prospeção)..." 
-                      value={newMarketInput} 
-                      onChange={e => setNewMarketInput(e.target.value)} 
-                      className="flex-1 bg-[#0d131f] border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
-                    />
-                    <button type="submit" className="px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs flex items-center gap-1">
-                      <Plus className="w-4 h-4"/> Adicionar
-                    </button>
-                  </form>
-
-                  <div className="space-y-2 pt-2">
-                    {adminMarkets.map((m, idx) => (
-                      <div key={idx} className="bg-[#0d131f] p-3 rounded-xl border border-slate-800 flex justify-between items-center text-xs font-medium text-slate-200">
-                        <span>{m}</span>
-                        <button onClick={() => handleRemoveMarket(idx)} className="text-slate-500 hover:text-red-400 transition p-1"><X className="w-4 h-4"/></button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                    <Settings className="w-4 h-4 text-purple-400" /> Parâmetros do Sistema
-                  </h3>
-                  
-                  <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800 space-y-3 text-xs">
-                    <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
-                      <span className="text-slate-400 font-medium">Estado da Sincronização Airtable</span>
-                      <span className="text-emerald-400 font-bold flex items-center gap-1"><CheckCircle2 size={12}/> Ativa</span>
-                    </div>
-                    <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
-                      <span className="text-slate-400 font-medium">Total de Utilizadores Registados</span>
-                      <span className="text-white font-bold">{scouts.length} Pessoas</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400 font-medium">Versão da Intranet</span>
-                      <span className="text-purple-400 font-bold">Leça FC Scouting v2.6</span>
-                    </div>
-                  </div>
-                </div>
               </div>
 
             </div>
@@ -1274,7 +1299,6 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* KPIS DO SCOUT */}
               <div className="grid grid-cols-2 gap-3 text-center">
                 <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
                   <span className="text-xs text-slate-500 block mb-1 font-semibold">Jogos Observados</span>
@@ -1286,7 +1310,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* MERCADOS ATRIBUÍDOS */}
               <div className="bg-[#0d131f] p-4 rounded-xl border border-slate-800">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <Globe className="w-3.5 h-3.5 text-blue-400" /> Mercados Atribuídos ({assignedMarkets.length})
@@ -1304,7 +1327,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* HISTÓRICO DE JOGOS OBSERVADOS POR ESTE SCOUT */}
               <div>
                 <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Histórico de Partidas Acompanhadas ({scoutMatches.length})</h3>
                 {scoutMatches.length > 0 ? (
@@ -1533,122 +1555,213 @@ export default function Home() {
         </div>
       )}
 
-      {/* PERFIL DETALHADO DO JOGADOR (INCLUI NOVA ABA DE MERCADO) */}
-      {selectedPlayer && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-          <div className="bg-[#151c2c] border border-slate-800 w-full max-w-4xl h-[90vh] flex flex-col rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
-            
-            <div className="bg-[#151c2c] border-b border-slate-800 p-5 md:p-8 flex-shrink-0 relative">
-              <button onClick={() => setSelectedPlayer(null)} className="absolute top-4 right-4 md:top-6 md:right-6 p-2 md:p-2.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition z-10"><X className="w-5 h-5" /></button>
-              <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6 mt-2 md:mt-0">
-                {selectedPlayer.photo ? <img src={selectedPlayer.photo} alt={selectedPlayer.name} className="w-20 h-20 md:w-28 md:h-28 rounded-2xl object-cover border-4 border-[#0d131f] shadow-xl bg-[#0d131f]" /> : <div className="w-20 h-20 md:w-28 md:h-28 rounded-2xl bg-[#0d131f] border-4 border-slate-800 flex items-center justify-center text-slate-400 font-bold text-3xl shadow-xl">{(selectedPlayer.name || 'J').charAt(0)}</div>}
-                <div className="text-center md:text-left flex-1">
-                  <h2 className="text-xl md:text-3xl font-black text-white mb-2 tracking-tight">{selectedPlayer.name}</h2>
-                  <div className="flex flex-wrap justify-center md:justify-start items-center gap-2 md:gap-3 text-xs md:text-sm">
-                    <span className="bg-blue-600 text-white px-3 py-1 md:py-1.5 rounded-lg font-bold shadow-md shadow-blue-900/20">{selectedPlayer.position}</span>
-                    <div className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 md:py-1.5 rounded-lg border border-slate-700 text-slate-200 font-medium">{selectedPlayer.clubLogo ? <img src={selectedPlayer.clubLogo} alt={selectedPlayer.club} className="w-4 h-4 md:w-5 md:h-5 object-contain" /> : <Shield className="w-4 h-4 text-blue-400" />}<span className="truncate max-w-[120px] md:max-w-none">{selectedPlayer.club}</span></div>
-                    <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 md:py-1.5 rounded-lg font-bold uppercase tracking-wide flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> {selectedPlayer.status}</span>
+      {/* PERFIL DETALHADO DO JOGADOR (INCLUI RENDERIZAÇÃO DO ALGORITMO) */}
+      {selectedPlayer && (() => {
+        const playerCleanName = cleanPlayerName(selectedPlayer.name);
+        const playerAlgo = algorithmData[playerCleanName];
+
+        return (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+            <div className="bg-[#151c2c] border border-slate-800 w-full max-w-4xl h-[90vh] flex flex-col rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+              
+              <div className="bg-[#151c2c] border-b border-slate-800 p-5 md:p-8 flex-shrink-0 relative">
+                <button onClick={() => setSelectedPlayer(null)} className="absolute top-4 right-4 md:top-6 md:right-6 p-2 md:p-2.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition z-10"><X className="w-5 h-5" /></button>
+                <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6 mt-2 md:mt-0">
+                  {selectedPlayer.photo ? <img src={selectedPlayer.photo} alt={selectedPlayer.name} className="w-20 h-20 md:w-28 md:h-28 rounded-2xl object-cover border-4 border-[#0d131f] shadow-xl bg-[#0d131f]" /> : <div className="w-20 h-20 md:w-28 md:h-28 rounded-2xl bg-[#0d131f] border-4 border-slate-800 flex items-center justify-center text-slate-400 font-bold text-3xl shadow-xl">{(selectedPlayer.name || 'J').charAt(0)}</div>}
+                  <div className="text-center md:text-left flex-1">
+                    <h2 className="text-xl md:text-3xl font-black text-white mb-2 tracking-tight">{selectedPlayer.name}</h2>
+                    <div className="flex flex-wrap justify-center md:justify-start items-center gap-2 md:gap-3 text-xs md:text-sm">
+                      <span className="bg-blue-600 text-white px-3 py-1 md:py-1.5 rounded-lg font-bold shadow-md shadow-blue-900/20">{selectedPlayer.position}</span>
+                      <div className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1 md:py-1.5 rounded-lg border border-slate-700 text-slate-200 font-medium">{selectedPlayer.clubLogo ? <img src={selectedPlayer.clubLogo} alt={selectedPlayer.club} className="w-4 h-4 md:w-5 md:h-5 object-contain" /> : <Shield className="w-4 h-4 text-blue-400" />}<span className="truncate max-w-[120px] md:max-w-none">{selectedPlayer.club}</span></div>
+                      <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 md:py-1.5 rounded-lg font-bold uppercase tracking-wide flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> {selectedPlayer.status}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex-1 overflow-y-auto bg-[#0d131f] p-4 md:p-8">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
-                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left"><span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Idade</span><span className="text-white text-lg font-black">{selectedPlayer.age !== 'N/D' ? `${selectedPlayer.age} anos` : '--'}</span></div>
-                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left"><span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Nacionalidade</span><span className="text-white text-base md:text-lg font-black flex items-center justify-center md:justify-start gap-1.5 truncate w-full"><Flag className="w-3.5 h-3.5 text-slate-400 flex-shrink-0"/> <span className="truncate">{selectedPlayer.nationality || '--'}</span></span></div>
-                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left"><span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Pé / Altura</span><span className="text-white text-lg font-black">{selectedPlayer.foot || '-'} • {selectedPlayer.height || '-'}</span></div>
-                <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left bg-blue-900/10 border-blue-900/30"><span className="text-blue-500/70 text-[10px] uppercase font-bold tracking-widest block mb-1">Jogos Vistos</span><span className="text-blue-400 text-2xl font-black">{getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length}</span></div>
-              </div>
+              <div className="flex-1 overflow-y-auto bg-[#0d131f] p-4 md:p-8">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
+                  <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left"><span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Idade</span><span className="text-white text-lg font-black">{selectedPlayer.age !== 'N/D' ? `${selectedPlayer.age} anos` : '--'}</span></div>
+                  <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left"><span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Nacionalidade</span><span className="text-white text-base md:text-lg font-black flex items-center justify-center md:justify-start gap-1.5 truncate w-full"><Flag className="w-3.5 h-3.5 text-slate-400 flex-shrink-0"/> <span className="truncate">{selectedPlayer.nationality || '--'}</span></span></div>
+                  <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left"><span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Pé / Altura</span><span className="text-white text-lg font-black">{selectedPlayer.foot || '-'} • {selectedPlayer.height || '-'}</span></div>
+                  <div className="bg-[#151c2c] p-4 rounded-2xl border border-slate-800/80 shadow-sm flex flex-col justify-center items-center md:items-start text-center md:text-left bg-blue-900/10 border-blue-900/30"><span className="text-blue-500/70 text-[10px] uppercase font-bold tracking-widest block mb-1">Jogos Vistos</span><span className="text-blue-400 text-2xl font-black">{getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length}</span></div>
+                </div>
 
-              <div className="flex gap-4 md:gap-8 border-b border-slate-800 text-xs md:text-sm font-bold mb-6 overflow-x-auto no-scrollbar pb-1">
-                <button onClick={() => setProfileTab('timeline')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'timeline' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}><FileText className="w-4 h-4" /> Observações & Timeline</button>
-                <button onClick={() => setProfileTab('algo')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'algo' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}><BarChart3 className="w-4 h-4" /> Looker Studio (Algoritmo)</button>
-                {canSeeMarket && (
-                  <button onClick={() => setProfileTab('market')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'market' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}>
-                    <Briefcase className="w-4 h-4" /> Mercado & Decisão
-                  </button>
-                )}
-              </div>
-
-              {profileTab === 'timeline' && (
-                <div className="space-y-6">
-                  {getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length > 0 ? (
-                    <div className="relative border-l-2 border-slate-800/80 ml-3 md:ml-4 space-y-8 pb-4">
-                      {getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).map((report, idx) => (
-                        <div key={idx} className="relative pl-6 md:pl-8">
-                          <div className="absolute w-4 h-4 bg-blue-500 rounded-full left-[-9px] top-1 border-4 border-[#0d131f] shadow-sm"></div>
-                          <div className="bg-[#151c2c] p-4 md:p-5 rounded-2xl border border-slate-800 shadow-sm">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-slate-800/60 pb-3">
-                              <div><h4 className="font-bold text-white text-sm md:text-base leading-tight">{report.matchName}</h4><div className="flex items-center gap-2 text-[10px] md:text-xs text-slate-400 mt-1"><span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {report.gameDate}</span></div></div>
-                              <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                                <div className="bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50 flex items-center gap-1.5 text-[10px] md:text-xs font-medium text-slate-300"><UserCheck className="w-3 h-3 text-blue-400"/> Scout: {report.scout}</div>
-                                <button onClick={() => navigateToMatch(report.matchId)} className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5">Ir para Jogo <ExternalLink className="w-3 h-3" /></button>
-                              </div>
-                            </div>
-                            <div className="text-xs md:text-sm text-slate-300 leading-relaxed font-sans whitespace-pre-wrap">{report.note}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 bg-[#151c2c] rounded-2xl border border-slate-800 border-dashed"><FileText className="w-8 h-8 mx-auto text-slate-600 mb-3" /><p className="text-sm text-slate-400 font-medium">Ainda não existem observações de jogo para este atleta.</p><p className="text-xs text-slate-500 mt-1">As avaliações individuais feitas no Match Center aparecerão aqui.</p></div>
+                <div className="flex gap-4 md:gap-8 border-b border-slate-800 text-xs md:text-sm font-bold mb-6 overflow-x-auto no-scrollbar pb-1">
+                  <button onClick={() => setProfileTab('timeline')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'timeline' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}><FileText className="w-4 h-4" /> Observações & Timeline</button>
+                  <button onClick={() => setProfileTab('algo')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'algo' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}><BarChart3 className="w-4 h-4" /> Looker Studio (Algoritmo)</button>
+                  {canSeeMarket && (
+                    <button onClick={() => setProfileTab('market')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'market' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-white'}`}>
+                      <Briefcase className="w-4 h-4" /> Mercado & Decisão
+                    </button>
                   )}
                 </div>
-              )}
 
-              {profileTab === 'algo' && (
-                <div className="flex flex-col items-center justify-center py-20 bg-blue-900/5 rounded-2xl border border-blue-900/20 text-center px-4"><BarChart3 className="w-12 h-12 text-blue-500/50 mb-4" /><h3 className="text-lg font-bold text-blue-400 mb-2">Integração Looker Studio</h3><p className="text-sm text-slate-400 max-w-md">Em breve, a avaliação do algoritmo e os gráficos de rating gerados pelo vosso sistema em Excel estarão incorporados nesta vista.</p></div>
-              )}
+                {profileTab === 'timeline' && (
+                  <div className="space-y-6">
+                    {getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length > 0 ? (
+                      <div className="relative border-l-2 border-slate-800/80 ml-3 md:ml-4 space-y-8 pb-4">
+                        {getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).map((report, idx) => (
+                          <div key={idx} className="relative pl-6 md:pl-8">
+                            <div className="absolute w-4 h-4 bg-blue-500 rounded-full left-[-9px] top-1 border-4 border-[#0d131f] shadow-sm"></div>
+                            <div className="bg-[#151c2c] p-4 md:p-5 rounded-2xl border border-slate-800 shadow-sm">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-slate-800/60 pb-3">
+                                <div><h4 className="font-bold text-white text-sm md:text-base leading-tight">{report.matchName}</h4><div className="flex items-center gap-2 text-[10px] md:text-xs text-slate-400 mt-1"><span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {report.gameDate}</span></div></div>
+                                <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                                  <div className="bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50 flex items-center gap-1.5 text-[10px] md:text-xs font-medium text-slate-300"><UserCheck className="w-3 h-3 text-blue-400"/> Scout: {report.scout}</div>
+                                  <button onClick={() => navigateToMatch(report.matchId)} className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5">Ir para Jogo <ExternalLink className="w-3 h-3" /></button>
+                                </div>
+                              </div>
+                              <div className="text-xs md:text-sm text-slate-300 leading-relaxed font-sans whitespace-pre-wrap">{report.note}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 bg-[#151c2c] rounded-2xl border border-slate-800 border-dashed"><FileText className="w-8 h-8 mx-auto text-slate-600 mb-3" /><p className="text-sm text-slate-400 font-medium">Ainda não existem observações de jogo para este atleta.</p><p className="text-xs text-slate-500 mt-1">As avaliações individuais feitas no Match Center aparecerão aqui.</p></div>
+                    )}
+                  </div>
+                )}
 
-              {profileTab === 'market' && canSeeMarket && (
-                <div className="bg-[#151c2c] p-6 md:p-8 rounded-2xl border border-blue-500/20 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/5 rounded-full blur-3xl"></div>
-                  
-                  <div className="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
-                    <div>
-                      <h3 className="text-sm md:text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                        <Briefcase className="w-5 h-5 text-blue-400" /> Direção Desportiva
-                      </h3>
-                      <p className="text-xs text-slate-400 mt-1">Informações confidenciais e notas de viabilidade de mercado.</p>
-                    </div>
-                    {!canEditMarket && (
-                      <div className="bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-xs font-bold text-slate-400 flex items-center gap-1.5">
-                        <Lock className="w-3 h-3" /> Modo Leitura
+                {/* VISTA DO ALGORITMO (LOOKER STUDIO DADOS DO EXCEL) */}
+                {profileTab === 'algo' && (
+                  <div className="space-y-6 animate-in fade-in duration-300">
+                    {playerAlgo ? (
+                      <>
+                        {/* BANNER DO PERFIL TOP 1 */}
+                        <div className="bg-[#151c2c] p-6 rounded-2xl border border-purple-500/30 relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4">
+                          <div className="space-y-1 text-center md:text-left">
+                            <span className="text-[10px] uppercase font-bold tracking-widest text-purple-400 flex items-center gap-1 justify-center md:justify-start">
+                              <Cpu className="w-3.5 h-3.5" /> Perfil de Elevado Encaixe (Top 1)
+                            </span>
+                            <h3 className="text-2xl font-black text-white">{playerAlgo.Top_Profile_1_Name || playerAlgo.Melhor_Perfil || 'N/D'}</h3>
+                            <p className="text-xs text-slate-400">Fase da Carreira: <span className="text-emerald-400 font-bold">{playerAlgo.Fase_Carreira || 'N/D'}</span> • Tier: <span className="text-purple-300 font-bold">{playerAlgo.Scout_Tier || 'N/D'}</span></p>
+                          </div>
+                          <div className="flex gap-3">
+                            <div className="bg-[#0d131f] px-5 py-3 rounded-xl border border-slate-800 text-center">
+                              <span className="block text-[9px] text-slate-500 uppercase font-bold">Nota Bruta</span>
+                              <span className="text-2xl font-black text-white">{playerAlgo.Top_Profile_1_Score || playerAlgo.Nota_Melhor_Perfil || '0'}</span>
+                            </div>
+                            <div className="bg-purple-900/20 px-5 py-3 rounded-xl border border-purple-500/30 text-center">
+                              <span className="block text-[9px] text-purple-400 uppercase font-bold">Ajustada à Liga</span>
+                              <span className="text-2xl font-black text-purple-300">{playerAlgo.Top_Profile_1_Score_Adj || playerAlgo.Nota_Melhor_Perfil_Adj || '0'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* OS 8 PILARES DO JOGADOR */}
+                        <div className="bg-[#151c2c] p-6 rounded-2xl border border-slate-800 space-y-4">
+                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <Award className="w-4 h-4 text-blue-400"/> Pilares de Desempenho (Ajustados)
+                          </h4>
+
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {[
+                              { title: 'Jogo Aéreo', val: playerAlgo['Jogo Aéreo_Adj'] },
+                              { title: 'Defesa', val: playerAlgo['Defesa_Adj'] },
+                              { title: 'Construção', val: playerAlgo['Construção_Adj'] },
+                              { title: 'Criação', val: playerAlgo['Criação_Adj'] },
+                              { title: 'Cruzamento', val: playerAlgo['Cruzamento_Adj'] },
+                              { title: 'Capacidade 1v1', val: playerAlgo['Capacidade 1v1_Adj'] },
+                              { title: 'Profundidade', val: playerAlgo['Profundidade_Adj'] },
+                              { title: 'Finalização', val: playerAlgo['Finalização_Adj'] },
+                            ].map((pilar, idx) => (
+                              <div key={idx} className="bg-[#0d131f] p-3.5 rounded-xl border border-slate-800/80">
+                                <span className="block text-[10px] text-slate-500 uppercase font-bold mb-1">{pilar.title}</span>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-lg font-bold text-white">{pilar.val ? parseFloat(pilar.val).toFixed(1) : '--'}</span>
+                                  <div className="w-12 bg-slate-800 h-2 rounded-full overflow-hidden">
+                                    <div className="bg-blue-500 h-full rounded-full" style={{ width: `${Math.min(100, (parseFloat(pilar.val || 0) / 80) * 100)}%` }}></div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* TOP PERCENTIS */}
+                        <div className="bg-[#151c2c] p-6 rounded-2xl border border-slate-800 space-y-3">
+                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-emerald-400"/> Mapeamento de Destaques em Percentil (% Pct)
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                            {[
+                              { title: 'Duelos Aéreos Ganhos %', val: playerAlgo['Aerial Duels Won % Pct'] },
+                              { title: 'Duelos Ofensivos Ganhos %', val: playerAlgo['Offensive Duels Won % Pct'] },
+                              { title: 'Eficácia de Drible %', val: playerAlgo['Dribbles Success % Pct'] },
+                              { title: 'Duelos Defensivos Ganhos %', val: playerAlgo['Defensive Duels Won % Pct'] },
+                              { title: 'Passe Certo %', val: playerAlgo['Passes Accuracy % Pct'] },
+                              { title: 'Cruzamentos Precisos %', val: playerAlgo['Crosses Accuracy % Pct'] },
+                            ].map((pct, idx) => (
+                              <div key={idx} className="bg-[#0d131f] p-3 rounded-xl border border-slate-800/60 flex items-center justify-between">
+                                <span className="text-xs text-slate-300 font-medium">{pct.title}</span>
+                                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">{pct.val ? `${pct.val}%` : 'N/D'}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-20 bg-[#151c2c] rounded-2xl border border-slate-800 border-dashed text-center px-4">
+                        <BarChart3 className="w-12 h-12 text-slate-600 mb-4" />
+                        <h3 className="text-lg font-bold text-white mb-2">Sem Dados de Algoritmo Registados</h3>
+                        <p className="text-sm text-slate-400 max-w-md">
+                          Este atleta ainda não foi associado a um ficheiro de métricas. Faça o upload do ficheiro Excel no <strong>Painel Admin</strong> para carregar automaticamente os ratings.
+                        </p>
                       </div>
                     )}
                   </div>
+                )}
 
-                  <div className="space-y-5 relative z-10">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {profileTab === 'market' && canSeeMarket && (
+                  <div className="bg-[#151c2c] p-6 md:p-8 rounded-2xl border border-blue-500/20 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/5 rounded-full blur-3xl"></div>
+                    
+                    <div className="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Prioridade de Contratação</label>
-                        <input type="text" disabled={!canEditMarket} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-white focus:outline-none focus:border-blue-500 disabled:opacity-70 text-sm font-medium" placeholder="Ex: Prioridade Máxima (Verão)" defaultValue="Em avaliação" />
+                        <h3 className="text-sm md:text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                          <Briefcase className="w-5 h-5 text-blue-400" /> Direção Desportiva
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1">Informações confidenciais e notas de viabilidade de mercado.</p>
+                      </div>
+                      {!canEditMarket && (
+                        <div className="bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-xs font-bold text-slate-400 flex items-center gap-1.5">
+                          <Lock className="w-3 h-3" /> Modo Leitura
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-5 relative z-10">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Prioridade de Contratação</label>
+                          <input type="text" disabled={!canEditMarket} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-white focus:outline-none focus:border-blue-500 disabled:opacity-70 text-sm font-medium" placeholder="Ex: Prioridade Máxima (Verão)" defaultValue="Em avaliação" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Valor de Mercado / Salário Base</label>
+                          <input type="text" disabled={!canEditMarket} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-emerald-400 focus:outline-none focus:border-blue-500 disabled:opacity-70 text-sm font-bold" placeholder="Ex: 50.000€" defaultValue="N/D" />
+                        </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Valor de Mercado / Salário Base</label>
-                        <input type="text" disabled={!canEditMarket} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-emerald-400 focus:outline-none focus:border-blue-500 disabled:opacity-70 text-sm font-bold" placeholder="Ex: 50.000€" defaultValue="N/D" />
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Notas Confidenciais / Estado do Negócio</label>
+                        <textarea rows={4} disabled={!canEditMarket} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-70 text-sm resize-none" placeholder="Ex: Contacto inicial estabelecido com o agente. Jogador prefere continuar no estrangeiro." defaultValue="Aguarda avaliação final do treinador antes de prosseguir com contacto formal." />
                       </div>
+                      {canEditMarket && (
+                        <div className="flex justify-end pt-2">
+                          <button className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 text-sm">
+                            Guardar Alterações de Mercado
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Notas Confidenciais / Estado do Negócio</label>
-                      <textarea rows={4} disabled={!canEditMarket} className="w-full bg-[#0d131f] border border-slate-800 rounded-xl p-3.5 text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-70 text-sm resize-none" placeholder="Ex: Contacto inicial estabelecido com o agente. Jogador prefere continuar no estrangeiro." defaultValue="Aguarda avaliação final do treinador antes de prosseguir com contacto formal." />
-                    </div>
-                    {canEditMarket && (
-                      <div className="flex justify-end pt-2">
-                        <button className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 text-sm">
-                          Guardar Alterações de Mercado
-                        </button>
-                      </div>
-                    )}
                   </div>
-                </div>
-              )}
+                )}
 
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* MODAL PERFIL EQUIPA */}
       {selectedTeam && (() => {
