@@ -3472,7 +3472,18 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Mercado Target *</label>
-                    <CustomSelect options={[{value:'Época 24/25 (Verão)', label:'Época 24/25 (Verão)'}, {value:'Época 24/25 (Inverno)', label:'Época 24/25 (Inverno)'}, {value:'Época 25/26 (Verão)', label:'Época 25/26 (Verão)'}]} value={marketFormData.marketTarget} onChange={v => setMarketFormData({...marketFormData, marketTarget: v})} placeholder="Qual a janela?" isDarkMode={isDarkMode} />
+                    <CustomSelect 
+                    options={[
+                      { value: 'Época 26/27 (Verão)', label: 'Época 26/27 (Verão)' },
+                      { value: 'Época 26/27 (Inverno)', label: 'Época 26/27 (Inverno)' },
+                      { value: 'Época 27/28 (Verão)', label: 'Época 27/28 (Verão)' },
+                      { value: 'Época 27/28 (Inverno)', label: 'Época 27/28 (Inverno)' }
+                    ]} 
+                    value={marketFormData.marketTarget} 
+                    onChange={v => setMarketFormData({...marketFormData, marketTarget: v})} 
+                    placeholder="Qual a janela?" 
+                    isDarkMode={isDarkMode} 
+                  />
                   </div>
                   <div>
                     <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Scout / Observador *</label>
