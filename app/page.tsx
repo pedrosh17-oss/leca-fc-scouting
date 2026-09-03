@@ -1824,6 +1824,9 @@ const uniqueBirthYears: string[] = Array.from(new Set(
         const activeItem = sortedEntry[selectedSeasonIdx] || sortedEntry[0];
         const playerAlgo = activeItem?.row;
         const metrics = PILLAR_METRICS_MAP[selectedPillarDetail] || [];
+        
+        const pillarScoreRaw = playerAlgo ? playerAlgo[selectedPillarDetail] : null;
+        const pillarScore = pillarScoreRaw ? parseFloat(pillarScoreRaw).toFixed(1) : null;
 
         return (
           <div className="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -1832,7 +1835,10 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 bg-blue-600/20 text-blue-500 rounded-lg border border-blue-500/30"><Info className="w-5 h-5"/></div>
                   <div>
-                    <h3 className="font-bold text-base">Desdobramento: {selectedPillarDetail}</h3>
+                    <h3 className="font-bold text-base">
+                      {selectedPillarDetail} 
+                      {pillarScore && <span className="text-blue-500 ml-1.5">({pillarScore})</span>}
+                    </h3>
                     <p className={`text-xs ${themeTextMuted}`}>{selectedPlayer.name} {activeItem?.tag ? `(${activeItem.tag})` : ''}</p>
                   </div>
                 </div>
@@ -1843,6 +1849,12 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                 {metrics.map((m, idx) => {
                   const rawVal = playerAlgo ? playerAlgo[m.statKey] : null;
                   const pctVal = playerAlgo ? playerAlgo[m.pctKey] : null;
+                  
+                  const numPct = parseFloat(pctVal);
+                  let pctColor = "text-emerald-500"; // > 66% (Verde)
+                  if (isNaN(numPct)) pctColor = "text-slate-400";
+                  else if (numPct < 33) pctColor = "text-red-500"; // < 33% (Vermelho)
+                  else if (numPct < 66) pctColor = "text-amber-500"; // 33% a 66% (Amarelo)
 
                   return (
                     <div key={idx} className={`${themeInnerCard} p-3.5 rounded-xl border flex items-center justify-between`}>
@@ -1851,7 +1863,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                         <div className={`flex items-center gap-3 text-[11px] ${themeTextMuted}`}>
                           <span>Bruto: <strong className="font-bold">{rawVal !== undefined && rawVal !== null ? parseFloat(rawVal).toFixed(2) : 'N/D'}</strong></span>
                           <span>•</span>
-                          <span>Percentil: <strong className="text-emerald-500 font-bold">{pctVal !== undefined && pctVal !== null ? `${parseFloat(pctVal).toFixed(1)} Pct` : 'N/D'}</strong></span>
+                          <span>Percentil: <strong className={`${pctColor} font-bold`}>{pctVal !== undefined && pctVal !== null ? `${numPct.toFixed(1)} Pct` : 'N/D'}</strong></span>
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
@@ -2219,20 +2231,55 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                           </div>
                         </div>
 
-                        <div className={`${themeCard} p-6 rounded-2xl border border-purple-500/30 relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4`}>
-                          <div className="space-y-1 text-center md:text-left">
-                            <span className="text-[10px] uppercase font-bold tracking-widest text-purple-500 flex items-center gap-1 justify-center md:justify-start">
-                              <Cpu className="w-3.5 h-3.5" /> Perfil Principal {activeItem?.tag ? `(${activeItem.tag})` : ''}
-                            </span>
-                            <h3 className="text-2xl font-black">{playerAlgo.Top_Profile_1_Name || playerAlgo.Melhor_Perfil || 'N/D'}</h3>
-                            <p className={`text-xs ${themeTextMuted}`}>Fase da Carreira: <span className="text-emerald-500 font-bold">{playerAlgo.Fase_Carreira || 'N/D'}</span> • Tier: <span className="text-purple-400 font-bold">{playerAlgo.Scout_Tier || 'N/D'}</span></p>
-                          </div>
+                        {(() => {
+                          const notaValRaw = playerAlgo.Top_Profile_1_Score || playerAlgo.Nota_Melhor_Perfil;
+                          const notaVal = notaValRaw ? parseFloat(notaValRaw) : null;
+                          const notaMedianRaw = playerAlgo.Top_Profile_1_Score_Median_Liga || playerAlgo.Nota_Melhor_Perfil_Median_Liga || playerAlgo.Top_Profile_1_Score_Median || playerAlgo.Nota_Melhor_Perfil_Median;
+                          const notaMedian = notaMedianRaw ? parseFloat(notaMedianRaw) : null;
+                          const notaDelta = (notaVal !== null && notaMedian !== null) ? (notaVal - notaMedian) : null;
                           
-                          <div className="bg-purple-900/20 px-6 py-3.5 rounded-xl border border-purple-500/30 text-center min-w-[120px]">
-                            <span className="block text-[10px] text-purple-400 uppercase font-bold">Nota</span>
-                            <span className="text-3xl font-black text-purple-400">{playerAlgo.Top_Profile_1_Score || playerAlgo.Nota_Melhor_Perfil || '0'}</span>
-                          </div>
-                        </div>
+                          const top5Str = playerAlgo.Top_5_Atributos || playerAlgo.Top_5_Attributes || playerAlgo.Top_Attributes;
+                          const top5List = top5Str ? String(top5Str).split(',').map(s => s.trim()).filter(Boolean) : [];
+
+                          return (
+                            <div className="space-y-4">
+                              <div className={`${themeCard} p-6 rounded-2xl border border-purple-500/30 relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4`}>
+                                <div className="space-y-1 text-center md:text-left">
+                                  <span className="text-[10px] uppercase font-bold tracking-widest text-purple-500 flex items-center gap-1 justify-center md:justify-start">
+                                    <Cpu className="w-3.5 h-3.5" /> Perfil Principal {activeItem?.tag ? `(${activeItem.tag})` : ''}
+                                  </span>
+                                  <h3 className="text-2xl font-black">{playerAlgo.Top_Profile_1_Name || playerAlgo.Melhor_Perfil || 'N/D'}</h3>
+                                  <p className={`text-xs ${themeTextMuted}`}>Fase da Carreira: <span className="text-emerald-500 font-bold">{playerAlgo.Fase_Carreira || 'N/D'}</span> • Tier: <span className="text-purple-400 font-bold">{playerAlgo.Scout_Tier || 'N/D'}</span></p>
+                                </div>
+                                
+                                <div className="bg-purple-900/20 px-6 py-3.5 rounded-xl border border-purple-500/30 text-center min-w-[120px] flex flex-col items-center">
+                                  <span className="block text-[10px] text-purple-400 uppercase font-bold">Nota</span>
+                                  <span className="text-3xl font-black text-purple-400">{notaVal !== null ? notaVal.toFixed(1) : '0'}</span>
+                                  {notaDelta !== null && (
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded mt-1.5 ${notaDelta >= 0 ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
+                                      {notaDelta >= 0 ? `+${notaDelta.toFixed(1)}` : notaDelta.toFixed(1)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {top5List.length > 0 && (
+                                <div className={`${themeInnerCard} p-4 md:p-5 rounded-2xl border`}>
+                                  <h4 className={`text-xs font-bold ${themeTextMuted} uppercase tracking-wider mb-3 flex items-center gap-2`}>
+                                    <Star className="w-4 h-4 text-amber-500"/> Top 5 Atributos
+                                  </h4>
+                                  <div className="flex flex-wrap gap-2">
+                                    {top5List.map((attr, i) => (
+                                      <span key={i} className={`text-[11px] md:text-xs font-bold px-3 py-1.5 rounded-lg border ${isDarkMode ? 'bg-slate-800/80 border-slate-700 text-slate-200' : 'bg-white border-slate-300 text-slate-800'} shadow-sm`}>
+                                        {attr}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
 
                         <div className={`${themeCard} p-6 rounded-2xl border space-y-4`}>
                           <div className="flex justify-between items-center">
@@ -2263,7 +2310,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
                                     
                                     {delta !== null && (
                                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${delta >= 0 ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
-                                        {delta >= 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)} vs Mediana
+                                        {delta >= 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)}
                                       </span>
                                     )}
                                   </div>
