@@ -59,44 +59,60 @@ export async function POST(request: Request) {
 
     let targetPlayerId = playerId;
 
-    // PASSO 1: Criar o jogador na tabela 'Players' se for novo
+    // PASSO 1: Procurar ou criar o jogador na tabela 'Players' usando 'Player Name'
     if (!targetPlayerId && name) {
       const cleanName = name.trim();
+      const searchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players?filterByFormula=LOWER({Player Name})='${encodeURIComponent(cleanName.toLowerCase())}'`;
       
-      const createPlayerUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players`;
-      const playerFields: Record<string, any> = { Name: cleanName };
-      
-      if (club && club.trim()) playerFields.Club = club;
-      if (position && position.trim()) playerFields.Position = position;
-      if (foot && foot.trim()) playerFields.Foot = foot;
-      if (birthDate && birthDate.trim()) playerFields.BirthDate = birthDate;
-      playerFields.Status = 'Monitored';
-
-      const createPlayerRes = await fetch(createPlayerUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          records: [{ fields: playerFields }],
-          typecast: true
-        }),
-      });
-
-      if (!createPlayerRes.ok) {
-        const errP = await createPlayerRes.json();
-        const msg = errP?.error?.message || JSON.stringify(errP);
-        console.error("Erro ao criar Player na tabela Players:", msg);
-        return NextResponse.json({ error: `Erro na tabela 'Players': ${msg}` }, { status: 400 });
+      try {
+        const searchRes = await fetch(searchUrl, { headers, cache: 'no-store' });
+        if (searchRes.ok) {
+          const searchData = await searchRes.json();
+          if (searchData.records && searchData.records.length > 0) {
+            targetPlayerId = searchData.records[0].id;
+          }
+        }
+      } catch (sErr) {
+        console.warn("Pesquisa de jogador falhou:", sErr);
       }
 
-      const newPlayerData = await createPlayerRes.json();
-      targetPlayerId = newPlayerData.records[0]?.id;
+      // Se não existir, cria o registo na tabela 'Players' com 'Player Name'
+      if (!targetPlayerId) {
+        const createPlayerUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players`;
+        
+        const playerFields: Record<string, any> = { 'Player Name': cleanName };
+        if (club && club.trim()) playerFields['Club'] = club;
+        if (position && position.trim()) playerFields['Position'] = position;
+        if (foot && foot.trim()) playerFields['Foot'] = foot;
+        if (birthDate && birthDate.trim()) playerFields['BirthDate'] = birthDate;
+        playerFields['Status'] = 'Monitored';
+
+        const createPlayerRes = await fetch(createPlayerUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            records: [{ fields: playerFields }],
+            typecast: true
+          }),
+        });
+
+        if (!createPlayerRes.ok) {
+          const errP = await createPlayerRes.json();
+          const msg = errP?.error?.message || JSON.stringify(errP);
+          console.error("Erro ao criar Player na tabela Players:", msg);
+          return NextResponse.json({ error: `Erro na tabela 'Players': ${msg}` }, { status: 400 });
+        }
+
+        const newPlayerData = await createPlayerRes.json();
+        targetPlayerId = newPlayerData.records[0]?.id;
+      }
     }
 
     if (!targetPlayerId) {
       return NextResponse.json({ error: "Não foi possível obter ou criar o ID do Jogador." }, { status: 400 });
     }
 
-    // PASSO 2: Criar o registo na tabela 'Mercado_Oportunidades'
+    // PASSO 2: Criar a Oportunidade em 'Mercado_Oportunidades'
     const createMarketUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Mercado_Oportunidades`;
     const initialStatus = status || 'Em Avaliação';
 
@@ -144,7 +160,7 @@ export async function POST(request: Request) {
     const newMarket = await marketRes.json();
     const createdRecordId = newMarket.records[0]?.id;
 
-    // PASSO 3: Criar o Log inicial na tabela 'Logs_Mercado'
+    // PASSO 3: Registar Log inicial na tabela 'Logs_Mercado'
     try {
       const nowFormatted = new Date().toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' });
       const logUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado`;
