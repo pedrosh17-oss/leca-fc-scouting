@@ -79,6 +79,12 @@ export default function Home() {
   }, []);
 
   // Estados de Formulários e Modais
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [preGameData, setPreGameData] = useState({ homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutIds: [] as string[], type: '' });
+
+  const [reportData, setReportData] = useState({ homeTactic: '', awayTactic: '', tempo: '', intensity: '', technical: '', pressure: '', notes: '', scoutIds: [] as string[] });
+  const [submittingReport, setSubmittingReport] = useState(false);
+
   const [isNewTeamOpen, setIsNewTeamOpen] = useState(false);
   const [adminMarkets, setAdminMarkets] = useState<string[]>([]);
   const [newMarketInput, setNewMarketInput] = useState('');
@@ -178,6 +184,46 @@ export default function Home() {
     setIsAuthenticated(false); setAuthScoutId(null); setAuthScoutName(null);
     setUserRole('SCOUT'); setAuthPassword(''); setActiveTab('dashboard');
     localStorage.removeItem('leca_scout_auth');
+  };
+
+  const startEditMatchContext = (match: any) => {
+    const scoutNames = match.scout ? match.scout.split(',').map((s: string) => s.trim()) : [];
+    const matchedScoutIds = scouts.filter(s => scoutNames.includes(s.name)).map(s => s.id);
+
+    setReportData({
+      homeTactic: match.homeTactic && match.homeTactic !== '-' ? match.homeTactic : '',
+      awayTactic: match.awayTactic && match.awayTactic !== '-' ? match.awayTactic : '',
+      tempo: match.tempo && match.tempo !== '-' ? match.tempo : '',
+      intensity: match.intensity && match.intensity !== '-' ? match.intensity : '',
+      technical: match.technical && match.technical !== '-' ? match.technical : '',
+      pressure: match.pressure && match.pressure !== '-' ? match.pressure : '',
+      notes: match.notes || '',
+      scoutIds: matchedScoutIds
+    });
+    setExpandedMatchEdit(editingMatchId === match.id ? null : match.id);
+  };
+
+  const handleReportSubmit = async (matchId: string) => {
+    setSubmittingReport(true);
+    try {
+      const res = await fetch('/api/matches', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matchId, ...reportData }),
+      });
+      if (res.ok) {
+        setExpandedMatchEdit(null);
+        await loadData();
+        showToast("Dados do jogo atualizados!");
+      } else {
+        showToast("Erro ao atualizar dados do jogo.");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Erro de ligação.");
+    } finally {
+      setSubmittingReport(false);
+    }
   };
 
   const handleMarketSubmit = async (e: React.FormEvent) => {
@@ -391,14 +437,14 @@ export default function Home() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 md:px-0 mt-4 md:mt-0">
-        {activeTab === 'dashboard' && <DashboardTab players={players} matches={matches} teams={teams} displayScouts={scouts} canCreateMatches={true} authScoutId={authScoutId} preGameData={{} as any} setPreGameData={()=>{}} setIsMarketModalOpen={setIsMarketModalOpen} setIsRegisterOpen={()=>{}} setActiveTab={setActiveTab} getRecentHighlights={getRecentHighlights} navigateToMatch={navigateToMatch} isDarkMode={isDarkMode} />}
+        {activeTab === 'dashboard' && <DashboardTab players={players} matches={matches} teams={teams} displayScouts={scouts} canCreateMatches={true} authScoutId={authScoutId} preGameData={preGameData} setPreGameData={setPreGameData} setIsMarketModalOpen={setIsMarketModalOpen} setIsRegisterOpen={setIsRegisterOpen} setActiveTab={setActiveTab} getRecentHighlights={getRecentHighlights} navigateToMatch={navigateToMatch} isDarkMode={isDarkMode} />}
         {activeTab === 'market' && <MarketTab marketOpportunities={marketOpportunities} players={players} setIsMarketModalOpen={setIsMarketModalOpen} setSelectedMarketOppToEdit={setSelectedMarketOppToEdit} setDecisionFormData={setDecisionFormData} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} userRole={userRole} isDarkMode={isDarkMode} />}
         
         {activeTab === 'players' && <PlayersTab filteredPlayers={players} teams={teams} visibleCount={visibleCount} setVisibleCount={setVisibleCount} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} setSelectedSeasonIdx={setSelectedSeasonIdx} isDarkMode={isDarkMode} />}
         {activeTab === 'teams' && <TeamsTab filteredTeams={teams} players={players} matches={matches} setSelectedTeam={setSelectedTeam} canCreateMatches={true} setIsNewTeamOpen={setIsNewTeamOpen} isDarkMode={isDarkMode} />}
         
         {activeTab === 'stats' && <StatsTab comparePlayerKeyA={comparePlayerKeyA} setComparePlayerKeyA={setComparePlayerKeyA} comparePlayerKeyB={comparePlayerKeyB} setComparePlayerKeyB={setComparePlayerKeyB} comparePlayerKeyC={comparePlayerKeyC} setComparePlayerKeyC={setComparePlayerKeyC} algoOptions={algoOptions} algorithmData={algorithmData} extractContextTag={extractContextTag} isDarkMode={isDarkMode} />}
-        {activeTab === 'matches' && <MatchesTab matches={matches} players={players} displayScouts={scouts} canCreateMatches={true} canEditMatches={true} expandedMatchId={expandedMatchId} toggleMatch={id => setExpandedMatchId(expandedMatchId === id ? null : id)} editingMatchId={editingMatchId} startEditMatchContext={m => setExpandedMatchEdit(editingMatchId === m.id ? null : m.id)} setExpandedMatchEdit={setExpandedMatchEdit} reportData={{} as any} setReportData={()=>{}} handleReportSubmit={async () => {}} submittingReport={false} setIsAddHighlightOpen={()=>{}} setNewHighlightData={()=>{}} setEditingHighlight={()=>{}} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} setSelectedSeasonIdx={setSelectedSeasonIdx} navigateToMatch={navigateToMatch} setPreGameData={()=>{}} preGameData={{} as any} authScoutId={authScoutId} setIsRegisterOpen={()=>{}} isDarkMode={isDarkMode} />}
+        {activeTab === 'matches' && <MatchesTab matches={matches} players={players} displayScouts={scouts} canCreateMatches={true} canEditMatches={true} expandedMatchId={expandedMatchId} toggleMatch={id => setExpandedMatchId(expandedMatchId === id ? null : id)} editingMatchId={editingMatchId} startEditMatchContext={startEditMatchContext} setExpandedMatchEdit={setExpandedMatchEdit} reportData={reportData} setReportData={setReportData} handleReportSubmit={handleReportSubmit} submittingReport={submittingReport} setIsAddHighlightOpen={()=>{}} setNewHighlightData={()=>{}} setEditingHighlight={()=>{}} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} setSelectedSeasonIdx={setSelectedSeasonIdx} navigateToMatch={navigateToMatch} setPreGameData={setPreGameData} preGameData={preGameData} authScoutId={authScoutId} setIsRegisterOpen={setIsRegisterOpen} isDarkMode={isDarkMode} />}
         {activeTab === 'scouts' && <ScoutsTab displayScouts={scouts} scoutMarketAssignments={scoutMarketAssignments} setSelectedScout={setSelectedScout} getUserTitle={getUserTitle} getScoutMatches={getScoutMatches} matches={matches} isDarkMode={isDarkMode} />}
         {activeTab === 'admin' && <AdminTab isAdmin={userRole === 'ADMIN'} uniqueAlgoPlayersCount={0} uploadingExcel={uploadingExcel} handleFileUpload={handleFileUpload} handleAddMarket={()=>{}} newMarketInput={newMarketInput} setNewMarketInput={setNewMarketInput} adminMarkets={adminMarkets} handleRemoveMarket={()=>{}} scouts={scouts} isDarkMode={isDarkMode} />}
       </div>
