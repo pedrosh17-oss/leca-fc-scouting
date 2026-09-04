@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Briefcase, Plus, Sliders, Info } from 'lucide-react';
+import { Briefcase, Plus, Sliders, CheckCircle2, ShieldAlert, Building2, Info } from 'lucide-react';
 import { Player, MarketFormData, DecisionFormData } from '../../../types';
 
 interface ProfileMarketTabProps {
@@ -36,6 +36,33 @@ export default function ProfileMarketTab({
     return linked.includes(selectedPlayer.id);
   });
 
+  const handleOpenDecision = (opp: any) => {
+    const f = opp.fields || {};
+    setSelectedMarketOppToEdit(opp);
+    setDecisionFormData({
+      status: f['Status Negociação'] || 'Em Avaliação',
+      vetoReason: f['Motivo do Veto'] || '',
+      vetoDate: f['Data do Veto'] || new Date().toISOString().split('T')[0],
+      presidentOpinion: f['Opinião do Presidente'] || '',
+      notesDD: f['Notas Diretor Desportivo'] || '',
+      strengths: f['Pontos Fortes'] || '',
+      weaknesses: f['Pontos Fracos'] || '',
+    } as any);
+  };
+
+  const handleNewOpp = () => {
+    setMarketFormData(prev => ({
+      ...prev,
+      playerId: selectedPlayer.id,
+      name: selectedPlayer.name,
+      club: selectedPlayer.club || '',
+      position: selectedPlayer.position || '',
+      foot: selectedPlayer.foot || '',
+      birthDate: selectedPlayer.birthDate || ''
+    }));
+    setIsMarketModalOpen(true);
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className={`${themeCard} p-6 md:p-8 rounded-2xl border border-pink-500/20 relative overflow-hidden space-y-6`}>
@@ -49,16 +76,7 @@ export default function ProfileMarketTab({
             </p>
           </div>
           <button 
-            onClick={() => {
-              setMarketFormData(prev => ({ 
-                ...prev, 
-                playerId: selectedPlayer.id, 
-                name: selectedPlayer.name, 
-                club: selectedPlayer.club || '', 
-                position: selectedPlayer.position || '' 
-              }));
-              setIsMarketModalOpen(true);
-            }}
+            onClick={handleNewOpp}
             className="px-3.5 py-2 bg-pink-600/20 border border-pink-500/30 text-pink-400 hover:bg-pink-600/30 text-xs font-bold rounded-xl transition flex items-center gap-1.5"
           >
             <Plus className="w-4 h-4" /> Registar Oportunidade
@@ -85,16 +103,7 @@ export default function ProfileMarketTab({
                     <div className="flex items-center gap-2">
                       <span className={`text-[11px] ${themeTextMuted}`}>Ref: <strong>{f['Scout'] || 'Departamento'}</strong></span>
                       <button
-                        onClick={() => {
-                          setSelectedMarketOppToEdit(opp);
-                          setDecisionFormData({
-                            status: f['Status Negociação'] || 'Em Avaliação',
-                            vetoReason: f['Motivo do Veto'] || '',
-                            vetoDate: f['Data do Veto'] || new Date().toISOString().split('T')[0],
-                            presidentOpinion: f['Opinião do Presidente'] || '',
-                            notesDD: f['Notas Diretor Desportivo'] || ''
-                          });
-                        }}
+                        onClick={() => handleOpenDecision(opp)}
                         className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-pink-400 border border-pink-500/30 text-[10px] font-bold rounded-lg transition flex items-center gap-1"
                       >
                         <Sliders className="w-3 h-3" /> Decisão
@@ -128,7 +137,42 @@ export default function ProfileMarketTab({
                     </div>
                   )}
 
-                  {status.includes('Vetado') && (
+                  {(f['Pontos Fortes'] || f['Pontos Fracos']) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                      {f['Pontos Fortes'] && (
+                        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-1">
+                          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> Pontos Fortes
+                          </span>
+                          <p className="text-xs text-slate-200 whitespace-pre-line">{f['Pontos Fortes']}</p>
+                        </div>
+                      )}
+                      {f['Pontos Fracos'] && (
+                        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl space-y-1">
+                          <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider flex items-center gap-1">
+                            <ShieldAlert className="w-3 h-3" /> Pontos Fracos
+                          </span>
+                          <p className="text-xs text-slate-200 whitespace-pre-line">{f['Pontos Fracos']}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {(f['Opinião do Presidente'] || f['Notas Diretor Desportivo']) && (
+                    <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl space-y-2">
+                      <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1">
+                        <Building2 className="w-3 h-3" /> Parecer da Direção
+                      </span>
+                      {f['Opinião do Presidente'] && (
+                        <p className="text-xs text-slate-200"><span className="font-bold text-purple-300">Presidente:</span> {f['Opinião do Presidente']}</p>
+                      )}
+                      {f['Notas Diretor Desportivo'] && (
+                        <p className="text-xs text-slate-200"><span className="font-bold text-purple-300">Direção Desportiva:</span> {f['Notas Diretor Desportivo']}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {f['Motivo do Veto'] && (
                     <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl space-y-2 mt-4">
                       <span className="text-xs font-bold text-red-400 uppercase tracking-wider block">Detalhes do Veto</span>
                       {f['Data do Veto'] && <span className="text-[10px] text-red-300/80 block">Data: {f['Data do Veto']}</span>}

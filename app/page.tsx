@@ -225,6 +225,8 @@ export default function Home() {
           vetoDate: decisionFormData.vetoDate,
           presidentOpinion: decisionFormData.presidentOpinion,
           notesDD: decisionFormData.notesDD,
+          strengths: (decisionFormData as any).strengths ?? selectedMarketOppToEdit.fields?.['Pontos Fortes'] ?? '',
+          weaknesses: (decisionFormData as any).weaknesses ?? selectedMarketOppToEdit.fields?.['Pontos Fracos'] ?? '',
         })
       });
       if (res.ok) {
@@ -235,7 +237,8 @@ export default function Home() {
         showToast("Erro ao atualizar a decisão.");
       }
     } catch (error) {
-      console.error(error); showToast("Erro de ligação.");
+      console.error(error); 
+      showToast("Erro de ligação.");
     } finally {
       setUpdatingDecision(false);
     }
