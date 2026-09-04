@@ -1,39 +1,43 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Users, Trophy, Shield, Search, Plus, ChevronDown, ChevronUp, Calendar, 
-  UserCheck, X, Activity, FileText, BarChart3, Briefcase, Flag, Building2,
-  Zap, Crosshair, BrainCircuit, ExternalLink, Globe, Loader2, UserPlus, LogOut, CheckCircle2,
-  Menu, LayoutDashboard, ArrowRight, Star, Edit3, Lock, Sliders, Settings, CheckSquare, Target,
-  Upload, Award, TrendingUp, Cpu, Info, Clock, Sun, Moon, Filter, Sparkles
+  Users, Trophy, Shield, Search, ArrowRight, Loader2, LogOut, CheckCircle2, 
+  Menu, X, LayoutDashboard, BarChart3, Briefcase, Building2, Sliders, Sun, Moon 
 } from 'lucide-react';
 
 import * as XLSX from 'xlsx';
 import localforage from 'localforage';
 import { createClient } from '@supabase/supabase-js';
 
-import RadarChart from './components/RadarChart';
+// Importações da Arquitetura Modular
+import { Role, Player, Team, Match, Scout, MarketOpportunity, DecisionFormData, MarketFormData } from './types';
+import { DEPT_PASSWORD } from './constants/options';
+
+// UI
+import CustomSelect from './components/ui/CustomSelect';
+
+// Modais
+import MarketModal from './components/modals/MarketModal';
+import MarketDecisionModal from './components/modals/MarketDecisionModal';
+import PlayerProfileModal from './components/modals/PlayerProfileModal';
+import NewTeamModal from './components/modals/NewTeamModal';
+import NewPlayerModal from './components/modals/NewPlayerModal';
+import PillarDetailModal from './components/modals/PillarDetailModal';
+
+// Tabs
+import DashboardTab from './components/tabs/DashboardTab';
+import MarketTab from './components/tabs/MarketTab';
+import PlayersTab from './components/tabs/PlayersTab';
+import TeamsTab from './components/tabs/TeamsTab';
+import StatsTab from './components/tabs/StatsTab';
+import MatchesTab from './components/tabs/MatchesTab';
+import ScoutsTab from './components/tabs/ScoutsTab';
+import AdminTab from './components/tabs/AdminTab';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://zlvakhbqskmsubxmyvvr.supabase.co';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_TBhrZLVa7hAP3EPrDrAbiQ_mI2v_egy';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-const TACTICS_OPTIONS = [
-  '1-4-3-3', '1-4-4-2', '1-4-2-4', '1-4-1-3-2', '1-4-1-4-1', '1-4-2-3-1', 
-  '1-3-5-2', '1-3-4-3', '1-5-4-1', '1-5-3-2'
-];
-
-const POSITIONS_OPTIONS = [
-  'Center Back', 'Center Midfielder', 'Defensive Midfielder', 'Forward', 
-  'Goalkeeper', 'Left Back', 'Left Winger', 'Ofensive Midfielder', 
-  'Right Back', 'Right Winger', 'Striker'
-];
-
-const METRIC_LEVELS = ['Low', 'Medium', 'High'];
-const DEPT_PASSWORD = 'LECA'; 
-
-type Role = 'ADMIN' | 'DIRECTOR' | 'EXECUTIVE' | 'SCOUT';
 
 function getRoleForUser(name: string): Role {
   const lowerName = (name || '').toLowerCase();
@@ -60,27 +64,16 @@ function getUserTitle(name: string): string {
 function renderFormattedMarkdown(text: string) {
   if (!text) return null;
   const lines = text.split('\n');
-  
   return (
     <div className="space-y-1 text-slate-200">
       {lines.map((line, idx) => {
-        // Linhas de separação (---)
-        if (line.trim() === '---') {
-          return <hr key={idx} className="my-4 border-slate-700/60" />;
-        }
-
-        // Subtituição do marcador **texto** por <strong>
+        if (line.trim() === '---') return <hr key={idx} className="my-4 border-slate-700/60" />;
         const parts = line.split(/(\*\*.*?\*\*)/g);
-        
         return (
           <p key={idx} className={line.trim() === '' ? 'h-2' : 'min-h-[1.25rem] leading-relaxed'}>
             {parts.map((part, pIdx) => {
               if (part.startsWith('**') && part.endsWith('**')) {
-                return (
-                  <strong key={pIdx} className="font-bold text-white">
-                    {part.slice(2, -2)}
-                  </strong>
-                );
+                return <strong key={pIdx} className="font-bold text-white">{part.slice(2, -2)}</strong>;
               }
               return part;
             })}
@@ -93,18 +86,12 @@ function renderFormattedMarkdown(text: string) {
 
 function extractPlayerBaseName(str: string): string {
   if (!str) return '';
-  return str
-    .replace(/\s*\([^)]*\)/g, '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
+  return str.replace(/\s*\([^)]*\)/g, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
 function extractContextTag(row: any): string {
   const idStr = row.Player_ID || row.Player || '';
   const match = idStr.match(/\(([^)]+)\)/);
-  
   if (match) {
     const content = match[1];
     if (content.includes('-')) {
@@ -113,17 +100,12 @@ function extractContextTag(row: any): string {
     }
     return content.trim();
   }
-  
-  if (row.Competição && row.Competição !== 'N/D') {
-    return row.Competição;
-  }
-  
+  if (row.Competição && row.Competição !== 'N/D') return row.Competição;
   return 'Atual';
 }
 
 function getPlayerAlgoEntries(player: any, algorithmData: Record<string, any[]>) {
   if (!player || !algorithmData) return [];
-
   const cleanName = extractPlayerBaseName(player.name);
   const currentClub = extractPlayerBaseName(player.club || '');
   const playerAge = Number(player.age);
@@ -136,30 +118,22 @@ function getPlayerAlgoEntries(player: any, algorithmData: Record<string, any[]>)
   const targetFirstInitial = targetNameWords[0]?.[0] || '';
   const targetClubWords = currentClub.split(/\s+/).filter(w => w.length > 2);
 
-  // 1. FUNÇÕES AUXILIARES BLINDADAS
   const checkNameMatch = (rName: string) => {
     if (rName === cleanName) return true;
-    
     const rNameWords = rName.split(/\s+/).filter(Boolean);
     const rLastName = rNameWords[rNameWords.length - 1] || '';
     const rFirstWord = rNameWords[0] || '';
     
-    // Check 1: Subset exato (ex: "Cheikh Niang" vs "Niang")
     if (rNameWords.length > 0 && targetNameWords.length > 0) {
       const isSubset = rNameWords.every(w => targetNameWords.includes(w)) || targetNameWords.every(w => rNameWords.includes(w));
       if (isSubset) return true;
     }
 
-    // Check 2: Inicial + Apelido (ex: "L. Moreira" vs "Lucas Moreira")
-    // SÓ valida se o primeiro nome no Excel for efetivamente uma inicial (ex: "L" ou "L.")
     const isInitial = rFirstWord.length === 1 || (rFirstWord.length === 2 && rFirstWord.endsWith('.'));
     if (isInitial) {
       const rFirstInitial = rFirstWord[0];
-      if (rLastName === targetLastName && rFirstInitial === targetFirstInitial && targetLastName.length > 2) {
-        return true;
-      }
+      if (rLastName === targetLastName && rFirstInitial === targetFirstInitial && targetLastName.length > 2) return true;
     }
-    
     return false;
   };
 
@@ -170,14 +144,12 @@ function getPlayerAlgoEntries(player: any, algorithmData: Record<string, any[]>)
     return targetClubWords.some(w => rClubWords.includes(w));
   };
 
-  // 2. PASSO 1: ENCONTRAR O REGISTO ÂNCORA (Clube Atual + Nome Correto)
   let anchorRow: any = null;
   for (const entries of Object.values(algorithmData)) {
     if (!entries) continue;
     for (const e of entries) {
       const rowName = extractPlayerBaseName(e.row?.Player || e.row?.Player_ID || '');
       const rowClub = extractPlayerBaseName(e.row?.Team_Calc || e.row?.Team || '');
-
       if (checkNameMatch(rowName) && checkClubMatch(rowClub)) {
         anchorRow = e.row;
         break;
@@ -186,18 +158,13 @@ function getPlayerAlgoEntries(player: any, algorithmData: Record<string, any[]>)
     if (anchorRow) break;
   }
 
-  // Refinar métricas pela Âncora do Excel
   const anchorAge = anchorRow && !isNaN(Number(anchorRow.Age)) ? Number(anchorRow.Age) : playerAge;
   const rawAnchorH = Number(anchorRow?.Height);
-  const anchorHeight = !isNaN(rawAnchorH) && rawAnchorH > 0 
-    ? (rawAnchorH < 3 ? rawAnchorH * 100 : rawAnchorH) 
-    : playerHeight;
+  const anchorHeight = !isNaN(rawAnchorH) && rawAnchorH > 0 ? (rawAnchorH < 3 ? rawAnchorH * 100 : rawAnchorH) : playerHeight;
 
-  // 3. PASSO 2: BUSCAR HISTÓRICO COM ASSINATURA BIOMÉTRICA
   const matchedEntries: any[] = [];
   for (const entries of Object.values(algorithmData)) {
     if (!entries) continue;
-
     for (const e of entries) {
       const rowName = extractPlayerBaseName(e.row?.Player || e.row?.Player_ID || '');
       const rowClub = extractPlayerBaseName(e.row?.Team_Calc || e.row?.Team || '');
@@ -205,18 +172,13 @@ function getPlayerAlgoEntries(player: any, algorithmData: Record<string, any[]>)
       const rawH = Number(e.row?.Height);
       const rowHeight = !isNaN(rawH) && rawH > 0 ? (rawH < 3 ? rawH * 100 : rawH) : 0;
 
-      // Rejeita logo se o nome não for idêntico ou a abreviatura não bater certo
       if (!checkNameMatch(rowName)) continue;
-
       const isClubMatch = checkClubMatch(rowClub);
 
-      // Validação Biométrica
       if (!isClubMatch) {
-        // Tolerância de 1 ano para épocas passadas noutros clubes
         if (!isNaN(anchorAge) && !isNaN(rowAge) && Math.abs(anchorAge - rowAge) > 1) continue;
         if (anchorHeight > 0 && rowHeight > 0 && Math.abs(anchorHeight - rowHeight) > 2) continue;
       } else {
-        // Tolerância de 2 anos se continuar no mesmo clube
         if (!isNaN(anchorAge) && !isNaN(rowAge) && Math.abs(anchorAge - rowAge) > 2) continue;
       }
 
@@ -224,7 +186,6 @@ function getPlayerAlgoEntries(player: any, algorithmData: Record<string, any[]>)
     }
   }
 
-  // 4. PASSO 3: DESEMPATE (RESOLVER HOMÓNIMOS NA MESMA ÉPOCA)
   const groupedByTag: Record<string, any[]> = {};
   for (const item of matchedEntries) {
     const tag = item.tag || 'Geral';
@@ -235,14 +196,12 @@ function getPlayerAlgoEntries(player: any, algorithmData: Record<string, any[]>)
   const finalRows: any[] = [];
   for (const tagRows of Object.values(groupedByTag)) {
     if (tagRows.length === 1) {
-      finalRows.push(tagRows[0]); // Sem conflitos, adiciona a época
+      finalRows.push(tagRows[0]);
     } else {
-      // Conflito! Dois jogadores com o mesmo nome exato e idade na mesma liga
       const clubMatch = tagRows.find(r => r.isClubMatch);
       if (clubMatch) {
-        finalRows.push(clubMatch); // Traz o do clube atual
+        finalRows.push(clubMatch);
       } else {
-        // Se nenhum é do clube atual, traz o que tiver a idade mais fiel à âncora
         const closest = tagRows.sort((a, b) => {
            const diffA = isNaN(Number(a.row?.Age)) ? 99 : Math.abs(anchorAge - Number(a.row?.Age));
            const diffB = isNaN(Number(b.row?.Age)) ? 99 : Math.abs(anchorAge - Number(b.row?.Age));
@@ -254,218 +213,6 @@ function getPlayerAlgoEntries(player: any, algorithmData: Record<string, any[]>)
   }
 
   return finalRows.sort((a, b) => b.tag.localeCompare(a.tag));
-}
-
-const PILLAR_METRICS_MAP: Record<string, { label: string; statKey: string; pctKey: string; weight: string }[]> = {
-  'GK Defesa': [
-    { label: 'GK xG Prevented / 90', statKey: 'GK xG Prevented per 90', pctKey: 'GK xG Prevented per 90 Pct', weight: '40%' },
-    { label: 'GK Save Rate %', statKey: 'GK Save Rate %', pctKey: 'GK Save Rate % Pct', weight: '25%' },
-    { label: 'Aerial Duels Won %', statKey: 'Aerial Duels Won %', pctKey: 'Aerial Duels Won % Pct', weight: '15%' },
-    { label: 'GK Exits / 90', statKey: 'GK Exits per 90', pctKey: 'GK Exits per 90 Pct', weight: '10%' },
-    { label: 'GK Conceded / 90', statKey: 'GK Conceded per 90', pctKey: 'GK Conceded per 90 Pct', weight: '10%' },
-  ],
-  'GK Distribuicao': [
-    { label: 'Passes Accuracy %', statKey: 'Passes Accuracy %', pctKey: 'Passes Accuracy % Pct', weight: '45%' },
-    { label: 'Long Passes Accuracy %', statKey: 'Long Passes Accuracy %', pctKey: 'Long Passes Accuracy % Pct', weight: '30%' },
-    { label: 'Passes / 90', statKey: 'Passes per 90', pctKey: 'Passes per 90 Pct', weight: '25%' },
-  ],
-  'Jogo Aéreo': [
-    { label: 'Aerial Duels Won %', statKey: 'Aerial Duels Won %', pctKey: 'Aerial Duels Won % Pct', weight: '65%' },
-    { label: 'Aerial Duels / 90', statKey: 'Aerial Duels per 90', pctKey: 'Aerial Duels per 90 Pct', weight: '35%' },
-  ],
-  'Defesa': [
-    { label: 'Defensive Duels Won %', statKey: 'Defensive Duels Won %', pctKey: 'Defensive Duels Won % Pct', weight: '35%' },
-    { label: 'Interceptions PAdj', statKey: 'Interceptions PAdj', pctKey: 'Interceptions PAdj Pct', weight: '25%' },
-    { label: 'Successful Defensive Actions / 90', statKey: 'Successful Defensive Actions per 90', pctKey: 'Successful Defensive Actions per 90 Pct', weight: '20%' },
-    { label: 'Defensive Duels / 90', statKey: 'Defensive Duels per 90', pctKey: 'Defensive Duels per 90 Pct', weight: '15%' },
-    { label: 'Sliding Tackles PAdj', statKey: 'Sliding Tackles PAdj', pctKey: 'Sliding Tackles PAdj Pct', weight: '5%' },
-  ],
-  'Construção': [
-    { label: 'Passes Accuracy %', statKey: 'Passes Accuracy %', pctKey: 'Passes Accuracy % Pct', weight: '25%' },
-    { label: 'Passes / 90', statKey: 'Passes per 90', pctKey: 'Passes per 90 Pct', weight: '20%' },
-    { label: 'Progressive Passes Accuracy %', statKey: 'Progressive Passes Accuracy %', pctKey: 'Progressive Passes Accuracy % Pct', weight: '20%' },
-    { label: 'Progressive Passes / 90', statKey: 'Progressive Passes per 90', pctKey: 'Progressive Passes per 90 Pct', weight: '15%' },
-    { label: 'Forward Passes / 90', statKey: 'Forward Passes per 90', pctKey: 'Forward Passes per 90 Pct', weight: '10%' },
-    { label: 'Long Passes Accuracy %', statKey: 'Long Passes Accuracy %', pctKey: 'Long Passes Accuracy % Pct', weight: '10%' },
-  ],
-  'Criação': [
-    { label: 'xA / 90', statKey: 'xA per 90', pctKey: 'xA per 90 Pct', weight: '25%' },
-    { label: 'Key Passes / 90', statKey: 'Key Passes per 90', pctKey: 'Key Passes per 90 Pct', weight: '25%' },
-    { label: 'Passes to Final Third / 90', statKey: 'Passes to Final Third per 90', pctKey: 'Passes to Final Third per 90 Pct', weight: '20%' },
-    { label: 'Passes to Penalty Area / 90', statKey: 'Passes to Penalty Area per 90', pctKey: 'Passes to Penalty Area per 90 Pct', weight: '15%' },
-    { label: 'Progressive Passes / 90', statKey: 'Progressive Passes per 90', pctKey: 'Progressive Passes per 90 Pct', weight: '10%' },
-    { label: 'Smart Passes / 90', statKey: 'Smart Passes per 90', pctKey: 'Smart Passes per 90 Pct', weight: '5%' },
-  ],
-  'Cruzamento': [
-    { label: 'Crosses Accuracy %', statKey: 'Crosses Accuracy %', pctKey: 'Crosses Accuracy % Pct', weight: '60%' },
-    { label: 'Crosses / 90', statKey: 'Crosses per 90', pctKey: 'Crosses per 90 Pct', weight: '40%' },
-  ],
-  'Capacidade 1v1': [
-    { label: 'Dribbles Success %', statKey: 'Dribbles Success %', pctKey: 'Dribbles Success % Pct', weight: '30%' },
-    { label: 'Offensive Duels Won %', statKey: 'Offensive Duels Won %', pctKey: 'Offensive Duels Won % Pct', weight: '25%' },
-    { label: 'Dribbles / 90', statKey: 'Dribbles per 90', pctKey: 'Dribbles per 90 Pct', weight: '20%' },
-    { label: 'Offensive Duels / 90', statKey: 'Offensive Duels per 90', pctKey: 'Offensive Duels per 90 Pct', weight: '15%' },
-    { label: 'Progressive Runs / 90', statKey: 'Progressive Runs per 90', pctKey: 'Progressive Runs per 90 Pct', weight: '10%' },
-  ],
-  'Profundidade': [
-    { label: 'Received Through Passes / 90', statKey: 'Received Through Passes per 90', pctKey: 'Received Through Passes per 90 Pct', weight: '40%' },
-    { label: 'Accelerations / 90', statKey: 'Accelerations per 90', pctKey: 'Accelerations per 90 Pct', weight: '35%' },
-    { label: 'Touches in Box / 90', statKey: 'Touches in Box per 90', pctKey: 'Touches in Box per 90 Pct', weight: '25%' },
-  ],
-  'Finalização': [
-    { label: 'Non-Penalty Goals / 90', statKey: 'Non-Penalty Goals per 90', pctKey: 'Non-Penalty Goals per 90 Pct', weight: '40%' },
-    { label: 'xG / 90', statKey: 'xG per 90', pctKey: 'xG per 90 Pct', weight: '25%' },
-    { label: 'Shots on Target %', statKey: 'Shots on Target %', pctKey: 'Shots on Target % Pct', weight: '20%' },
-    { label: 'Head Goals / 90', statKey: 'Head Goals per 90', pctKey: 'Head Goals per 90 Pct', weight: '15%' },
-  ],
-};
-
-function CustomSelect({
-  options, value, onChange, placeholder = 'Selecionar...', searchable = false, className = '', isDarkMode = true
-}: {
-  options: Array<{ value: string; label: string; image?: string | null; icon?: React.ReactNode }>;
-  value: string; onChange: (val: string) => void; placeholder?: string; searchable?: boolean; className?: string; isDarkMode?: boolean;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const selectedOption = options.find((o) => o.value === value);
-  const filteredOptions = searchable
-    ? options.filter((o) => (o.label || '').toLowerCase().includes((searchTerm || '').toLowerCase()))
-    : options;
-
-  const bgBtn = isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-white border-slate-300 text-slate-800';
-  const bgMenu = isDarkMode ? 'bg-[#151c2c]/95 border-slate-700/80' : 'bg-white/95 border-slate-300';
-  const bgInput = isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800';
-
-  return (
-    <div className={`relative ${className}`} ref={containerRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full border rounded-xl p-3 md:p-3.5 text-left focus:outline-none focus:border-blue-500 flex justify-between items-center text-xs sm:text-sm transition ${bgBtn}`}
-      >
-        <div className="flex items-center gap-2 overflow-hidden">
-          {selectedOption?.image && <img src={selectedOption.image} alt="" className="w-5 h-5 object-contain rounded-full bg-slate-900" />}
-          {selectedOption?.icon && !selectedOption.image && <div className="text-slate-400">{selectedOption.icon}</div>}
-          <span className={`truncate ${selectedOption ? 'font-medium' : 'text-slate-500'}`}>
-            {selectedOption ? selectedOption.label : placeholder}
-          </span>
-        </div>
-        <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-
-      {isOpen && (
-        <div className={`absolute z-[100] left-0 right-0 mt-1 backdrop-blur-md border rounded-xl shadow-2xl max-h-60 overflow-y-auto p-1.5 space-y-1 text-xs sm:text-sm ${bgMenu}`}>
-          {searchable && (
-            <div className={`p-1 sticky top-0 z-10 pb-2 ${isDarkMode ? 'bg-[#151c2c]' : 'bg-white'}`}>
-              <input
-                type="text" placeholder="Pesquisar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                className={`w-full border rounded-lg p-2.5 text-xs sm:text-sm focus:outline-none focus:border-blue-500 ${bgInput}`}
-              />
-            </div>
-          )}
-          {filteredOptions.length === 0 ? (
-            <div className="p-3 text-slate-500 text-center font-medium">Sem opções</div>
-          ) : (
-            filteredOptions.map((opt) => (
-              <button
-                key={opt.value} type="button"
-                onClick={() => { onChange(opt.value); setIsOpen(false); setSearchTerm(''); }}
-                className={`w-full text-left px-3 py-3 md:py-2.5 rounded-lg transition flex items-center gap-2.5 ${opt.value === value ? 'bg-blue-600/20 text-blue-400 font-medium border border-blue-500/30' : isDarkMode ? 'text-slate-300 hover:bg-slate-800/80 hover:text-white' : 'text-slate-700 hover:bg-slate-100'}`}
-              >
-                {opt.image ? <img src={opt.image} alt="" className="w-6 h-6 object-contain rounded-md bg-[#0d131f] p-0.5 border border-slate-700" /> : opt.icon ? <span className="text-slate-400">{opt.icon}</span> : <span className="w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0" />}
-                <span className="truncate">{opt.label}</span>
-              </button>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CustomMultiSelect({
-  options, selectedIds, onChange, placeholder = 'Selecionar...', className = '', isDarkMode = true
-}: {
-  options: Array<{ value: string; label: string; image?: string | null }>;
-  selectedIds: string[];
-  onChange: (ids: string[]) => void;
-  placeholder?: string;
-  className?: string;
-  isDarkMode?: boolean;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const toggleOption = (id: string) => {
-    if (selectedIds.includes(id)) {
-      onChange(selectedIds.filter(item => item !== id));
-    } else {
-      onChange([...selectedIds, id]);
-    }
-  };
-
-  const selectedLabels = options.filter(o => selectedIds.includes(o.value)).map(o => o.label);
-  const bgBtn = isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-white border-slate-300 text-slate-800';
-  const bgMenu = isDarkMode ? 'bg-[#151c2c]/95 border-slate-700/80' : 'bg-white/95 border-slate-300';
-
-  return (
-    <div className={`relative ${className}`} ref={containerRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full border rounded-xl p-3 md:p-3.5 text-left focus:outline-none focus:border-blue-500 flex justify-between items-center text-xs sm:text-sm transition min-h-[46px] ${bgBtn}`}
-      >
-        <span className={selectedLabels.length > 0 ? 'font-medium truncate' : 'text-slate-500'}>
-          {selectedLabels.length > 0 ? selectedLabels.join(', ') : placeholder}
-        </span>
-        <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-
-      {isOpen && (
-        <div className={`absolute z-[100] left-0 right-0 mt-1 backdrop-blur-md border rounded-xl shadow-2xl max-h-52 overflow-y-auto p-1.5 space-y-1 text-xs sm:text-sm ${bgMenu}`}>
-          {options.map((opt) => {
-            const isSelected = selectedIds.includes(opt.value);
-            return (
-              <button
-                key={opt.value} type="button"
-                onClick={() => toggleOption(opt.value)}
-                className={`w-full text-left px-3 py-3 md:py-2.5 rounded-lg transition flex items-center justify-between ${isSelected ? 'bg-blue-600/20 text-blue-400 font-bold border border-blue-500/30' : isDarkMode ? 'text-slate-300 hover:bg-slate-800/80 hover:text-white' : 'text-slate-700 hover:bg-slate-100'}`}
-              >
-                <div className="flex items-center gap-2 overflow-hidden">
-                  {opt.image ? <img src={opt.image} alt="" className="w-5 h-5 object-contain rounded-full bg-slate-900" /> : <Shield className="w-3.5 h-3.5 text-slate-500"/>}
-                  <span className="truncate">{opt.label}</span>
-                </div>
-                {isSelected && <CheckCircle2 size={14} className="text-blue-400 flex-shrink-0" />}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
 }
 
 export default function Home() {
@@ -480,112 +227,45 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'players' | 'teams' | 'matches' | 'scouts' | 'admin' | 'stats' | 'market'>('dashboard');
   const [comparePlayerKeyA, setComparePlayerKeyA] = useState<string>('');
   const [comparePlayerKeyB, setComparePlayerKeyB] = useState<string>('');
-  const [comparePlayerKeyC, setComparePlayerKeyC] = useState<string>(''); // ADICIONA ESTA LINHA
-  const [players, setPlayers] = useState<any[]>([]);
-  const [teams, setTeams] = useState<any[]>([]);
-  const [matches, setMatches] = useState<any[]>([]);
+  const [comparePlayerKeyC, setComparePlayerKeyC] = useState<string>('');
+
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
   const [competitions, setCompetitions] = useState<any[]>([]);
-  const [scouts, setScouts] = useState<any[]>([]);
+  const [scouts, setScouts] = useState<Scout[]>([]);
   const [loading, setLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(20);
 
- // FILTROS DE JOGADORES (ESTADOS ÚNICOS)
-const [playerPositionFilter, setPlayerPositionFilter] = useState('All');
-const [playerStatusFilter, setPlayerStatusFilter] = useState('All');
-const [minAgeFilter, setMinAgeFilter] = useState<number>(15);
-const [maxAgeFilter, setMaxAgeFilter] = useState<number>(40);
-const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
-  
-
-
-  // FILTROS DE EQUIPAS
+  // Filtros
+  const [playerPositionFilter, setPlayerPositionFilter] = useState('All');
+  const [playerStatusFilter, setPlayerStatusFilter] = useState('All');
+  const [minAgeFilter, setMinAgeFilter] = useState<number>(15);
+  const [maxAgeFilter, setMaxAgeFilter] = useState<number>(40);
+  const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
   const [teamFilterStatus, setTeamFilterStatus] = useState('All');
   const [teamFilterComp, setTeamFilterComp] = useState('All');
 
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
   const [editingMatchId, setExpandedMatchEdit] = useState<string | null>(null);
-  const [selectedPlayer, setSelectedPlayer] = useState<any | null>(null);
-  const [selectedTeam, setSelectedTeam] = useState<any | null>(null);
-  const [selectedScout, setSelectedScout] = useState<any | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [selectedScout, setSelectedScout] = useState<Scout | null>(null);
   const [profileTab, setProfileTab] = useState<'timeline' | 'algo' | 'market' | 'reports'>('timeline');
 
-  
-
-  // ALGORITMO
   const [selectedPillarDetail, setSelectedPillarDetail] = useState<string | null>(null);
   const [algorithmData, setAlgorithmData] = useState<Record<string, { tag: string; row: any }[]>>({});
   const [selectedSeasonIdx, setSelectedSeasonIdx] = useState<number>(0);
   const [uploadingExcel, setUploadingExcel] = useState(false);
 
- // OTIMIZAÇÃO DE PERFORMANCE E CRUZAMENTO DE NOMES
- const algoOptions = useMemo(() => {
-  if (!algorithmData) return [];
-
-  const optionsMap = new Map<string, { value: string; label: string; row: any }>();
-
-  Object.entries(algorithmData).forEach(([key, items]) => {
-    if (!items || key.endsWith('_gk')) return;
-
-    items.forEach((item, seasonIdx) => {
-      const row = item.row || {};
-      const rawName = row.Player || row.Player_ID || key;
-      const cleanPlayerName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
-      const teamName = row.Team_Calc || row.Team || '';
-      const seasonTag = item.tag || extractContextTag(row) || 'Atual';
-
-      const cleanBase = extractPlayerBaseName(cleanPlayerName);
-      const words = cleanBase.split(/\s+/).filter(Boolean);
-      const firstName = words[0] || '';
-      const lastName = words[words.length - 1] || '';
-
-      let displayName = cleanPlayerName;
-
-      // Só tenta procurar nome completo se o primeiro nome for UMA INICIAL (ex: "N." ou "L")
-      const isInitial = firstName.length === 1 || (firstName.length === 2 && firstName.endsWith('.'));
-
-      if (isInitial && lastName.length > 2) {
-        const dbMatch = players.find(p => {
-          const pClean = extractPlayerBaseName(p.name);
-          const pWords = pClean.split(/\s+/).filter(Boolean);
-          const pFirst = pWords[0] || '';
-          const pLast = pWords[pWords.length - 1] || '';
-          return pLast === lastName && pFirst.startsWith(firstName[0]);
-        });
-
-        if (dbMatch) {
-          displayName = `${cleanPlayerName} (${dbMatch.name})`;
-        }
-      }
-
-      let label = displayName;
-      if (teamName && seasonTag) {
-        label += ` (${teamName} - ${seasonTag})`;
-      } else if (teamName) {
-        label += ` (${teamName})`;
-      } else if (seasonTag) {
-        label += ` (${seasonTag})`;
-      }
-
-      const optionValue = `${key}___${seasonIdx}`;
-      const dedupKey = `${extractPlayerBaseName(cleanPlayerName)}_${extractPlayerBaseName(teamName)}_${seasonTag}`.toLowerCase();
-
-      if (!optionsMap.has(dedupKey)) {
-        optionsMap.set(dedupKey, { value: optionValue, label, row });
-      }
-    });
-  });
-
-  return Array.from(optionsMap.values()).sort((a, b) => a.label.localeCompare(b.label));
-}, [algorithmData, players]);
-
-  // MERCADOS ADMIN
+  // Mercados
   const [scoutMarketAssignments, setScoutMarketAssignments] = useState<Record<string, string[]>>({});
   const [adminMarkets, setAdminMarkets] = useState<string[]>([]);
   const [newMarketInput, setNewMarketInput] = useState('');
 
-  // FORMS
+  // Modais Forms
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [submittingPre, setSubmittingPre] = useState(false);
   const [preGameData, setPreGameData] = useState({ homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutIds: [] as string[], type: '' });
@@ -604,7 +284,6 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
   const [creatingPlayer, setCreatingPlayer] = useState(false);
   const [availableMatchTeams, setAvailableMatchTeams] = useState<Array<{ id: string; name: string; logo?: string | null }>>([]);
 
-  // FORM CRIAR EQUIPA
   const [isNewTeamOpen, setIsNewTeamOpen] = useState(false);
   const [newTeamData, setNewTeamData] = useState({ name: '', competitionId: '' });
   const [creatingTeam, setCreatingTeam] = useState(false);
@@ -612,11 +291,10 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const lecaLogoUrl = "/logo.png";
 
-  // ---------------- MERCADO ----------------
-  const [marketOpportunities, setMarketOpportunities] = useState<any[]>([]);
+  const [marketOpportunities, setMarketOpportunities] = useState<MarketOpportunity[]>([]);
   const [isMarketModalOpen, setIsMarketModalOpen] = useState(false);
   const [submittingMarket, setSubmittingMarket] = useState(false);
-  const initialMarketForm = {
+  const initialMarketForm: MarketFormData = {
     playerId: '', name: '', club: '', position: '', foot: '', birthDate: '',
     offerDate: new Date().toISOString().split('T')[0],
     marketTarget: '', scout: '', viability: '', confLiga3: '', confLiga2: '',
@@ -624,9 +302,9 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
     similarity: '', mental: ''
   };
 
-  const [marketFormData, setMarketFormData] = useState(initialMarketForm);
+  const [marketFormData, setMarketFormData] = useState<MarketFormData>(initialMarketForm);
   const [selectedMarketOppToEdit, setSelectedMarketOppToEdit] = useState<any>(null);
-  const [decisionFormData, setDecisionFormData] = useState({
+  const [decisionFormData, setDecisionFormData] = useState<DecisionFormData>({
     status: 'Em Avaliação',
     vetoReason: '',
     vetoDate: new Date().toISOString().split('T')[0],
@@ -635,10 +313,134 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
   });
   const [updatingDecision, setUpdatingDecision] = useState(false);
 
+  const algoOptions = useMemo(() => {
+    if (!algorithmData) return [];
+    const optionsMap = new Map<string, { value: string; label: string; row: any }>();
+
+    Object.entries(algorithmData).forEach(([key, items]) => {
+      if (!items || key.endsWith('_gk')) return;
+
+      items.forEach((item, seasonIdx) => {
+        const row = item.row || {};
+        const rawName = row.Player || row.Player_ID || key;
+        const cleanPlayerName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
+        const teamName = row.Team_Calc || row.Team || '';
+        const seasonTag = item.tag || extractContextTag(row) || 'Atual';
+
+        const cleanBase = extractPlayerBaseName(cleanPlayerName);
+        const words = cleanBase.split(/\s+/).filter(Boolean);
+        const firstName = words[0] || '';
+        const lastName = words[words.length - 1] || '';
+
+        let displayName = cleanPlayerName;
+        const isInitial = firstName.length === 1 || (firstName.length === 2 && firstName.endsWith('.'));
+
+        if (isInitial && lastName.length > 2) {
+          const dbMatch = players.find(p => {
+            const pClean = extractPlayerBaseName(p.name);
+            const pWords = pClean.split(/\s+/).filter(Boolean);
+            const pFirst = pWords[0] || '';
+            const pLast = pWords[pWords.length - 1] || '';
+            return pLast === lastName && pFirst.startsWith(firstName[0]);
+          });
+
+          if (dbMatch) displayName = `${cleanPlayerName} (${dbMatch.name})`;
+        }
+
+        let label = displayName;
+        if (teamName && seasonTag) label += ` (${teamName} - ${seasonTag})`;
+        else if (teamName) label += ` (${teamName})`;
+        else if (seasonTag) label += ` (${seasonTag})`;
+
+        const optionValue = `${key}___${seasonIdx}`;
+        const dedupKey = `${extractPlayerBaseName(cleanPlayerName)}_${extractPlayerBaseName(teamName)}_${seasonTag}`.toLowerCase();
+
+        if (!optionsMap.has(dedupKey)) {
+          optionsMap.set(dedupKey, { value: optionValue, label, row });
+        }
+      });
+    });
+
+    return Array.from(optionsMap.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [algorithmData, players]);
+
   const resetMarketModal = () => {
     setMarketFormData(initialMarketForm);
     setIsMarketModalOpen(false);
   };
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const loadData = async () => {
+    try {
+      const [resP, resT, resM, resS, resMkt] = await Promise.all([
+        fetch('/api/players').catch(() => ({ json: () => ({ players: [] }) })),
+        fetch('/api/teams').catch(() => ({ json: () => ({ teams: [] }) })),
+        fetch('/api/matches').catch(() => ({ json: () => ({ matches: [], competitions: [] }) })),
+        fetch('/api/scouts').catch(() => ({ json: () => ({ scouts: [] }) })),
+        fetch('/api/market').catch(() => ({ json: () => ({ opportunities: [] }) })),
+      ]);
+      
+      const dataP = await resP.json(); 
+      const dataT = await resT.json(); 
+      const dataM = await resM.json(); 
+      const dataS = await resS.json();
+      const dataMkt = await resMkt.json();
+      
+      if (dataP.players) setPlayers(dataP.players);
+      if (dataT.teams) setTeams(dataT.teams);
+      if (dataM.matches) setMatches(dataM.matches);
+      if (dataM.competitions) setCompetitions(dataM.competitions);
+      if (dataMkt.opportunities) setMarketOpportunities(dataMkt.opportunities);
+
+      try {
+        const { data } = supabase.storage.from('Scouting').getPublicUrl('algo-data.json.gz');
+        if (data?.publicUrl) {
+          const resAlgo = await fetch(`${data.publicUrl}?t=${Date.now()}`);
+          if (resAlgo.ok && resAlgo.body) {
+            const decompressedStream = resAlgo.body.pipeThrough(new DecompressionStream('gzip'));
+            const decompressedText = await new Response(decompressedStream).text();
+            const remoteAlgoData = JSON.parse(decompressedText);
+            setAlgorithmData(remoteAlgoData);
+            await localforage.setItem('leca_algo_data', remoteAlgoData);
+          }
+        }
+      } catch (err) {
+        localforage.getItem('leca_algo_data').then((savedAlgo) => {
+          if (savedAlgo) setAlgorithmData(savedAlgo as Record<string, any>);
+        });
+      }
+
+      if (dataS.scouts) {
+        setScouts(dataS.scouts);
+        const savedAuthId = localStorage.getItem('leca_scout_auth');
+        if (savedAuthId) {
+          const user = dataS.scouts.find((s: any) => s.id === savedAuthId);
+          if (user) {
+            setIsAuthenticated(true);
+            setAuthScoutId(user.id);
+            setAuthScoutName(user.name);
+            setUserRole(getRoleForUser(user.name));
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { 
+    loadData(); 
+    const savedAssignments = localStorage.getItem('leca_scout_markets');
+    if (savedAssignments) {
+      try { setScoutMarketAssignments(JSON.parse(savedAssignments)); } catch (e) {}
+    }
+  }, []);
 
   const handleUpdateDecisionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -648,12 +450,8 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
       const res = await fetch('/api/market', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recordId: selectedMarketOppToEdit.id,
-          ...decisionFormData
-        }),
+        body: JSON.stringify({ recordId: selectedMarketOppToEdit.id, ...decisionFormData }),
       });
-
       if (res.ok) {
         setSelectedMarketOppToEdit(null);
         await loadData();
@@ -694,25 +492,14 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      
       if (res.ok) {
         setIsMarketModalOpen(false);
-        setMarketFormData({ 
-          playerId: '',
-          name: '', club: '', position: '', foot: '', birthDate: '',
-          offerDate: new Date().toISOString().split('T')[0],
-          marketTarget: '', scout: '', viability: '', confLiga3: '', confLiga2: '',
-          contract: '', utilization: '', strengths: '', weaknesses: '', reason: '',
-          similarity: '', mental: '' 
-        });
+        setMarketFormData(initialMarketForm);
         await loadData();
         showToast("Oportunidade registada com sucesso!");
       } else {
-        // Agora vamos ler o erro que o Airtable nos está a dar
         const errorData = await res.json();
-        console.error("Detalhe do Erro:", errorData);
-        const errorMessage = errorData.error?.error?.message || "Erro desconhecido";
-        showToast(`Erro Airtable: ${errorMessage}`);
+        showToast(`Erro Airtable: ${errorData.error?.error?.message || "Erro desconhecido"}`);
       }
     } catch (err) {
       console.error(err);
@@ -722,86 +509,9 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
     }
   };
 
-  const toggleTheme = () => setIsDarkMode(prev => !prev);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4000);
-  };
-
-  const loadData = async () => {
-    try {
-      const [resP, resT, resM, resS, resMkt] = await Promise.all([
-        fetch('/api/players').catch(() => ({ json: () => ({ players: [] }) })),
-        fetch('/api/teams').catch(() => ({ json: () => ({ teams: [] }) })),
-        fetch('/api/matches').catch(() => ({ json: () => ({ matches: [], competitions: [] }) })),
-        fetch('/api/scouts').catch(() => ({ json: () => ({ scouts: [] }) })),
-        fetch('/api/market').catch(() => ({ json: () => ({ opportunities: [] }) })),
-      ]);
-      
-      const dataP = await resP.json(); 
-      const dataT = await resT.json(); 
-      const dataM = await resM.json(); 
-      const dataS = await resS.json();
-      const dataMkt = await resMkt.json();
-      
-      if (dataP.players) setPlayers(dataP.players);
-      if (dataT.teams) setTeams(dataT.teams);
-      if (dataM.matches) setMatches(dataM.matches);
-      if (dataM.competitions) setCompetitions(dataM.competitions);
-      if (dataMkt.opportunities) setMarketOpportunities(dataMkt.opportunities);
-
-      try {
-        const { data } = supabase.storage.from('Scouting').getPublicUrl('algo-data.json.gz');
-        if (data?.publicUrl) {
-          const resAlgo = await fetch(`${data.publicUrl}?t=${Date.now()}`);
-          if (resAlgo.ok && resAlgo.body) {
-            const decompressedStream = resAlgo.body.pipeThrough(new DecompressionStream('gzip'));
-            const decompressedText = await new Response(decompressedStream).text();
-            const remoteAlgoData = JSON.parse(decompressedText);
-
-            setAlgorithmData(remoteAlgoData);
-            await localforage.setItem('leca_algo_data', remoteAlgoData);
-          }
-        }
-      } catch (err) {
-        localforage.getItem('leca_algo_data').then((savedAlgo) => {
-          if (savedAlgo) setAlgorithmData(savedAlgo as Record<string, any>);
-        });
-      }
-
-      if (dataS.scouts) {
-        setScouts(dataS.scouts);
-        const savedAuthId = localStorage.getItem('leca_scout_auth');
-        if (savedAuthId) {
-          const user = dataS.scouts.find((s: any) => s.id === savedAuthId);
-          if (user) {
-            setIsAuthenticated(true);
-            setAuthScoutId(user.id);
-            setAuthScoutName(user.name);
-            setUserRole(getRoleForUser(user.name));
-          }
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { 
-    loadData(); 
-    const savedAssignments = localStorage.getItem('leca_scout_markets');
-    if (savedAssignments) {
-      try { setScoutMarketAssignments(JSON.parse(savedAssignments)); } catch (e) {}
-    }
-  }, []);
-
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setUploadingExcel(true);
     const reader = new FileReader();
 
@@ -814,35 +524,25 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
         const rawData: any[] = XLSX.utils.sheet_to_json(ws);
 
         const newAlgoData: Record<string, { tag: string; row: any }[]> = {};
-
         rawData.forEach((row) => {
-          // A GRANDE CORREÇÃO: Apanha todas as variações possíveis de colunas no teu Excel!
           const rawPlayerStr = row.Player || row.Player_ID || '';
           const teamStr = row.Team_Calc || row.Team || row.Equipa || '';
           const cleanName = extractPlayerBaseName(rawPlayerStr);
           const cleanTeam = extractPlayerBaseName(teamStr);
-          
           const baseTag = extractContextTag(row);
           const tag = teamStr ? `${baseTag} (${teamStr})` : baseTag;
 
           if (cleanName) {
             const cleanRow: Record<string, any> = {};
             Object.keys(row).forEach((k) => {
-              if (row[k] !== null && row[k] !== undefined && row[k] !== '') {
-                cleanRow[k] = row[k];
-              }
+              if (row[k] !== null && row[k] !== undefined && row[k] !== '') cleanRow[k] = row[k];
             });
 
-            // Concatenação do Top 5 Atributos diretamente do Excel
             const topAttrsArr = [];
             for (let i = 1; i <= 5; i++) {
-              if (row[`Top_Attr_${i}_Name`]) {
-                topAttrsArr.push(row[`Top_Attr_${i}_Name`]);
-              }
+              if (row[`Top_Attr_${i}_Name`]) topAttrsArr.push(row[`Top_Attr_${i}_Name`]);
             }
-            if (topAttrsArr.length > 0) {
-              cleanRow['Top_5_Atributos'] = topAttrsArr.join(', ');
-            }
+            if (topAttrsArr.length > 0) cleanRow['Top_5_Atributos'] = topAttrsArr.join(', ');
 
             const isGK = (row.Position || row.Setor_Avaliacao || '').toLowerCase().includes('gk');
             const posSuffix = isGK ? '_gk' : '_field';
@@ -865,16 +565,10 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
         const compressedStream = jsonBlob.stream().pipeThrough(new CompressionStream('gzip'));
         const compressedBlob = await new Response(compressedStream).blob();
 
-        const { error } = await supabase.storage
-          .from('Scouting')
-          .upload('algo-data.json.gz', compressedBlob, {
-            contentType: 'application/gzip',
-            upsert: true,
-          });
-
+        const { error } = await supabase.storage.from('Scouting').upload('algo-data.json.gz', compressedBlob, { contentType: 'application/gzip', upsert: true });
         if (error) throw error;
 
-        showToast("Ficheiro processado com sucesso! Todos os atletas foram lidos.");
+        showToast("Ficheiro processado com sucesso!");
       } catch (error: any) {
         console.error("Erro no upload:", error);
         showToast("Erro ao sincronizar dados.");
@@ -882,7 +576,6 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
         setUploadingExcel(false);
       }
     };
-
     reader.readAsBinaryString(file);
   };
 
@@ -890,25 +583,14 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
     e.preventDefault();
     setCreatingTeam(true);
     try {
-      const res = await fetch('/api/teams', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newTeamData),
-      });
+      const res = await fetch('/api/teams', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newTeamData) });
       if (res.ok) {
         await loadData();
         setIsNewTeamOpen(false);
         setNewTeamData({ name: '', competitionId: '' });
         showToast(`Equipa "${newTeamData.name}" criada com sucesso!`);
-      } else {
-        showToast("Erro ao criar equipa.");
       }
-    } catch (err) {
-      console.error(err);
-      showToast("Erro ao ligar ao servidor.");
-    } finally {
-      setCreatingTeam(false);
-    }
+    } catch (err) { console.error(err); } finally { setCreatingTeam(false); }
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -940,7 +622,6 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
   const canCreateMatches = userRole === 'ADMIN' || userRole === 'SCOUT';
   const canEditMatches = userRole === 'ADMIN' || userRole === 'SCOUT';
   const canSeeMarket = true;
-  const canEditMarket = userRole === 'ADMIN' || userRole === 'DIRECTOR';
   const isAdmin = userRole === 'ADMIN';
 
   const displayScouts = scouts.filter(s => {
@@ -948,180 +629,17 @@ const [birthYearFilter, setBirthYearFilter] = useState<string>('All');
     return role === 'SCOUT' || role === 'ADMIN';
   });
 
-  const handleSaveScoutMarkets = (scoutId: string, assignedMarkets: string[]) => {
-    const updated = { ...scoutMarketAssignments, [scoutId]: assignedMarkets };
-    setScoutMarketAssignments(updated);
-    localStorage.setItem('leca_scout_markets', JSON.stringify(updated));
-    showToast("Mercados atualizados para este Scout!");
-  };
-
-  const getScoutMarketOptions = () => {
-    const seriesOptions = [
-      { value: 'Liga 3 - Série A', label: 'Liga 3 - Série A' },
-      { value: 'Liga 3 - Série B', label: 'Liga 3 - Série B' },
-      { value: 'CP - Série A', label: 'CP - Série A' },
-      { value: 'CP - Série B', label: 'CP - Série B' },
-      { value: 'CP - Série C', label: 'CP - Série C' },
-      { value: 'CP - Série D', label: 'CP - Série D' },
-    ];
-
-    const otherComps = competitions
-      .map(c => c.name)
-      .filter(name => 
-        !name.toLowerCase().includes('liga 3') && 
-        !name.toLowerCase().includes('campeonato de portugal') &&
-        !name.toLowerCase().includes('cp')
-      )
-      .map(name => ({ value: name, label: name }));
-
-    return [...seriesOptions, ...otherComps];
-  };
-
   const navigateToMatch = (matchId: string) => {
     setSelectedTeam(null);
     setSelectedPlayer(null);
     setSelectedScout(null);
     setActiveTab('matches');
     setExpandedMatchId(matchId);
-    
     setTimeout(() => {
       const element = document.getElementById(`match-${matchId}`);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+      if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 150);
   };
-
-  const toggleMatch = (id: string) => setExpandedMatchId(expandedMatchId === id ? null : id);
-
-  const startEditMatchContext = (match: any) => {
-    const scoutNames = match.scout ? match.scout.split(',').map((s: string) => s.trim()) : [];
-    const matchedScoutIds = scouts.filter(s => scoutNames.includes(s.name)).map(s => s.id);
-
-    setReportData({
-      homeTactic: match.homeTactic && match.homeTactic !== '-' ? match.homeTactic : '',
-      awayTactic: match.awayTactic && match.awayTactic !== '-' ? match.awayTactic : '',
-      tempo: match.tempo && match.tempo !== '-' ? match.tempo : '',
-      intensity: match.intensity && match.intensity !== '-' ? match.intensity : '',
-      technical: match.technical && match.technical !== '-' ? match.technical : '',
-      pressure: match.pressure && match.pressure !== '-' ? match.pressure : '',
-      notes: match.notes || '',
-      scoutIds: matchedScoutIds
-    });
-    setExpandedMatchEdit(editingMatchId === match.id ? null : match.id);
-  };
-
-  const openNewPlayerModalForMatch = (matchName: string) => {
-    const matchTeams = teams.filter((t) => (matchName || '').toLowerCase().includes((t.name || '').toLowerCase()));
-    setAvailableMatchTeams(matchTeams.length > 0 ? matchTeams : teams);
-    setNewPlayerData({ name: '', clubId: matchTeams[0]?.id || '', position: '' });
-    setIsNewPlayerOpen(true);
-  };
-
-  const handleReportSubmit = async (matchId: string) => {
-    setSubmittingReport(true);
-    try {
-      const res = await fetch('/api/matches', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ matchId, ...reportData }), });
-      if (res.ok) { setExpandedMatchEdit(null); await loadData(); showToast("Dados do jogo atualizados!"); }
-    } catch (err) { console.error(err); } finally { setSubmittingReport(false); }
-  };
-
-  const handleSaveSingleHighlight = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!editingHighlight) return; setSavingHighlight(true);
-    try {
-      const res = await fetch('/api/highlights', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ matchId: editingHighlight.matchId, playerId: editingHighlight.player.id !== editingHighlight.player.name ? editingHighlight.player.id : null, highlightId: editingHighlight.highlightId, notes: editingHighlight.notes, }), });
-      if (res.ok) { setEditingHighlight(null); await loadData(); showToast(`Avaliação atualizada com sucesso!`); }
-    } catch (err) { console.error(err); } finally { setSavingHighlight(false); }
-  };
-
-  const handleAddHighlightSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!isAddHighlightOpen) return;
-    try {
-      const res = await fetch('/api/highlights', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ matchId: isAddHighlightOpen.matchId, playerId: newHighlightData.playerId, notes: newHighlightData.notes, }), });
-      if (res.ok) { setIsAddHighlightOpen(null); setNewHighlightData({ playerId: '', notes: '' }); await loadData(); showToast("Nova avaliação adicionada!"); }
-    } catch (err) { console.error(err); }
-  };
-
-  const handlePreGameSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); setSubmittingPre(true);
-    try {
-      const res = await fetch('/api/matches', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(preGameData), });
-      if (res.ok) { setIsRegisterOpen(false); setPreGameData({ homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutIds: authScoutId ? [authScoutId] : [], type: '' }); await loadData(); showToast("Jogo agendado com sucesso!"); }
-    } catch (err) { console.error(err); } finally { setSubmittingPre(false); }
-  };
-
-  const handleCreateNewPlayer = async (e: React.FormEvent) => {
-    e.preventDefault(); setCreatingPlayer(true);
-    try {
-      const res = await fetch('/api/players', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newPlayerData), });
-      const data = await res.json();
-      if (res.ok) {
-        await loadData();
-        if (editingHighlight) setEditingHighlight({ ...editingHighlight, player: { id: data.player.id, name: data.player.name } });
-        else if (isAddHighlightOpen) setNewHighlightData({ ...newHighlightData, playerId: data.player.id });
-        setIsNewPlayerOpen(false); setNewPlayerData({ name: '', clubId: '', position: '' }); showToast(`Atleta "${data.player.name}" criado!`);
-      }
-    } catch (err) { console.error(err); } finally { setCreatingPlayer(false); }
-  };
-
-  const handleAddMarket = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMarketInput.trim()) return;
-    setAdminMarkets([...adminMarkets, newMarketInput.trim()]);
-    setNewMarketInput('');
-    showToast("Mercado adicionado à lista prioritária!");
-  };
-
-  const handleRemoveMarket = (index: number) => {
-    setAdminMarkets(adminMarkets.filter((_, i) => i !== index));
-    showToast("Mercado removido!");
-  };
-
-  // FILTRAGEM DE JOGADORES COM NOVOS SELETORES
-  const uniquePlayerPositions = Array.from(new Set(players.map(p => p.position).filter(Boolean))).sort();
-  const uniquePlayerStatuses = Array.from(new Set(players.map(p => p.status).filter(Boolean))).sort();
-
-  const cleanPositionOptions = [
-    { value: 'All', label: 'Todas as Posições' },
-    ...POSITIONS_OPTIONS.map(pos => ({ value: pos, label: pos }))
-  ];
-  
-  // Anos de Nascimento únicos com filtro estrito de tipo
-const uniqueBirthYears: string[] = Array.from(new Set(
-  players
-    .map(p => {
-      if (p.birthYear) return String(p.birthYear);
-      if (p.age && p.age !== 'N/D') return String(2026 - Number(p.age));
-      return null;
-    })
-    .filter((y): y is string => Boolean(y))
-)).sort((a, b) => Number(b) - Number(a));
-  
-  const filteredPlayers = players.filter(p => {
-    const query = search.toLowerCase();
-    const matchSearch = (p.name || '').toLowerCase().includes(query) || (p.club || '').toLowerCase().includes(query);
-    const matchPos = playerPositionFilter === 'All' || (p.position || '').toLowerCase().includes(playerPositionFilter.toLowerCase());
-    const matchStatus = playerStatusFilter === 'All' || p.status === playerStatusFilter;
-    
-    const ageNum = Number(p.age);
-    const matchAge = isNaN(ageNum) || (ageNum >= minAgeFilter && ageNum <= maxAgeFilter);
-    
-    const playerYear = p.birthYear || (p.age && p.age !== 'N/D' ? String(2026 - Number(p.age)) : '');
-    const matchYear = birthYearFilter === 'All' || playerYear === birthYearFilter;
-  
-    return matchSearch && matchPos && matchStatus && matchAge && matchYear;
-  });
-  
-  const displayedPlayers = search || playerPositionFilter !== 'All' || playerStatusFilter !== 'All' ? filteredPlayers : filteredPlayers.slice(0, visibleCount);
-  const uniqueTeamComps = Array.from(new Set(teams.map(t => t.competition).filter(c => c !== 'N/D'))).sort();
-  const uniqueTeamStatus = Array.from(new Set(teams.map(t => t.status).filter(s => s !== 'N/D'))).sort();
-
-  const filteredTeams = teams.filter(t => {
-    const matchSearch = (t.name || '').toLowerCase().includes(search.toLowerCase());
-    const matchStatus = teamFilterStatus === 'All' || t.status === teamFilterStatus;
-    const matchComp = teamFilterComp === 'All' || t.competition === teamFilterComp;
-    return matchSearch && matchStatus && matchComp;
-  });
 
   const getPlayerTimeline = (playerId: string, playerName: string) => {
     const timeline: any[] = [];
@@ -1136,9 +654,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
     return timeline.sort((a, b) => new Date(b.gameDate).getTime() - new Date(a.gameDate).getTime());
   };
 
-  const getScoutMatches = (scoutName: string) => {
-    return matches.filter(m => (m.scout || '').toLowerCase().includes((scoutName || '').toLowerCase()));
-  };
+  const getScoutMatches = (scoutName: string) => matches.filter(m => (m.scout || '').toLowerCase().includes((scoutName || '').toLowerCase()));
 
   const getRecentHighlights = () => {
     const list: any[] = [];
@@ -1156,22 +672,10 @@ const uniqueBirthYears: string[] = Array.from(new Set(
 
   const uniqueAlgoPlayersCount = Object.keys(algorithmData).filter(k => !k.endsWith('_gk') && !k.endsWith('_field')).length;
 
-  // CORES DINÂMICAS TEMA
   const themeBg = isDarkMode ? 'bg-[#0d131f] text-slate-100' : 'bg-slate-100 text-slate-800';
   const themeCard = isDarkMode ? 'bg-[#151c2c] border-slate-800' : 'bg-white border-slate-200 shadow-sm';
-  const themeInnerCard = isDarkMode ? 'bg-[#0d131f] border-slate-800/80' : 'bg-slate-50 border-slate-200';
   const themeHeader = isDarkMode ? 'bg-[#151c2c]/95 border-slate-800' : 'bg-white/95 border-slate-200';
   const themeTextMuted = isDarkMode ? 'text-slate-400' : 'text-slate-500';
-
-  const renderMobileMenuButton = (id: typeof activeTab, icon: React.ReactNode, label: string, count?: number) => (
-    <button 
-      onClick={() => { setActiveTab(id); setIsMobileMenuOpen(false); }}
-      className={`flex items-center justify-between w-full p-5 border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} ${activeTab === id ? 'bg-blue-600/10 text-blue-500 font-bold' : isDarkMode ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50'}`}
-    >
-      <div className="flex items-center gap-3">{icon} {label}</div>
-      {count !== undefined && <span className={`${isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600'} px-2 py-0.5 rounded-full text-xs font-medium`}>{count}</span>}
-    </button>
-  );
 
   if (loading) {
     return (
@@ -1186,49 +690,22 @@ const uniqueBirthYears: string[] = Array.from(new Set(
     return (
       <div className={`min-h-screen ${themeBg} flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden`}>
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none"></div>
-        
         <div className={`w-full max-w-md ${themeCard} backdrop-blur-md p-8 rounded-3xl shadow-2xl flex flex-col items-center animate-in fade-in zoom-in-95 duration-500 z-10 border`}>
           <div className="w-24 h-24 bg-slate-900 rounded-2xl border border-slate-700/60 flex items-center justify-center p-2 mb-6 shadow-xl relative overflow-hidden group">
-            <img 
-              src={lecaLogoUrl} 
-              alt="Leça FC" 
-              className="w-full h-full object-contain"
-              onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.classList.add('bg-blue-600/20'); }}
-            />
-            <Shield className="w-10 h-10 text-blue-400 absolute hidden group-has-[img[style*='display: none']]:block" />
+            <img src={lecaLogoUrl} alt="Leça FC" className="w-full h-full object-contain" />
           </div>
-          
           <h1 className="text-2xl md:text-3xl font-black tracking-wide mb-1 text-center">LEÇA FC</h1>
           <p className={`text-xs md:text-sm ${themeTextMuted} mb-8 text-center font-medium`}>Departamento de Scouting e Prospeção</p>
-          
           <form onSubmit={handleLogin} className="w-full space-y-5">
              <div>
                 <label className={`block text-[10px] md:text-xs font-bold ${themeTextMuted} uppercase tracking-widest mb-2`}>Quem és tu?</label>
-                <CustomSelect 
-                  options={scouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
-                  value={authScoutId || ''} 
-                  onChange={val => setAuthScoutId(val)} 
-                  placeholder="Seleciona o teu perfil..." 
-                  searchable={true} 
-                  isDarkMode={isDarkMode}
-                />
+                <CustomSelect options={scouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} value={authScoutId || ''} onChange={val => setAuthScoutId(val)} placeholder="Seleciona o teu perfil..." searchable={true} isDarkMode={isDarkMode} />
              </div>
              <div>
                 <label className={`block text-[10px] md:text-xs font-bold ${themeTextMuted} uppercase tracking-widest mb-2`}>Password do Departamento</label>
-                <input 
-                  type="password" 
-                  value={authPassword} 
-                  onChange={e => setAuthPassword(e.target.value)} 
-                  className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-blue-500 shadow-inner ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-300 text-slate-800'}`} 
-                  placeholder="••••••••" 
-                  required 
-                />
+                <input type="password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-blue-500 shadow-inner ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-300 text-slate-800'}`} placeholder="••••••••" required />
              </div>
-             {authError && (
-               <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-lg text-center">
-                 <p className="text-xs text-red-400 font-medium">{authError}</p>
-               </div>
-             )}
+             {authError && <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-lg text-center"><p className="text-xs text-red-400 font-medium">{authError}</p></div>}
              <button type="submit" className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 transition mt-2 flex items-center justify-center gap-2">
                 Entrar no Sistema <ArrowRight className="w-4 h-4" />
              </button>
@@ -1238,9 +715,30 @@ const uniqueBirthYears: string[] = Array.from(new Set(
     );
   }
 
+  // Lógica de Filtros de Jogadores
+  const uniquePlayerStatuses = Array.from(new Set(players.map(p => p.status).filter((s): s is string => Boolean(s)))).sort();
+  const cleanPositionOptions = [{ value: 'All', label: 'Todas as Posições' }, ...Array.from(new Set(players.map(p => p.position).filter((p): p is string => Boolean(p)))).sort().map(pos => ({ value: pos, label: pos }))];
+  const uniqueBirthYears = Array.from(new Set(players.map(p => p.birthYear ? String(p.birthYear) : (p.age && p.age !== 'N/D' ? String(2026 - Number(p.age)) : null)).filter((y): y is string => Boolean(y)))).sort((a, b) => Number(b) - Number(a));
+
+  const filteredPlayers = players.filter(p => {
+    const query = search.toLowerCase();
+    const matchSearch = (p.name || '').toLowerCase().includes(query) || (p.club || '').toLowerCase().includes(query);
+    const matchPos = playerPositionFilter === 'All' || (p.position || '').toLowerCase().includes(playerPositionFilter.toLowerCase());
+    const matchStatus = playerStatusFilter === 'All' || p.status === playerStatusFilter;
+    const ageNum = Number(p.age);
+    const matchAge = isNaN(ageNum) || (ageNum >= minAgeFilter && ageNum <= maxAgeFilter);
+    const playerYear = p.birthYear || (p.age && p.age !== 'N/D' ? String(2026 - Number(p.age)) : '');
+    const matchYear = birthYearFilter === 'All' || playerYear === birthYearFilter;
+    return matchSearch && matchPos && matchStatus && matchAge && matchYear;
+  });
+
+  const displayedPlayers = search || playerPositionFilter !== 'All' || playerStatusFilter !== 'All' ? filteredPlayers : filteredPlayers.slice(0, visibleCount);
+  const uniqueTeamComps = Array.from(new Set(teams.map(t => t.competition).filter((c): c is string => Boolean(c) && c !== 'N/D'))).sort();
+  const uniqueTeamStatus = Array.from(new Set(teams.map(t => t.status).filter((s): s is string => Boolean(s) && s !== 'N/D'))).sort();
+  const filteredTeams = teams.filter(t => (t.name || '').toLowerCase().includes(search.toLowerCase()) && (teamFilterStatus === 'All' || t.status === teamFilterStatus) && (teamFilterComp === 'All' || t.competition === teamFilterComp));
+
   return (
     <main className={`min-h-screen ${themeBg} font-sans relative pb-10 md:pb-6 transition-colors duration-200`}>
-      
       {toastMessage && (
         <div className="fixed top-4 right-4 md:top-6 md:right-6 z-[100] bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 duration-300 font-medium text-xs md:text-sm max-w-[90vw] md:max-w-md border border-emerald-500">
           <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
@@ -1252,16 +750,7 @@ const uniqueBirthYears: string[] = Array.from(new Set(
       <header className={`sticky top-0 z-40 ${themeHeader} backdrop-blur-md border-b px-5 py-4 md:p-6 md:m-6 md:rounded-xl md:static flex justify-between items-center shadow-sm`}>
         <div className="flex items-center gap-3.5">
           <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 rounded-xl border border-slate-700/60 flex items-center justify-center p-1 shadow flex-shrink-0 group relative overflow-hidden">
-            <img 
-              src={lecaLogoUrl} 
-              alt="Leça FC" 
-              className="w-full h-full object-contain"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.parentElement?.classList.add('bg-blue-600/20');
-              }}
-            />
-            <Shield className="w-6 h-6 text-blue-400 absolute hidden group-has-[img[style*='display: none']]:block" />
+            <img src={lecaLogoUrl} alt="Leça FC" className="w-full h-full object-contain" />
           </div>
           <div>
             <span className={`hidden md:block text-[10px] md:text-xs font-semibold tracking-wider ${themeTextMuted} uppercase mb-0.5`}>Departamento de Scouting</span>
@@ -1270,31 +759,23 @@ const uniqueBirthYears: string[] = Array.from(new Set(
         </div>
         
         <div className="flex items-center gap-3">
-          {/* BOTÃO MODO CLARO / ESCURO */}
-          <button 
-            onClick={toggleTheme} 
-            className={`p-2.5 rounded-xl border transition flex items-center justify-center ${isDarkMode ? 'bg-slate-800 border-slate-700 text-amber-400 hover:bg-slate-700' : 'bg-slate-200 border-slate-300 text-slate-700 hover:bg-slate-300'}`}
-            title={isDarkMode ? "Mudar para Modo Claro" : "Mudar para Modo Escuro"}
-          >
+          <button onClick={() => setIsDarkMode(!isDarkMode)} className={`p-2.5 rounded-xl border transition flex items-center justify-center ${isDarkMode ? 'bg-slate-800 border-slate-700 text-amber-400' : 'bg-slate-200 border-slate-300 text-slate-700'}`}>
             {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
-
           <button className="md:hidden p-2 text-slate-400 hover:text-white" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
-
           <div className="hidden md:flex items-center gap-3">
             <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-full text-xs font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               {players.length} Atletas na DB
             </div>
-            
             <div className={`flex items-center gap-2 pl-3 border-l ${isDarkMode ? 'border-slate-700' : 'border-slate-300'}`}>
               <div className="flex flex-col items-end">
                 <span className="text-xs font-medium leading-tight">{authScoutName}</span>
                 <span className="text-[9px] text-blue-500 font-bold uppercase">{getUserTitle(authScoutName || '')}</span>
               </div>
-              <button onClick={handleLogout} className={`p-2 ml-1 ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 text-slate-400' : 'bg-slate-200 hover:bg-slate-300 text-slate-600'} hover:text-red-400 rounded-lg transition`} title="Terminar Sessão">
+              <button onClick={handleLogout} className={`p-2 ml-1 ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 text-slate-400' : 'bg-slate-200 hover:bg-slate-300 text-slate-600'} hover:text-red-400 rounded-lg transition`}>
                 <LogOut className="w-4 h-4" />
               </button>
             </div>
@@ -1302,2341 +783,55 @@ const uniqueBirthYears: string[] = Array.from(new Set(
         </div>
       </header>
 
-      {/* MOBILE MENU */}
-      {isMobileMenuOpen && (
-        <div className={`fixed inset-0 top-[76px] z-30 ${themeBg} animate-in slide-in-from-top-2 md:hidden overflow-y-auto pb-20`}>
-          <div className={`p-5 border-b ${isDarkMode ? 'border-slate-800 bg-[#111723]' : 'border-slate-200 bg-slate-200'} flex items-center justify-between`}>
-             <div className="flex items-center gap-3">
-               <div className="w-10 h-10 rounded-full bg-blue-600/20 border border-blue-500/30 text-blue-400 flex items-center justify-center font-bold text-lg">
-                 {authScoutName?.charAt(0)}
-               </div>
-               <div>
-                 <p className="text-sm font-bold leading-tight">{authScoutName}</p>
-                 <p className="text-[10px] text-blue-500 font-bold uppercase mt-0.5">{getUserTitle(authScoutName || '')}</p>
-               </div>
-             </div>
-             <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-400">
-               <LogOut className="w-5 h-5"/>
-             </button>
-          </div>
-
-          {renderMobileMenuButton('dashboard', <LayoutDashboard className="w-5 h-5"/>, 'Início / Painel')}
-          {renderMobileMenuButton('stats', <BarChart3 className="w-5 h-5"/>, 'Stats & Comparador')}
-          {renderMobileMenuButton('market', <Briefcase className="w-5 h-5 text-pink-400"/>, 'Mercado & Alvos', marketOpportunities.length)}
-          {renderMobileMenuButton('players', <Users className="w-5 h-5"/>, 'Base de Jogadores', players.length)}
-          {renderMobileMenuButton('teams', <Building2 className="w-5 h-5"/>, 'Equipas', teams.length)}
-          {renderMobileMenuButton('matches', <Trophy className="w-5 h-5"/>, 'Match Center', matches.length)}
-          {renderMobileMenuButton('scouts', <Shield className="w-5 h-5"/>, 'Equipa de Scouts', displayScouts.length)}
-          {isAdmin && renderMobileMenuButton('admin', <Sliders className="w-5 h-5"/>, 'Painel Admin')}
-        </div>
-      )}
-
-      {/* DESKTOP TABS */}
+      {/* DESKTOP TABS NAVEGAÇÃO */}
       <div className="hidden md:flex max-w-6xl mx-auto mb-6 flex-wrap gap-3 px-6 md:px-0">
-        <button onClick={() => setActiveTab('dashboard')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><LayoutDashboard className="w-4 h-4" /> Início</button>
-        <button onClick={() => setActiveTab('stats')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'stats' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><BarChart3 className="w-4 h-4" /> Stats</button>
-        <button onClick={() => setActiveTab('market')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'market' ? 'bg-pink-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-pink-400 hover:text-white border border-pink-500/30' : 'bg-white text-pink-600 hover:text-pink-800 border border-pink-200'}`}><Briefcase className="w-4 h-4" /> Mercado ({marketOpportunities.length})</button>
-        <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><Users className="w-4 h-4" /> Base de Jogadores ({players.length})</button>
-        <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><Building2 className="w-4 h-4" /> Equipas ({teams.length})</button>
-        <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><Trophy className="w-4 h-4" /> Match Center ({matches.length})</button>
-        <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 hover:text-slate-900 shadow-sm'}`}><Shield className="w-4 h-4" /> Equipa de Scouts ({displayScouts.length})</button>
+        <button onClick={() => setActiveTab('dashboard')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 shadow-sm'}`}><LayoutDashboard className="w-4 h-4" /> Início</button>
+        <button onClick={() => setActiveTab('stats')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'stats' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 shadow-sm'}`}><BarChart3 className="w-4 h-4" /> Stats</button>
+        <button onClick={() => setActiveTab('market')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'market' ? 'bg-pink-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-pink-400 hover:text-white border border-pink-500/30' : 'bg-white text-pink-600 shadow-sm'}`}><Briefcase className="w-4 h-4" /> Mercado ({marketOpportunities.length})</button>
+        <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 shadow-sm'}`}><Users className="w-4 h-4" /> Base de Jogadores ({players.length})</button>
+        <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 shadow-sm'}`}><Building2 className="w-4 h-4" /> Equipas ({teams.length})</button>
+        <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 shadow-sm'}`}><Trophy className="w-4 h-4" /> Match Center ({matches.length})</button>
+        <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-slate-400 hover:text-white' : 'bg-white text-slate-600 shadow-sm'}`}><Shield className="w-4 h-4" /> Equipa de Scouts ({displayScouts.length})</button>
         {isAdmin && (
-          <button onClick={() => setActiveTab('admin')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'admin' ? 'bg-purple-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-purple-400 hover:text-white border border-purple-500/30' : 'bg-white text-purple-600 hover:text-purple-800 border border-purple-200'}`}><Sliders className="w-4 h-4" /> Painel Admin</button>
+          <button onClick={() => setActiveTab('admin')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'admin' ? 'bg-purple-600 text-white shadow-lg' : isDarkMode ? 'bg-[#151c2c] text-purple-400 hover:text-white border border-purple-500/30' : 'bg-white text-purple-600 shadow-sm'}`}><Sliders className="w-4 h-4" /> Painel Admin</button>
         )}
       </div>
 
+      {/* CONTEÚDO DAS TABS */}
       <div className="max-w-6xl mx-auto px-4 md:px-0 mt-4 md:mt-0">
-
-       {/* TAB STATS & COMPARADOR H2H */}
-       {activeTab === 'stats' && (() => {
-          const getRowFromOptionValue = (optValue: string) => {
-            if (!optValue) return null;
-            const parts = optValue.split('___');
-            const key = parts[0];
-            const idx = Number(parts[1]);
-            if (key && algorithmData[key] && algorithmData[key][idx]) {
-              return algorithmData[key][idx].row;
-            }
-            return null;
-          };
-
-          const rowA = getRowFromOptionValue(comparePlayerKeyA);
-          const rowB = getRowFromOptionValue(comparePlayerKeyB);
-          const rowC = getRowFromOptionValue(comparePlayerKeyC);
-
-          const nameA = rowA?.Player || rowA?.Player_ID || 'Jogador A';
-          const nameB = rowB?.Player || rowB?.Player_ID || 'Jogador B';
-          const nameC = rowC?.Player || rowC?.Player_ID || 'Jogador C';
-          
-          const cleanNameA = nameA.replace(/\s*\([^)]*\)/g, '').trim();
-          const cleanNameB = nameB.replace(/\s*\([^)]*\)/g, '').trim();
-          const cleanNameC = nameC.replace(/\s*\([^)]*\)/g, '').trim();
-
-          const tagA = rowA ? extractContextTag(rowA) : '';
-          const tagB = rowB ? extractContextTag(rowB) : '';
-          const tagC = rowC ? extractContextTag(rowC) : '';
-
-          const cardLabelA = rowA ? `${cleanNameA}${tagA ? ` (${tagA})` : ''}` : '';
-          const cardLabelB = rowB ? `${cleanNameB}${tagB ? ` (${tagB})` : ''}` : '';
-          const cardLabelC = rowC ? `${cleanNameC}${tagC ? ` (${tagC})` : ''}` : '';
-
-          const pillars = [
-            { axis: 'Defesa', key: 'Defesa' },
-            { axis: 'Jogo Aéreo', key: 'Jogo Aéreo' },
-            { axis: 'Construção', key: 'Construção' },
-            { axis: 'Criação', key: 'Criação' },
-            { axis: 'Cruzamento', key: 'Cruzamento' },
-            { axis: '1v1', key: 'Capacidade 1v1' },
-            { axis: 'Profundidade', key: 'Profundidade' },
-            { axis: 'Finalização', key: 'Finalização' },
-          ];
-
-          const chartData = pillars.map(p => ({
-            axis: p.axis,
-            A: rowA && rowA[p.key] ? parseFloat(rowA[p.key]) || 0 : 0,
-            B: rowB && rowB[p.key] ? parseFloat(rowB[p.key]) || 0 : 0,
-            C: rowC && rowC[p.key] ? parseFloat(rowC[p.key]) || 0 : 0,
-          }));
-
-          return (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <div className={`${themeCard} p-6 rounded-2xl border border-blue-500/30 shadow-xl space-y-6`}>
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-b border-slate-700/40 pb-4 gap-4">
-                  <div>
-                    <h2 className="text-base md:text-lg font-bold uppercase tracking-wider flex items-center gap-2">
-                      <BarChart3 className="w-5 h-5 text-blue-500" /> Comparador Head-to-Head (H2H)
-                    </h2>
-                    <p className={`text-xs ${themeTextMuted} mt-0.5`}>
-                      Compara até 3 atletas nos 8 pilares de desempenho principais.
-                    </p>
-                  </div>
-                  <span className="text-xs bg-blue-500/20 text-blue-400 font-bold px-3 py-1.5 rounded-xl border border-blue-500/30">
-                    {algoOptions.length} Opções Disponíveis
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* SELETOR A */}
-                  <div>
-                    <label className="block text-xs font-bold text-blue-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Jogador A
-                    </label>
-                    <CustomSelect options={algoOptions} value={comparePlayerKeyA} onChange={setComparePlayerKeyA} placeholder="Procurar A..." searchable={true} isDarkMode={isDarkMode} />
-                  </div>
-                  {/* SELETOR B */}
-                  <div>
-                    <label className="block text-xs font-bold text-pink-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-pink-500" /> Jogador B
-                    </label>
-                    <CustomSelect options={algoOptions} value={comparePlayerKeyB} onChange={setComparePlayerKeyB} placeholder="Procurar B..." searchable={true} isDarkMode={isDarkMode} />
-                  </div>
-                  {/* SELETOR C */}
-                  <div>
-                    <label className="block text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Jogador C
-                    </label>
-                    <CustomSelect options={algoOptions} value={comparePlayerKeyC} onChange={setComparePlayerKeyC} placeholder="Procurar C..." searchable={true} isDarkMode={isDarkMode} />
-                  </div>
-                </div>
-
-                {/* GRÁFICO RADAR */}
-                {comparePlayerKeyA || comparePlayerKeyB || comparePlayerKeyC ? (
-                  <div className="pt-4">
-                    <div className={`${themeInnerCard} p-6 rounded-2xl border flex flex-col items-center justify-center min-h-[380px]`}>
-                      <RadarChart 
-                        playerAName={rowA ? cleanNameA : ''}
-                        playerBName={rowB ? cleanNameB : undefined}
-                        playerCName={rowC ? cleanNameC : undefined}
-                        colorA="#3b82f6" colorB="#ec4899" colorC="#10b981"
-                        data={chartData}
-                      />
-                    </div>
-
-                    {/* GRELHA DE DADOS NUMÉRICOS (CARDS POR PILAR) */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
-                      {pillars.map((p) => {
-                        const valA = rowA && rowA[p.key] ? parseFloat(rowA[p.key]) : null;
-                        const valB = rowB && rowB[p.key] ? parseFloat(rowB[p.key]) : null;
-                        const valC = rowC && rowC[p.key] ? parseFloat(rowC[p.key]) : null;
-                        
-                        const maxVal = Math.max(...[valA, valB, valC].filter(v => v !== null) as number[]);
-
-                        return (
-                          <div key={p.key} className={`${themeInnerCard} p-3.5 rounded-xl border flex flex-col space-y-2.5 hover:border-slate-600 transition`}>
-                            <span className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider text-center border-b border-slate-700/50 pb-2">
-                              {p.axis}
-                            </span>
-                            
-                            {rowA && (
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5 overflow-hidden pr-2">
-                                  <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"/>
-                                  <span className="text-[10px] md:text-xs truncate text-slate-300" title={cardLabelA}>{cardLabelA}</span>
-                                </div>
-                                <span className={`text-xs ${valA === maxVal && valA !== null ? 'font-black text-white bg-slate-800 px-1.5 rounded' : 'font-semibold text-slate-400'}`}>
-                                  {valA?.toFixed(1) || '-'}
-                                </span>
-                              </div>
-                            )}
-                            
-                            {rowB && (
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5 overflow-hidden pr-2">
-                                  <span className="w-2 h-2 rounded-full bg-pink-500 flex-shrink-0"/>
-                                  <span className="text-[10px] md:text-xs truncate text-slate-300" title={cardLabelB}>{cardLabelB}</span>
-                                </div>
-                                <span className={`text-xs ${valB === maxVal && valB !== null ? 'font-black text-white bg-slate-800 px-1.5 rounded' : 'font-semibold text-slate-400'}`}>
-                                  {valB?.toFixed(1) || '-'}
-                                </span>
-                              </div>
-                            )}
-
-                            {rowC && (
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5 overflow-hidden pr-2">
-                                  <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"/>
-                                  <span className="text-[10px] md:text-xs truncate text-slate-300" title={cardLabelC}>{cardLabelC}</span>
-                                </div>
-                                <span className={`text-xs ${valC === maxVal && valC !== null ? 'font-black text-white bg-slate-800 px-1.5 rounded' : 'font-semibold text-slate-400'}`}>
-                                  {valC?.toFixed(1) || '-'}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : (
-                  <div className={`text-center py-16 ${themeInnerCard} rounded-2xl border border-dashed text-xs md:text-sm space-y-2`}>
-                    <Info className="w-8 h-8 text-slate-500 mx-auto" />
-                    <p className="font-bold text-slate-300">Nenhum atleta selecionado</p>
-                    <p className={`${themeTextMuted} text-xs`}>
-                      Escolha pelo menos um atleta nos seletores acima para gerar o gráfico radar e a grelha de pontuações.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })()}
-
-{/* TAB 6: GLOBAL MERCADO & OPORTUNIDADES */}
-{activeTab === 'market' && (
-          <div className="space-y-6 animate-in fade-in duration-300">
-            <div className={`${themeCard} p-6 rounded-2xl border border-pink-500/30 shadow-xl space-y-6`}>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-700/40 pb-4 gap-4">
-                <div>
-                  <h2 className="text-base md:text-lg font-bold uppercase tracking-wider flex items-center gap-2">
-                    <Briefcase className="w-5 h-5 text-pink-500" /> Painel de Oportunidades de Mercado
-                  </h2>
-                  <p className={`text-xs ${themeTextMuted} mt-0.5`}>
-                    Mapeamento global de atletas oferecidos e em prospeção para as janelas de transferência.
-                  </p>
-                </div>
-                <button 
-                  onClick={() => setIsMarketModalOpen(true)}
-                  className="px-4 py-2.5 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-pink-900/20 transition"
-                >
-                  <Plus className="w-4 h-4" /> Nova Oportunidade
-                </button>
-              </div>
-
-              {marketOpportunities.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {marketOpportunities.map((opp) => {
-                    const fields = opp.fields || {};
-                    const linkedPlayers = fields.Jogador || [];
-                    const playerRecord = players.find(p => linkedPlayers.includes(p.id));
-                    const status = fields['Status Negociação'] || 'Em Avaliação';
-
-                    let statusColor = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-                    if (status === 'Aprovado' || status === 'Concluído') statusColor = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
-                    if (status === 'Vetado') statusColor = 'bg-red-500/20 text-red-400 border-red-500/30';
-                    if (status === 'Em Negociação') statusColor = 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-
-                    return (
-                      <div key={opp.id} className={`${themeInnerCard} p-5 rounded-xl border flex flex-col justify-between space-y-4 shadow-sm hover:border-pink-500/40 transition`}>
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <h3 className="font-bold text-base text-white">
-                              {playerRecord ? playerRecord.name : (fields['Nome do Jogador'] || 'Atleta sem nome')}
-                            </h3>
-                            <p className={`text-xs ${themeTextMuted} mt-0.5`}>
-                              <span className="text-pink-400 font-semibold">{playerRecord?.position || 'N/D'}</span> • {playerRecord?.club || 'Clube N/D'}
-                            </p>
-                          </div>
-                          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border uppercase tracking-wider ${statusColor}`}>
-                            {status}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div className="bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/50">
-                            <span className={`block text-[9px] ${themeTextMuted} uppercase font-bold`}>Mercado Target</span>
-                            <span className="font-semibold text-slate-200">{fields['Mercado Target'] || 'N/D'}</span>
-                          </div>
-                          <div className="bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/50">
-                            <span className={`block text-[9px] ${themeTextMuted} uppercase font-bold`}>Viabilidade</span>
-                            <span className="font-semibold text-slate-200">{fields['Viabilidade Financeira'] || 'N/D'}</span>
-                          </div>
-                        </div>
-
-                        {fields['Motivo da Contratação'] && (
-                          <p className={`text-xs ${themeTextMuted} italic bg-slate-900/30 p-3 rounded-lg border border-slate-800 line-clamp-2`}>
-                           &quot;{fields['Motivo da Contratação']}&quot;
-                          </p>
-                        )}
-
-<div className="flex items-center justify-between pt-2 border-t border-slate-700/40 text-[11px]">
-                          <span className={themeTextMuted}>Ref: <strong>{fields['Scout'] || 'Departamento'}</strong></span>
-
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => {
-                                setSelectedMarketOppToEdit(opp);
-                                setDecisionFormData({
-                                  status: fields['Status Negociação'] || 'Em Avaliação',
-                                  vetoReason: fields['Motivo do Veto'] || '',
-                                  vetoDate: fields['Data do Veto'] || new Date().toISOString().split('T')[0],
-                                  presidentOpinion: fields['Opinião do Presidente'] || '',
-                                  notesDD: fields['Notas Diretor Desportivo'] || ''
-                                });
-                              }}
-                              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-pink-400 border border-pink-500/30 text-[10px] font-bold rounded-lg transition flex items-center gap-1"
-                            >
-                              <Sliders className="w-3 h-3" /> Decisão
-                            </button>
-
-                            {playerRecord && (
-                              <button
-                                onClick={() => {
-                                  setSelectedPlayer(playerRecord);
-                                  setProfileTab('market');
-                                }}
-                                className="text-pink-400 hover:underline font-bold flex items-center gap-1"
-                              >
-                                Ver no Perfil <ArrowRight className="w-3 h-3" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className={`text-center py-16 ${themeInnerCard} rounded-2xl border border-dashed text-xs md:text-sm space-y-2`}>
-                  <Briefcase className="w-8 h-8 text-slate-500 mx-auto" />
-                  <p className="font-bold text-slate-300">Sem oportunidades registadas</p>
-                  <p className={`${themeTextMuted} text-xs`}>
-                  Clica em &quot;Nova Oportunidade&quot;
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 0: DASHBOARD */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-              <div className={`${themeCard} p-4 md:p-5 rounded-2xl border flex flex-col justify-between`}>
-                <span className={`${themeTextMuted} text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1`}>Base de Atletas</span>
-                <span className="text-2xl md:text-3xl font-black">{players.length}</span>
-                <span className="text-[10px] text-emerald-500 font-bold mt-2 flex items-center gap-1"><Activity size={10}/> Atleta(s) Ativos</span>
-              </div>
-              
-              <div className={`${themeCard} p-4 md:p-5 rounded-2xl border flex flex-col justify-between`}>
-                <span className={`${themeTextMuted} text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1`}>Jogos Vistos</span>
-                <span className="text-2xl md:text-3xl font-black text-blue-500">{matches.length}</span>
-                <span className={`text-[10px] ${themeTextMuted} font-medium mt-2`}>Mapeados na Época</span>
-              </div>
-
-              <div className={`${themeCard} p-4 md:p-5 rounded-2xl border flex flex-col justify-between`}>
-                <span className={`${themeTextMuted} text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1`}>Equipas Mapeadas</span>
-                <span className="text-2xl md:text-3xl font-black">{teams.length}</span>
-                <span className={`text-[10px] ${themeTextMuted} font-medium mt-2`}>Clubes em BD</span>
-              </div>
-
-              <div className={`${themeCard} p-4 md:p-5 rounded-2xl border flex flex-col justify-between`}>
-                <span className={`${themeTextMuted} text-[10px] md:text-xs font-bold uppercase tracking-wider block mb-1`}>Equipa de Scouts</span>
-                <span className="text-2xl md:text-3xl font-black text-emerald-500">{displayScouts.length}</span>
-                <span className={`text-[10px] ${themeTextMuted} font-medium mt-2`}>Observadores no Terreno</span>
-              </div>
-            </div>
-
-            {canCreateMatches && (
-              <div className={`${themeCard} p-4 md:p-6 rounded-2xl border flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4`}>
-                <div>
-                  <h3 className="font-bold text-base md:text-lg">Atalhos do Departamento</h3>
-                  <p className={`text-xs ${themeTextMuted} mt-0.5`}>Ações rápidas para acompanhamento das partidas e prospeção</p>
-                </div>
-                <div className="flex flex-wrap w-full lg:w-auto gap-3">
-                  <button onClick={() => { setIsMarketModalOpen(true); }} className="flex-1 sm:flex-none px-4 py-3 bg-pink-600 hover:bg-pink-500 text-white text-xs md:text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-pink-900/20">
-                    <Briefcase className="w-4 h-4" /> Nova Oportunidade
-                  </button>
-                  <button onClick={() => { setPreGameData({ ...preGameData, scoutIds: authScoutId ? [authScoutId] : [] }); setIsRegisterOpen(true); }} className="flex-1 sm:flex-none px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white text-xs md:text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
-                    <Plus className="w-4 h-4" /> Agendar Jogo
-                  </button>
-                  <button onClick={() => { setActiveTab('players'); }} className={`flex-1 sm:flex-none px-4 py-3 ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'} border text-xs md:text-sm font-bold rounded-xl flex items-center justify-center gap-2`}>
-                    <Search className="w-4 h-4" /> Pesquisar Atleta
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm md:text-base font-bold uppercase tracking-wider flex items-center gap-2">
-                  <Star className="w-4 h-4 text-blue-500" /> Últimas Observações Submetidas
-                </h3>
-                <button onClick={() => setActiveTab('matches')} className="text-xs text-blue-500 font-bold hover:underline flex items-center gap-1">
-                  Ver Todos os Jogos <ArrowRight className="w-3 h-3" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {getRecentHighlights().map((p, idx) => (
-                  <div key={idx} className={`${themeCard} border p-4 rounded-2xl space-y-3 transition`}>
-                    <div className={`flex items-center justify-between border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-3`}>
-                      <div className="flex items-center gap-3">
-                        {p.photo ? (
-                          <img src={p.photo} alt={p.name} className="w-10 h-10 rounded-full object-cover border border-slate-700 shadow" />
-                        ) : (
-                          <div className={`w-10 h-10 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold text-sm`}>
-                            {(p.name || 'J').charAt(0)}
-                          </div>
-                        )}
-                        <div>
-                          <h5 className="font-bold text-sm">{p.name}</h5>
-                          <p className={`text-xs ${themeTextMuted} mt-0.5`}>
-                            <span className="text-blue-500 font-medium">{p.position}</span> • {p.club}
-                          </p>
-                        </div>
-                      </div>
-                      <span className={`text-[10px] ${isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'} px-2 py-1 rounded font-semibold flex items-center gap-1`}>
-                        {p.gameDate}
-                      </span>
-                    </div>
-
-                    <p className={`text-xs leading-relaxed ${themeInnerCard} p-3 rounded-xl border line-clamp-3`}>
-                      {p.note}
-                    </p>
-                    
-                    <button 
-                      onClick={() => navigateToMatch(p.matchId)}
-                      className="text-[10px] text-blue-500 font-bold hover:underline flex items-center justify-end w-full gap-1 pt-1"
-                    >
-                      Ir para Jogo <ExternalLink className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <DashboardTab players={players} matches={matches} teams={teams} displayScouts={displayScouts} canCreateMatches={canCreateMatches} authScoutId={authScoutId} preGameData={preGameData} setPreGameData={setPreGameData} setIsMarketModalOpen={setIsMarketModalOpen} setIsRegisterOpen={setIsRegisterOpen} setActiveTab={setActiveTab} getRecentHighlights={getRecentHighlights} navigateToMatch={navigateToMatch} isDarkMode={isDarkMode} />
         )}
-
-        
-
-{/* TAB 1: PLAYERS (COM NOVOS FILTROS) */}
-        {/* TAB 1: PLAYERS (COM FILTROS AVANÇADOS REFINADOS) */}
-        {activeTab === 'players' && (() => {
-          // Cálculo das percentagens para o preenchimento da barra contínua de idade
-          const minPercent = ((minAgeFilter - 15) / (40 - 15)) * 100;
-          const maxPercent = ((maxAgeFilter - 15) / (40 - 15)) * 100;
-
-          return (
-            <div className="animate-in fade-in duration-300 space-y-4">
-              
-              {/* BARRA SUPERIOR DE FILTROS COM PESQUISA INTERNA */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {/* Pesquisa por Texto */}
-                <div className="relative">
-                  <Search className="absolute left-4 top-3.5 text-slate-400 w-4 h-4" />
-                  <input 
-                    type="text" 
-                    placeholder="Pesquisar atleta ou clube..." 
-                    value={search} 
-                    onChange={(e) => { setSearch(e.target.value); setVisibleCount(20); }} 
-                    className={`w-full border rounded-xl py-3 pl-11 pr-4 text-xs md:text-sm focus:outline-none focus:border-blue-500 shadow-sm ${isDarkMode ? 'bg-[#151c2c] border-slate-800 text-slate-200' : 'bg-white border-slate-300 text-slate-800'}`} 
-                  />
-                </div>
-
-                {/* Dropdown de Posições (Pesquisável) */}
-                <CustomSelect 
-                  options={cleanPositionOptions} 
-                  value={playerPositionFilter} 
-                  onChange={setPlayerPositionFilter} 
-                  placeholder="Todas as Posições"
-                  searchable={true}
-                  isDarkMode={isDarkMode}
-                />
-
-                {/* Dropdown de Estado de Observação (Pesquisável) */}
-                <CustomSelect 
-                  options={[{ value: 'All', label: 'Todos os Estados de Observação' }, ...uniquePlayerStatuses.map(s => ({ value: s, label: s }))]} 
-                  value={playerStatusFilter} 
-                  onChange={setPlayerStatusFilter} 
-                  placeholder="Estado de Observação"
-                  searchable={true}
-                  isDarkMode={isDarkMode}
-                />
-
-                {/* Dropdown de Ano de Nascimento (Pesquisável e Apenas Número) */}
-                <CustomSelect 
-                  options={[{ value: 'All', label: 'Todos os Anos Nasc.' }, ...uniqueBirthYears.map(y => ({ value: String(y), label: String(y) }))]} 
-                  value={birthYearFilter} 
-                  onChange={setBirthYearFilter} 
-                  placeholder="Ano de Nascimento"
-                  searchable={true}
-                  isDarkMode={isDarkMode}
-                />
-              </div>
-
-              {/* SLIDER DE FAIXA ETÁRIA (TRILHO ÚNICO DUAL-HANDLE) */}
-              <div className={`${themeCard} p-4 rounded-xl border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs`}>
-                <div className="flex items-center gap-2 font-bold whitespace-nowrap">
-                  <Filter className="w-4 h-4 text-blue-500" />
-                  <span>Faixa Etária: <strong className="text-blue-500 font-black">{minAgeFilter} - {maxAgeFilter} anos</strong></span>
-                </div>
-                
-                <div className="flex items-center gap-3 w-full sm:w-2/3">
-                  <span className={`${themeTextMuted} font-bold text-[11px]`}>15</span>
-                  
-                  {/* Contentor do Slider Duplo */}
-                  <div className="relative w-full h-2 bg-slate-700/60 rounded-lg flex items-center">
-                    {/* Barra de Preenchimento Dinâmica */}
-                    <div 
-                      className="absolute h-full bg-blue-500 rounded-lg transition-all duration-75"
-                      style={{ left: `${minPercent}%`, width: `${maxPercent - minPercent}%` }}
-                    />
-                    
-                    {/* Input Manípulo Mínimo */}
-                    <input 
-                      type="range" 
-                      min="15" 
-                      max="40" 
-                      value={minAgeFilter} 
-                      onChange={(e) => setMinAgeFilter(Math.min(Number(e.target.value), maxAgeFilter - 1))}
-                      className="absolute w-full h-2 appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-400 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:appearance-none cursor-pointer"
-                    />
-                    
-                    {/* Input Manípulo Máximo */}
-                    <input 
-                      type="range" 
-                      min="15" 
-                      max="40" 
-                      value={maxAgeFilter} 
-                      onChange={(e) => setMaxAgeFilter(Math.max(Number(e.target.value), minAgeFilter + 1))}
-                      className="absolute w-full h-2 appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-400 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:appearance-none cursor-pointer"
-                    />
-                  </div>
-
-                  <span className={`${themeTextMuted} font-bold text-[11px]`}>40</span>
-                </div>
-              </div>
-
-              <div className={`flex justify-between items-center mb-4 text-xs md:text-sm ${themeTextMuted}`}>
-                <span>A mostrar {displayedPlayers.length} de {filteredPlayers.length} atletas.</span>
-              </div>
-
-              {/* LISTAGEM DE CARTÕES */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-                {displayedPlayers.map((player) => (
-                  <div 
-                    key={player.id} 
-                    onClick={() => { setSelectedPlayer(player); setProfileTab('timeline'); setSelectedSeasonIdx(0); }}
-                    className={`${themeCard} border rounded-xl p-4 md:p-5 flex flex-col hover:border-blue-500/50 transition cursor-pointer group shadow-sm`}
-                  >
-                    <div className="flex items-center gap-4 mb-4">
-                      {player.photo ? (
-                        <img src={player.photo} alt={player.name} className="w-14 h-14 md:w-12 md:h-12 rounded-full object-cover border border-slate-700 bg-slate-800" />
-                      ) : (
-                        <div className={`w-14 h-14 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold text-base md:text-sm`}>
-                          {player.name.charAt(0)}
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-base truncate flex items-center gap-2">
-                          {player.name}
-                        </h3>
-                        <div className={`flex items-center gap-1.5 text-xs md:text-[11px] ${themeTextMuted} mt-1 md:mt-0.5 truncate`}>
-                          <span className="text-blue-500 font-medium truncate">{player.position}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className={`flex justify-between items-center mt-auto pt-3 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
-                       <div className="flex items-center gap-2 text-xs md:text-sm">
-                          {player.clubLogo ? <img src={player.clubLogo} alt={player.club} className="w-4 h-4 md:w-5 md:h-5 object-contain" /> : <Shield className="w-4 h-4 text-slate-400" />}
-                          <span className="truncate max-w-[140px] font-medium">{player.club}</span>
-                       </div>
-                       <span className={`text-[10px] ${isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'} px-2 py-1 rounded-md font-bold uppercase tracking-wide`}>{player.status}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {!search && displayedPlayers.length < filteredPlayers.length && (
-                <div className="text-center mt-8">
-                  <button onClick={() => setVisibleCount(prev => prev + 30)} className={`w-full md:w-auto px-8 py-4 md:py-3 ${themeCard} border font-medium text-sm md:text-base rounded-xl transition shadow-sm`}>
-                    Ver Mais Atletas
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        })()}
-
-        {/* TAB 2: TEAMS (COM BOTÃO DE CRIAR EQUIPA) */}
+        {activeTab === 'market' && (
+          <MarketTab marketOpportunities={marketOpportunities} players={players} setIsMarketModalOpen={setIsMarketModalOpen} setSelectedMarketOppToEdit={setSelectedMarketOppToEdit} setDecisionFormData={setDecisionFormData} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} isDarkMode={isDarkMode} />
+        )}
+        {activeTab === 'players' && (
+          <PlayersTab search={search} setSearch={setSearch} playerPositionFilter={playerPositionFilter} setPlayerPositionFilter={setPlayerPositionFilter} cleanPositionOptions={cleanPositionOptions} playerStatusFilter={playerStatusFilter} setPlayerStatusFilter={setPlayerStatusFilter} uniquePlayerStatuses={uniquePlayerStatuses} birthYearFilter={birthYearFilter} setBirthYearFilter={setBirthYearFilter} uniqueBirthYears={uniqueBirthYears} minAgeFilter={minAgeFilter} setMinAgeFilter={setMinAgeFilter} maxAgeFilter={maxAgeFilter} setMaxAgeFilter={setMaxAgeFilter} displayedPlayers={displayedPlayers} filteredPlayers={filteredPlayers} visibleCount={visibleCount} setVisibleCount={setVisibleCount} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} setSelectedSeasonIdx={setSelectedSeasonIdx} isDarkMode={isDarkMode} />
+        )}
         {activeTab === 'teams' && (
-          <div className="animate-in fade-in duration-300">
-            <div className="flex flex-col md:flex-row gap-3 md:gap-4 mb-6">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-4 md:top-3.5 text-slate-400 w-4 h-4 md:w-5 md:h-5" />
-                <input 
-                  type="text" 
-                  placeholder="Pesquisar equipa..." 
-                  value={search} 
-                  onChange={(e) => setSearch(e.target.value)} 
-                  className={`w-full border rounded-xl py-4 md:py-3.5 pl-12 pr-4 text-sm md:text-base focus:outline-none focus:border-blue-500 ${isDarkMode ? 'bg-[#151c2c] border-slate-800 text-slate-200' : 'bg-white border-slate-300 text-slate-800'}`} 
-                />
-              </div>
-              <div className="flex flex-col sm:flex-row gap-3 z-20">
-                <CustomSelect options={[{ value: 'All', label: 'Todas as Ligas' }, ...uniqueTeamComps.map(c => ({ value: c, label: c }))]} value={teamFilterComp} onChange={setTeamFilterComp} className="w-full sm:w-48" isDarkMode={isDarkMode} />
-                <CustomSelect options={[{ value: 'All', label: 'Todos Estatutos' }, ...uniqueTeamStatus.map(s => ({ value: s, label: s }))]} value={teamFilterStatus} onChange={setTeamFilterStatus} className="w-full sm:w-48" isDarkMode={isDarkMode} />
-                
-                {/* BOTÃO CRIAR EQUIPA */}
-                {canCreateMatches && (
-                  <button 
-                    onClick={() => setIsNewTeamOpen(true)}
-                    className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs md:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 transition whitespace-nowrap"
-                  >
-                    <Plus className="w-4 h-4" /> Criar Equipa
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-              {filteredTeams.map((team) => {
-                const teamPlayers = players.filter(p => (p.club || '').toLowerCase() === (team.name || '').toLowerCase());
-                const teamMatchesCount = matches.filter(m => (m.matchName || '').toLowerCase().includes((team.name || '').toLowerCase())).length;
-
-                return (
-                  <div key={team.id} onClick={() => setSelectedTeam(team)} className={`${themeCard} border rounded-xl p-4 md:p-5 flex items-center justify-between hover:border-slate-500 transition cursor-pointer shadow-sm`}>
-                    <div className="flex items-center gap-4 min-w-0">
-                      {team.logo ? (
-                        <img src={team.logo} alt={team.name} className="w-12 h-12 md:w-14 md:h-14 object-contain p-1.5 bg-slate-900 rounded-lg border border-slate-800 flex-shrink-0" />
-                      ) : (
-                        <div className={`w-12 h-12 md:w-14 md:h-14 rounded-lg ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold flex-shrink-0`}><Building2 className="w-6 h-6 text-slate-400" /></div>
-                      )}
-                      <div className="min-w-0">
-                        <h3 className="font-bold text-base truncate">{team.name}</h3>
-                        <p className="text-xs text-blue-500 font-medium mt-1 truncate">
-                          {team.competition && team.competition !== 'N/D' ? team.competition : ''} 
-                          {team.competition && team.competition !== 'N/D' && team.country ? <span className="text-slate-400 hidden sm:inline"> • </span> : ''}
-                          <span className="text-slate-400 hidden sm:inline">{team.country || ''}</span>
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1.5 flex-shrink-0 pl-2">
-                       <span className={`text-xs ${isDarkMode ? 'bg-slate-800 text-emerald-400' : 'bg-slate-100 text-emerald-600'} px-2 py-1 rounded-md font-bold`}>{teamMatchesCount} Jogos</span>
-                       <span className={`text-[10px] ${themeTextMuted} font-medium`}>{teamPlayers.length} Atletas</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <TeamsTab search={search} setSearch={setSearch} teamFilterComp={teamFilterComp} setTeamFilterComp={setTeamFilterComp} teamFilterStatus={teamFilterStatus} setTeamFilterStatus={setTeamFilterStatus} uniqueTeamComps={uniqueTeamComps} uniqueTeamStatus={uniqueTeamStatus} filteredTeams={filteredTeams} players={players} matches={matches} setSelectedTeam={setSelectedTeam} canCreateMatches={canCreateMatches} setIsNewTeamOpen={setIsNewTeamOpen} isDarkMode={isDarkMode} />
         )}
-
-        {/* TAB 3: MATCHES (MATCH CENTER) */}
+        {activeTab === 'stats' && (
+          <StatsTab comparePlayerKeyA={comparePlayerKeyA} setComparePlayerKeyA={setComparePlayerKeyA} comparePlayerKeyB={comparePlayerKeyB} setComparePlayerKeyB={setComparePlayerKeyB} comparePlayerKeyC={comparePlayerKeyC} setComparePlayerKeyC={setComparePlayerKeyC} algoOptions={algoOptions} algorithmData={algorithmData} extractContextTag={extractContextTag} isDarkMode={isDarkMode} />
+        )}
         {activeTab === 'matches' && (
-          <div className="animate-in fade-in duration-300">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5 md:mb-6">
-              <p className={`text-xs md:text-sm ${themeTextMuted} hidden sm:block`}>Motor de observação de equipas e atletas.</p>
-              {canCreateMatches && (
-                <button onClick={() => { setPreGameData({ ...preGameData, scoutIds: authScoutId ? [authScoutId] : [] }); setIsRegisterOpen(true); }} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-4 md:py-3 rounded-xl text-sm md:text-base font-bold transition shadow-lg shadow-blue-900/20">
-                  <Plus className="w-5 h-5" /> Agendar Jogo
-                </button>
-              )}
-            </div>
-
-            <div className="grid gap-3 md:gap-4">
-              {matches.map((match) => {
-                const isExpanded = expandedMatchId === match.id;
-                const isEditingContext = editingMatchId === match.id;
-
-                return (
-                  <div key={match.id} id={`match-${match.id}`} className={`${themeCard} border ${isExpanded ? 'border-blue-500/50' : ''} rounded-xl overflow-hidden transition-all duration-300 shadow-sm`}>
-                    <div onClick={() => toggleMatch(match.id)} className={`p-4 md:p-5 flex items-center justify-between cursor-pointer ${isDarkMode ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'}`}>
-                      <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                        <div className={`p-3 rounded-xl ${isExpanded ? 'bg-blue-500 text-white' : 'bg-blue-500/10 text-blue-500'} border border-blue-500/20 flex-shrink-0 transition-colors`}><Trophy className="w-5 h-5" /></div>
-                        <div className="min-w-0">
-                          <h3 className="font-bold text-sm md:text-base truncate leading-tight mb-1 md:mb-0">{match.matchName}</h3>
-                          <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] md:text-xs ${themeTextMuted} mt-1`}>
-                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {match.gameDate}</span>
-                            {match.competition && match.competition !== 'N/D' && <span>•</span>}
-                            {match.competition && match.competition !== 'N/D' && <span className="text-blue-500 font-semibold truncate max-w-[120px] md:max-w-none">{match.competition}</span>}
-                            <span>•</span>
-                            <span className={`${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'} px-1.5 py-0.5 rounded`}>{match.type}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 md:gap-6 flex-shrink-0 pl-2">
-                        <div className="text-right hidden sm:block">
-                          <span className="block text-sm font-bold text-emerald-500">{match.playersCount}</span>
-                          <span className={`text-[9px] ${themeTextMuted} uppercase tracking-wider font-bold`}>Atletas</span>
-                        </div>
-                        <div className={`text-slate-400 ${isDarkMode ? 'bg-slate-800/50' : 'bg-slate-100'} p-2 md:p-1.5 rounded-lg`}>{isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}</div>
-                      </div>
-                    </div>
-
-                    {isExpanded && (
-                      <div className={`p-4 md:p-5 border-t ${isDarkMode ? 'border-slate-800 bg-[#0d131f]' : 'border-slate-200 bg-slate-50'} space-y-6 md:space-y-5`}>
-                        
-                        <div className={`${themeCard} border p-4 rounded-xl text-xs md:text-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4`}>
-                          <div className="space-y-2 md:space-y-1.5 w-full md:w-auto">
-                            <div className="flex items-center gap-2"><Shield className="w-4 h-4 text-slate-400"/> <strong>Táticas:</strong> {match.homeTactic} / {match.awayTactic}</div>
-                            <div className="flex items-center gap-2"><UserCheck className="w-4 h-4 text-slate-400"/> <strong>Scout:</strong> <span className="text-blue-500 font-medium">{match.scout}</span></div>
-                          </div>
-                          {canEditMatches && (
-                            <button onClick={() => startEditMatchContext(match)} className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-3 md:py-2 bg-blue-600/20 border border-blue-500/30 text-blue-500 rounded-xl md:rounded-lg font-bold hover:bg-blue-600/30 transition">
-                              <Edit3 className="w-4 h-4" /> {isEditingContext ? 'Fechar' : 'Editar Jogo'}
-                            </button>
-                          )}
-                        </div>
-
-                        {isEditingContext && canEditMatches && (
-                          <div className={`${themeCard} border border-blue-500/30 p-4 md:p-5 rounded-xl space-y-4 text-xs md:text-sm shadow-inner animate-in fade-in slide-in-from-top-2`}>
-                            <h4 className="font-bold text-blue-500 uppercase tracking-wider mb-4 border-b border-slate-700/40 pb-2">Editar Detalhes do Jogo</h4>
-                            
-                            <div className="mb-4">
-                              <label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Scouts Observadores</label>
-                              <CustomMultiSelect 
-                                options={displayScouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
-                                selectedIds={reportData.scoutIds} 
-                                onChange={(ids: string[]) => setReportData({ ...reportData, scoutIds: ids })} 
-                                placeholder="Selecionar Scouts..." 
-                                isDarkMode={isDarkMode}
-                              />
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              <div>
-                                <label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Tática Casa</label>
-                                <CustomSelect options={TACTICS_OPTIONS.map(t => ({ value: t, label: t }))} value={reportData.homeTactic} onChange={val => setReportData({ ...reportData, homeTactic: val })} placeholder="Ex: 1-4-3-3" isDarkMode={isDarkMode} />
-                              </div>
-                              <div>
-                                <label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Tática Fora</label>
-                                <CustomSelect options={TACTICS_OPTIONS.map(t => ({ value: t, label: t }))} value={reportData.awayTactic} onChange={val => setReportData({ ...reportData, awayTactic: val })} placeholder="Ex: 1-4-3-3" isDarkMode={isDarkMode} />
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
-                              <div><label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Ritmo</label><CustomSelect options={METRIC_LEVELS.map(m => ({ value: m, label: m }))} value={reportData.tempo} onChange={val => setReportData({ ...reportData, tempo: val })} placeholder="-" isDarkMode={isDarkMode} /></div>
-                              <div><label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Físico</label><CustomSelect options={METRIC_LEVELS.map(m => ({ value: m, label: m }))} value={reportData.intensity} onChange={val => setReportData({ ...reportData, intensity: val })} placeholder="-" isDarkMode={isDarkMode} /></div>
-                              <div><label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Técnica</label><CustomSelect options={METRIC_LEVELS.map(m => ({ value: m, label: m }))} value={reportData.technical} onChange={val => setReportData({ ...reportData, technical: val })} placeholder="-" isDarkMode={isDarkMode} /></div>
-                              <div><label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Mental</label><CustomSelect options={METRIC_LEVELS.map(m => ({ value: m, label: m }))} value={reportData.pressure} onChange={val => setReportData({ ...reportData, pressure: val })} placeholder="-" isDarkMode={isDarkMode} /></div>
-                            </div>
-                            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 mt-2 border-t border-slate-700/40">
-                              <button type="button" onClick={() => setExpandedMatchEdit(null)} className={`px-4 py-3 ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} font-bold rounded-xl md:rounded-lg`}>Cancelar</button>
-                              <button type="button" disabled={submittingReport} onClick={() => handleReportSubmit(match.id)} className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl md:rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
-                                {submittingReport ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar Alterações'}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        <div>
-                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-                            <h4 className={`text-xs md:text-sm font-bold ${themeTextMuted} uppercase tracking-wider`}>Avaliações Individuais (Highlights)</h4>
-                            {canEditMatches && (
-                              <button 
-                                onClick={() => { setIsAddHighlightOpen({ matchId: match.id, matchName: match.matchName }); setNewHighlightData({ playerId: '', notes: '' }); }}
-                                className="w-full sm:w-auto px-4 py-3 md:py-2 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-500 text-xs md:text-sm font-bold rounded-xl md:rounded-lg transition flex justify-center items-center gap-2"
-                              >
-                                <Plus className="w-4 h-4" /> Adicionar Atleta
-                              </button>
-                            )}
-                          </div>
-
-                          {match.highlightedPlayers && match.highlightedPlayers.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {match.highlightedPlayers.map((p: any, idx: number) => {
-                                const fullP = players.find(player => (player.name || '').trim().toLowerCase() === (p.name || '').trim().toLowerCase()) || p;
-                                const isUnidentified = fullP.id?.includes('unidentified') || !fullP.id;
-
-                                return (
-                                  <div key={p.id || idx} className={`${themeCard} border p-4 md:p-5 rounded-xl flex flex-col gap-3 shadow-sm relative overflow-hidden group`}>
-                                    {isUnidentified && <div className="absolute top-0 left-0 w-1 h-full bg-orange-500/50"></div>}
-                                    
-                                    <div className={`flex items-start justify-between gap-2 border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-3`}>
-                                      <div className="flex items-center gap-3 min-w-0">
-                                        {fullP.photo ? (
-                                          <img src={fullP.photo} alt={fullP.name} className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover border border-slate-700 bg-slate-800 flex-shrink-0" />
-                                        ) : (
-                                          <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold text-sm md:text-base flex-shrink-0`}>
-                                            {(fullP.name || 'J').charAt(0)}
-                                          </div>
-                                        )}
-                                        <div className="min-w-0">
-                                          <h5 className="font-bold text-sm md:text-base truncate flex items-center gap-1.5">
-                                            {fullP.name} 
-                                            {isUnidentified && <span className="px-1.5 py-0.5 bg-orange-500/20 text-orange-400 text-[9px] rounded font-bold uppercase">S/Ficha</span>}
-                                          </h5>
-                                          <p className={`text-[11px] md:text-xs ${themeTextMuted} mt-0.5 truncate`}>
-                                            <span className="text-blue-500 font-medium">{fullP.position && fullP.position !== 'N/D' ? fullP.position : 'Atleta'}</span> <span className="hidden sm:inline">• {fullP.club && fullP.club !== 'N/D' ? fullP.club : ''}</span>
-                                          </p>
-                                        </div>
-                                      </div>
-                                      
-                                      <div className="flex items-center gap-1.5 flex-shrink-0 pl-2">
-                                        {canEditMatches && (
-                                          <button 
-                                            onClick={(e) => { e.stopPropagation(); setEditingHighlight({ matchId: match.id, matchName: match.matchName, player: fullP, highlightId: p.highlightId || null, notes: p.note && p.note !== 'Sem notas registadas.' ? p.note : '' }); }}
-                                            className={`p-2 md:px-2.5 md:py-1.5 ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 border-slate-300'} border text-xs font-medium rounded-lg transition flex items-center justify-center`}
-                                          >
-                                            <Edit3 className="w-4 h-4 md:mr-1.5" /> <span className="hidden md:block">Editar</span>
-                                          </button>
-                                        )}
-                                        {!isUnidentified && (
-                                          <button 
-                                            onClick={(e) => { e.stopPropagation(); setSelectedPlayer(fullP); setProfileTab('timeline'); setSelectedSeasonIdx(0); }}
-                                            className="p-2 md:px-2.5 md:py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-500 border border-blue-500/30 text-xs font-medium rounded-lg transition flex items-center justify-center"
-                                          >
-                                            <Search className="w-4 h-4 md:mr-1.5" /> <span className="hidden md:block">Perfil</span>
-                                          </button>
-                                        )}
-                                      </div>
-                                    </div>
-
-                                    <div className={`text-xs md:text-sm leading-relaxed ${themeInnerCard} p-3 md:p-4 rounded-lg border font-sans whitespace-pre-wrap`}>
-                                      {p.note || <span className="text-slate-400 italic">Sem nota descritiva registada.</span>}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <div className={`text-xs md:text-sm ${themeTextMuted} ${themeCard} p-8 rounded-xl border border-dashed text-center flex flex-col items-center gap-2`}>
-                              <UserCheck className="w-8 h-8 text-slate-400 mb-2" />
-                              Não existem avaliações individuais registadas neste jogo.
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
-                          <div className={`${themeInnerCard} p-3 md:p-4 rounded-xl border`}>
-                             <span className={`flex items-center gap-1.5 text-[10px] md:text-xs ${themeTextMuted} uppercase tracking-wider font-bold mb-1`}><Zap className="w-3.5 h-3.5"/> Ritmo</span>
-                             <span className="text-sm md:text-base font-bold">{match.tempo}</span>
-                          </div>
-                          <div className={`${themeInnerCard} p-3 md:p-4 rounded-xl border`}>
-                             <span className={`flex items-center gap-1.5 text-[10px] md:text-xs ${themeTextMuted} uppercase tracking-wider font-bold mb-1`}><Activity className="w-3.5 h-3.5"/> Intensidade</span>
-                             <span className="text-sm md:text-base font-bold">{match.intensity}</span>
-                          </div>
-                          <div className={`${themeInnerCard} p-3 md:p-4 rounded-xl border`}>
-                             <span className={`flex items-center gap-1.5 text-[10px] md:text-xs ${themeTextMuted} uppercase tracking-wider font-bold mb-1`}><Crosshair className="w-3.5 h-3.5"/> Técnica</span>
-                             <span className="text-sm md:text-base font-bold">{match.technical}</span>
-                          </div>
-                          <div className={`${themeInnerCard} p-3 md:p-4 rounded-xl border`}>
-                             <span className={`flex items-center gap-1.5 text-[10px] md:text-xs ${themeTextMuted} uppercase tracking-wider font-bold mb-1`}><BrainCircuit className="w-3.5 h-3.5"/> Pressão</span>
-                             <span className="text-sm md:text-base font-bold">{match.pressure}</span>
-                          </div>
-                        </div>
-
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <MatchesTab matches={matches} players={players} displayScouts={displayScouts} canCreateMatches={canCreateMatches} canEditMatches={canEditMatches} expandedMatchId={expandedMatchId} toggleMatch={id => setExpandedMatchId(expandedMatchId === id ? null : id)} editingMatchId={editingMatchId} startEditMatchContext={m => setExpandedMatchEdit(editingMatchId === m.id ? null : m.id)} setExpandedMatchEdit={setExpandedMatchEdit} reportData={reportData} setReportData={setReportData} handleReportSubmit={async id => { const res = await fetch('/api/matches', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ matchId: id, ...reportData }) }); if (res.ok) { setExpandedMatchEdit(null); await loadData(); showToast("Jogo atualizado!"); } }} submittingReport={submittingReport} setIsAddHighlightOpen={setIsAddHighlightOpen} setNewHighlightData={setNewHighlightData} setEditingHighlight={setEditingHighlight} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} setSelectedSeasonIdx={setSelectedSeasonIdx} navigateToMatch={navigateToMatch} setPreGameData={setPreGameData} preGameData={preGameData} authScoutId={authScoutId} setIsRegisterOpen={setIsRegisterOpen} isDarkMode={isDarkMode} />
         )}
-
-        {/* TAB 4: EQUIPA DE SCOUTS */}
         {activeTab === 'scouts' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {displayScouts.map((scout) => {
-              const assigned = scoutMarketAssignments[scout.id] || [];
-
-              return (
-                <div 
-                  key={scout.id} 
-                  onClick={() => setSelectedScout(scout)}
-                  className={`${themeCard} border rounded-xl p-5 hover:border-blue-500/50 transition flex flex-col shadow-sm cursor-pointer group`}
-                >
-                  <div className="flex items-center gap-4 mb-5">
-                    {scout.photo ? (
-                      <img src={scout.photo} alt={scout.name} className="w-14 h-14 rounded-full object-cover border-2 border-slate-700 shadow-md group-hover:border-blue-500 transition" />
-                    ) : (
-                      <div className={`w-14 h-14 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border-2 flex items-center justify-center font-bold text-xl shadow-md group-hover:border-blue-500 transition`}>
-                        {scout.name.charAt(0)}
-                      </div>
-                    )}
-                    <div>
-                      <h3 className="font-bold text-base leading-tight group-hover:text-blue-500 transition">{scout.name}</h3>
-                      <p className="text-[10px] md:text-xs text-blue-500 font-bold mt-0.5">{getUserTitle(scout.name)}</p>
-                    </div>
-                  </div>
-
-                  <div className={`${themeInnerCard} p-3 rounded-lg border mb-4 flex-1`}>
-                    <span className={`text-[9px] ${themeTextMuted} uppercase font-bold tracking-wider block mb-2 flex items-center gap-1`}>
-                      <Globe className="w-3 h-3" /> Mercados Atribuídos ({assigned.length})
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {assigned.length > 0 ? (
-                        assigned.map((m, idx) => (
-                          <span key={idx} className={`text-[10px] ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-200 border-slate-300 text-slate-700'} px-2 py-0.5 rounded border font-medium`}>
-                            {m}
-                          </span>
-                        ))
-                      ) : (
-                        <span className={`text-[10px] ${themeTextMuted} italic`}>Sem mercados atribuídos.</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className={`flex justify-between items-center text-center pt-3 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
-                    <div className={`flex-1 border-r ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
-                      <span className="block text-lg font-bold text-emerald-500">{getScoutMatches(scout.name).length}</span>
-                      <span className={`block text-[8px] md:text-[9px] ${themeTextMuted} uppercase font-bold mt-0.5`}>Jogos Vistos</span>
-                    </div>
-                    <div className={`flex-1 text-[10px] ${themeTextMuted} space-y-0.5 flex flex-col justify-center`}>
-                      <div><span className="text-blue-500 font-bold">{scout.liveMatches || 0}</span> Live</div>
-                      <div><span className="font-bold">{scout.streamMatches || 0}</span> Vídeo</div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <ScoutsTab displayScouts={displayScouts} scoutMarketAssignments={scoutMarketAssignments} setSelectedScout={setSelectedScout} getUserTitle={getUserTitle} getScoutMatches={getScoutMatches} isDarkMode={isDarkMode} />
         )}
-
-        {/* TAB 5: PAINEL ADMIN */}
         {activeTab === 'admin' && isAdmin && (
-          <div className="space-y-6 animate-in fade-in duration-300">
-            <div className={`${themeCard} border border-purple-500/30 p-6 md:p-8 rounded-2xl shadow-xl space-y-8`}>
-              <div className={`flex items-center gap-3 border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-4`}>
-                <div className="p-3 bg-purple-600/20 text-purple-500 rounded-xl border border-purple-500/30"><Sliders className="w-6 h-6"/></div>
-                <div>
-                  <h2 className="text-xl font-bold">Painel do Head of Scouting (Administração)</h2>
-                  <p className={`text-xs ${themeTextMuted}`}>Carregar dados analíticos em bulk e gerir mercados do clube.</p>
-                </div>
-              </div>
-
-              <div className={`${themeInnerCard} p-5 md:p-6 rounded-xl border border-purple-500/40 space-y-4`}>
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-purple-500 uppercase tracking-wider flex items-center gap-2">
-                    <Upload className="w-4 h-4 text-purple-500" /> Upload de Métricas e Algoritmo (.XLSX)
-                  </h3>
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-500 font-bold px-2.5 py-1 rounded border border-emerald-500/30">
-                    {uniqueAlgoPlayersCount} Atletas Únicos em Memória
-                  </span>
-                </div>
-                <p className={`text-xs ${themeTextMuted}`}>
-                  Selecione o ficheiro Excel com as métricas avançadas (Ratings, Pilares e Destaques). Se o ficheiro contiver a mesma pessoa em épocas/ligas diferentes, a app agrupa automaticamente o histórico sob a mesma ficha.
-                </p>
-
-                <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
-                  <label className="w-full sm:w-auto px-6 py-3.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-purple-900/20 transition">
-                    {uploadingExcel ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                    <span>{uploadingExcel ? 'A processar Excel...' : 'Carregar Ficheiro XLSX'}</span>
-                    <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} className="hidden" disabled={uploadingExcel} />
-                  </label>
-                  <span className={`text-[11px] ${themeTextMuted}`}>
-                    Processamento 100% interno (via LocalForage - Persistente).
-                  </span>
-                </div>
-              </div>
-
-              <div className={`${themeInnerCard} p-5 md:p-6 rounded-xl border space-y-3`}>
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                    <CheckSquare className="w-4 h-4 text-purple-500" /> Missões & Tarefas Específicas
-                  </h3>
-                  <span className="text-[10px] bg-purple-500/20 text-purple-400 font-bold px-2 py-0.5 rounded border border-purple-500/30">Módulo em Estruturação</span>
-                </div>
-                <p className={`text-xs ${themeTextMuted}`}>Espaço reservado para envio de diretivas de observação individuais.</p>
-              </div>
-
-              <div className={`grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                    <Globe className="w-4 h-4 text-purple-500" /> Mercados Alvo Globais do Leça FC
-                  </h3>
-                  <form onSubmit={handleAddMarket} className="flex gap-2">
-                    <input 
-                      type="text" 
-                      placeholder="Ex: América do Sul (Prospeção)..." 
-                      value={newMarketInput} 
-                      onChange={e => setNewMarketInput(e.target.value)} 
-                      className={`flex-1 border rounded-xl p-3 text-xs focus:outline-none focus:border-purple-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'}`}
-                    />
-                    <button type="submit" className="px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs flex items-center gap-1">
-                      <Plus className="w-4 h-4"/> Adicionar
-                    </button>
-                  </form>
-
-                  <div className="space-y-2 pt-2">
-                    {adminMarkets.map((m, idx) => (
-                      <div key={idx} className={`${themeInnerCard} p-3 rounded-xl border flex justify-between items-center text-xs font-medium`}>
-                        <span>{m}</span>
-                        <button onClick={() => handleRemoveMarket(idx)} className="text-slate-400 hover:text-red-400 transition p-1"><X className="w-4 h-4"/></button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                    <Settings className="w-4 h-4 text-purple-500" /> Parâmetros do Sistema
-                  </h3>
-                  
-                  <div className={`${themeInnerCard} p-4 rounded-xl border space-y-3 text-xs`}>
-                    <div className={`flex justify-between items-center border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-2`}>
-                      <span className={`${themeTextMuted} font-medium`}>Estado da Sincronização Airtable</span>
-                      <span className="text-emerald-500 font-bold flex items-center gap-1"><CheckCircle2 size={12}/> Ativa</span>
-                    </div>
-                    <div className={`flex justify-between items-center border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-2`}>
-                      <span className={`${themeTextMuted} font-medium`}>Total de Utilizadores Registados</span>
-                      <span className="font-bold">{scouts.length} Pessoas</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className={`${themeTextMuted} font-medium`}>Versão da Intranet</span>
-                      <span className="text-purple-500 font-bold">Leça FC Scouting v2.8</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          </div>
+          <AdminTab isAdmin={isAdmin} uniqueAlgoPlayersCount={uniqueAlgoPlayersCount} uploadingExcel={uploadingExcel} handleFileUpload={handleFileUpload} handleAddMarket={e => { e.preventDefault(); if (newMarketInput.trim()) { setAdminMarkets([...adminMarkets, newMarketInput.trim()]); setNewMarketInput(''); showToast("Mercado adicionado!"); } }} newMarketInput={newMarketInput} setNewMarketInput={setNewMarketInput} adminMarkets={adminMarkets} handleRemoveMarket={idx => { setAdminMarkets(adminMarkets.filter((_, i) => i !== idx)); showToast("Mercado removido!"); }} scouts={scouts} isDarkMode={isDarkMode} />
         )}
-
       </div>
 
-{/* --------------------- MODALS CENTRADOS (PARTE 1) --------------------- */}
-
-      {/* MODAL CRIAR EQUIPA */}
-      {isNewTeamOpen && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className={`${themeCard} border w-full max-w-md rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95`}>
-            <div className={`flex justify-between items-center border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-3`}>
-              <h3 className="font-bold text-base md:text-sm flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-emerald-500" /> Criar Equipa
-              </h3>
-              <button onClick={() => setIsNewTeamOpen(false)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-full text-slate-400 hover:text-white`}><X className="w-4 h-4" /></button>
-            </div>
-
-            <form onSubmit={handleCreateNewTeam} className="space-y-4 text-xs md:text-sm">
-              <div>
-                <label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Nome da Equipa</label>
-                <input 
-                  type="text" 
-                  required 
-                  value={newTeamData.name} 
-                  onChange={e => setNewTeamData({ ...newTeamData, name: e.target.value })} 
-                  className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-emerald-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'}`} 
-                  placeholder="Ex: Boavista FC"
-                />
-              </div>
-              <div>
-                <label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Competição / Liga</label>
-                <CustomSelect 
-                  options={competitions.map(c => ({ value: c.id, label: c.name }))} 
-                  value={newTeamData.competitionId} 
-                  onChange={val => setNewTeamData({ ...newTeamData, competitionId: val })} 
-                  placeholder="Selecionar Competição..." 
-                  searchable={true} 
-                  isDarkMode={isDarkMode}
-                />
-              </div>
-              <div className={`flex gap-3 pt-4 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} mt-4`}>
-                <button type="button" onClick={() => setIsNewTeamOpen(false)} className={`flex-1 py-3 ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} font-bold rounded-xl`}>Voltar</button>
-                <button type="submit" disabled={creatingTeam} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-900/20">
-                  {creatingTeam ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar Equipa'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DETALHADO DO SCOUT */}
-      {selectedScout && (() => {
-        const scoutMatches = getScoutMatches(selectedScout.name);
-        const assignedMarkets = scoutMarketAssignments[selectedScout.id] || [];
-
-        return (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-            <div className={`${themeCard} border w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl shadow-2xl p-5 md:p-6 space-y-6 animate-in fade-in zoom-in-95`}>
-              
-              <div className={`flex justify-between items-start border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-4`}>
-                <div className="flex items-center gap-4">
-                  {selectedScout.photo ? (
-                    <img src={selectedScout.photo} alt={selectedScout.name} className="w-16 h-16 rounded-full object-cover border-2 border-blue-500 shadow-md flex-shrink-0" />
-                  ) : (
-                    <div className={`w-16 h-16 rounded-full ${isDarkMode ? 'bg-slate-800 border-blue-500' : 'bg-slate-200 border-blue-500'} border-2 flex items-center justify-center font-bold text-2xl flex-shrink-0`}>
-                      {selectedScout.name.charAt(0)}
-                    </div>
-                  )}
-                  <div>
-                    <h2 className="text-xl md:text-2xl font-bold">{selectedScout.name}</h2>
-                    <p className="text-xs text-blue-500 font-bold mt-1">{getUserTitle(selectedScout.name)}</p>
-                  </div>
-                </div>
-                <button onClick={() => setSelectedScout(null)} className={`p-2 ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700' : 'bg-slate-200 hover:bg-slate-300'} rounded-full text-slate-400 hover:text-white transition`}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-center">
-                <div className={`${themeInnerCard} p-4 rounded-xl border`}>
-                  <span className={`text-xs ${themeTextMuted} block mb-1 font-semibold`}>Jogos Observados</span>
-                  <span className="text-2xl font-black text-emerald-500">{scoutMatches.length}</span>
-                </div>
-                <div className={`${themeInnerCard} p-4 rounded-xl border`}>
-                  <span className={`text-xs ${themeTextMuted} block mb-1 font-semibold`}>Live vs Stream</span>
-                  <span className="text-sm font-bold text-blue-500 mt-1 block">{selectedScout.liveMatches || 0} L / {selectedScout.streamMatches || 0} S</span>
-                </div>
-              </div>
-
-              <div className={`${themeInnerCard} p-4 rounded-xl border space-y-3`}>
-                <div className="flex items-center justify-between">
-                  <h3 className={`text-xs font-bold ${themeTextMuted} uppercase tracking-wider flex items-center gap-1.5`}>
-                    <Globe className="w-3.5 h-3.5 text-blue-500" /> Mercados Atribuídos ({assignedMarkets.length})
-                  </h3>
-                  {isAdmin && (
-                    <span className="text-[10px] text-purple-500 font-bold uppercase">Edição do Head of Scout</span>
-                  )}
-                </div>
-
-                {isAdmin ? (
-                  <CustomMultiSelect 
-                    options={getScoutMarketOptions()} 
-                    selectedIds={assignedMarkets} 
-                    onChange={(ids: string[]) => handleSaveScoutMarkets(selectedScout.id, ids)} 
-                    placeholder="Atribuir mercados e séries..." 
-                    isDarkMode={isDarkMode}
-                  />
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {assignedMarkets.length > 0 ? (
-                      assignedMarkets.map((m, idx) => (
-                        <span key={idx} className={`text-xs ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-200 border-slate-300 text-slate-800'} px-3 py-1 rounded-lg border font-medium`}>
-                          {m}
-                        </span>
-                      ))
-                    ) : (
-                      <span className={`text-xs ${themeTextMuted} italic`}>Nenhum campeonato atribuído a este observador.</span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <h3 className={`text-xs md:text-sm font-bold ${themeTextMuted} uppercase tracking-wider mb-3`}>Histórico de Partidas Acompanhadas ({scoutMatches.length})</h3>
-                {scoutMatches.length > 0 ? (
-                  <div className="space-y-2.5">
-                    {scoutMatches.map(m => (
-                      <div key={m.id} className={`${themeInnerCard} p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2`}>
-                        <div>
-                          <h4 className="font-bold text-sm">{m.matchName}</h4>
-                          <div className={`flex items-center gap-2 text-xs ${themeTextMuted} mt-1`}>
-                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {m.gameDate}</span>
-                            <span>•</span>
-                            <span className="text-blue-500 font-medium">{m.competition}</span>
-                            <span>•</span>
-                            <span className={`${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} px-1.5 py-0.5 rounded text-[10px]`}>{m.type}</span>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => navigateToMatch(m.id)}
-                          className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-500 text-xs font-bold rounded-lg transition flex items-center gap-1.5 self-start sm:self-auto"
-                        >
-                          Ir para Jogo <ExternalLink className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className={`text-xs ${themeTextMuted} ${themeInnerCard} p-6 rounded-xl border text-center`}>
-                    Ainda não existem jogos registados em nome deste observador no Match Center.
-                  </div>
-                )}
-              </div>
-
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* MODAL DESDOBRAMENTO DO PILAR */}
-      {selectedPillarDetail && selectedPlayer && (() => {
-        const playerCleanName = extractPlayerBaseName(selectedPlayer.name);
-        const isGK = (selectedPlayer.position || '').toLowerCase().includes('goalkeeper') || (selectedPlayer.position || '').toLowerCase().includes('gk');
-        const posKey = isGK ? '_gk' : '_field';
-        
-        const rawEntry = getPlayerAlgoEntries(selectedPlayer, algorithmData);
-        const safeArray = Array.isArray(rawEntry) ? rawEntry : (rawEntry && typeof rawEntry === 'object' && Object.keys(rawEntry).length > 0 ? [{ tag: 'Atual', row: rawEntry }] : []);
-
-        const sortedEntry = [...safeArray].sort((a, b) => {
-          if (a.tag === 'Atual') return -1;
-          if (b.tag === 'Atual') return 1;
-          return (b.tag || '').localeCompare(a.tag || '');
-        });
-
-        const activeItem = sortedEntry[selectedSeasonIdx] || sortedEntry[0];
-        const playerAlgo = activeItem?.row;
-        const metrics = PILLAR_METRICS_MAP[selectedPillarDetail] || [];
-        
-        const pillarScoreRaw = playerAlgo ? playerAlgo[selectedPillarDetail] : null;
-        const pillarScore = pillarScoreRaw ? parseFloat(pillarScoreRaw).toFixed(1) : null;
-
-        return (
-          <div className="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className={`${themeCard} border border-blue-500/40 w-full max-w-lg rounded-2xl shadow-2xl p-5 md:p-6 space-y-5 animate-in fade-in zoom-in-95`}>
-              <div className={`flex justify-between items-center border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-3`}>
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-blue-600/20 text-blue-500 rounded-lg border border-blue-500/30"><Info className="w-5 h-5"/></div>
-                  <div>
-                    <h3 className="font-bold text-base">
-                      {selectedPillarDetail} 
-                      {pillarScore && <span className="text-blue-500 ml-1.5">({pillarScore})</span>}
-                    </h3>
-                    <p className={`text-xs ${themeTextMuted}`}>{selectedPlayer.name} {activeItem?.tag ? `(${activeItem.tag})` : ''}</p>
-                  </div>
-                </div>
-                <button onClick={() => setSelectedPillarDetail(null)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-full text-slate-400 hover:text-white transition`}><X className="w-4 h-4"/></button>
-              </div>
-
-              <div className="space-y-3">
-                {metrics.map((m, idx) => {
-                  const rawVal = playerAlgo ? playerAlgo[m.statKey] : null;
-                  const pctVal = playerAlgo ? playerAlgo[m.pctKey] : null;
-                  
-                  const numPct = parseFloat(pctVal);
-                  let pctColor = "text-emerald-500"; // > 66% (Verde)
-                  if (isNaN(numPct)) pctColor = "text-slate-400";
-                  else if (numPct < 33) pctColor = "text-red-500"; // < 33% (Vermelho)
-                  else if (numPct < 66) pctColor = "text-amber-500"; // 33% a 66% (Amarelo)
-
-                  return (
-                    <div key={idx} className={`${themeInnerCard} p-3.5 rounded-xl border flex items-center justify-between`}>
-                      <div>
-                        <span className="block text-xs font-bold mb-0.5">{m.label}</span>
-                        <div className={`flex items-center gap-3 text-[11px] ${themeTextMuted}`}>
-                          <span>Bruto: <strong className="font-bold">{rawVal !== undefined && rawVal !== null ? parseFloat(rawVal).toFixed(2) : 'N/D'}</strong></span>
-                          <span>•</span>
-                          <span>Percentil: <strong className={`${pctColor} font-bold`}>{pctVal !== undefined && pctVal !== null ? `${numPct.toFixed(1)} Pct` : 'N/D'}</strong></span>
-                        </div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <span className="text-xs font-bold text-blue-500 bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/20">Peso: {m.weight}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="pt-2 flex justify-end">
-                <button onClick={() => setSelectedPillarDetail(null)} className={`px-5 py-2.5 ${isDarkMode ? 'bg-slate-800 text-slate-200' : 'bg-slate-200 text-slate-800'} font-bold rounded-xl text-xs`}>
-                  Fechar
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* MODAL EDITAR HIGHLIGHT INDIVIDUAL */}
-      {editingHighlight && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className={`${themeCard} border w-full max-w-lg rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200`}>
-            <div className={`flex justify-between items-start border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-4`}>
-              <div className="flex items-center gap-3 min-w-0">
-                {editingHighlight.player.photo ? (
-                  <img src={editingHighlight.player.photo} alt={editingHighlight.player.name} className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover border border-slate-700 flex-shrink-0" />
-                ) : (
-                  <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold text-sm md:text-base flex-shrink-0`}>
-                    {(editingHighlight.player.name || 'J').charAt(0)}
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <h3 className="font-bold text-sm md:text-base truncate">Editar: {editingHighlight.player.name}</h3>
-                  <p className={`text-[10px] md:text-xs ${themeTextMuted} mt-0.5 truncate`}>{editingHighlight.matchName}</p>
-                </div>
-              </div>
-              <button onClick={() => setEditingHighlight(null)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-full text-slate-400 hover:text-white transition flex-shrink-0`}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveSingleHighlight} className="space-y-4 text-xs md:text-sm">
-              <div>
-                <label className={`block ${themeTextMuted} font-bold mb-2`}>Avaliação Individual</label>
-                <textarea 
-                  rows={6} required placeholder="Escreve a tua avaliação técnica/tática..."
-                  value={editingHighlight.notes} onChange={e => setEditingHighlight({ ...editingHighlight, notes: e.target.value })}
-                  className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-blue-500 font-sans leading-relaxed resize-none shadow-inner ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'}`}
-                />
-              </div>
-
-              <div className={`flex justify-end gap-3 pt-2 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} mt-4`}>
-                <button type="button" onClick={() => setEditingHighlight(null)} className={`flex-1 md:flex-none px-4 py-2.5 ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} font-bold rounded-xl`}>Cancelar</button>
-                <button type="submit" disabled={savingHighlight} className="flex-1 md:flex-none px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
-                  {savingHighlight ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar Observação'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL ADICIONAR HIGHLIGHT */}
-      {isAddHighlightOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className={`${themeCard} border w-full max-w-lg rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200`}>
-            <div className={`flex justify-between items-center border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-3`}>
-              <div>
-                <h3 className="font-bold text-base md:text-sm">Adicionar Atleta</h3>
-                <p className={`text-[10px] md:text-xs ${themeTextMuted} mt-0.5 truncate max-w-[250px]`}>{isAddHighlightOpen.matchName}</p>
-              </div>
-              <button onClick={() => setIsAddHighlightOpen(null)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} text-slate-400 hover:text-white rounded-full`}><X className="w-4 h-4" /></button>
-            </div>
-
-            <form onSubmit={handleAddHighlightSubmit} className="space-y-4 text-sm md:text-xs">
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label className={`${themeTextMuted} font-bold`}>Procurar na Base de Dados</label>
-                  <button type="button" onClick={() => openNewPlayerModalForMatch(isAddHighlightOpen.matchName)} className="text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/20 flex items-center gap-1 font-bold text-[10px] md:text-xs">
-                    <UserPlus className="w-3 h-3" /> Novo Atleta
-                  </button>
-                </div>
-                <CustomSelect
-                  options={players.map(p => ({ value: p.id, label: `${p.name} (${p.position})`, image: p.photo }))}
-                  value={newHighlightData.playerId} onChange={val => setNewHighlightData({ ...newHighlightData, playerId: val })}
-                  placeholder="Pesquisar atleta..." searchable={true} isDarkMode={isDarkMode}
-                />
-              </div>
-
-              <div>
-                <label className={`block ${themeTextMuted} font-bold mb-1.5`}>Avaliação</label>
-                <textarea 
-                  rows={4} required placeholder="Análise individual do atleta..."
-                  value={newHighlightData.notes} onChange={e => setNewHighlightData({ ...newHighlightData, notes: e.target.value })}
-                  className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-blue-500 font-sans resize-none shadow-inner ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'}`}
-                />
-              </div>
-
-              <div className={`flex gap-3 pt-4 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} mt-4`}>
-                <button type="button" onClick={() => setIsAddHighlightOpen(null)} className={`flex-1 px-4 py-2.5 ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} font-bold rounded-xl`}>Cancelar</button>
-                <button type="submit" className="flex-1 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl">Adicionar Destaque</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL PRÉ-JOGO */}
-      {isRegisterOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className={`${themeCard} border w-full max-w-xl rounded-2xl shadow-2xl p-5 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]`}>
-            <div className={`flex justify-between items-center mb-5 border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-4`}>
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-blue-600/20 border border-blue-500/30 text-blue-500 rounded-xl"><Trophy className="w-5 h-5" /></div>
-                <div>
-                  <h2 className="text-base md:text-lg font-bold">Agendar Novo Jogo</h2>
-                  <p className={`text-[10px] md:text-xs ${themeTextMuted} mt-0.5`}>Criar partida na agenda</p>
-                </div>
-              </div>
-              <button onClick={() => setIsRegisterOpen(false)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-full text-slate-400 hover:text-white`}><X className="w-5 h-5" /></button>
-            </div>
-
-            <form onSubmit={handlePreGameSubmit} className="space-y-4 text-xs md:text-sm">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className={`block ${themeTextMuted} font-bold mb-1.5`}>Equipa Casa</label>
-                  <CustomSelect options={teams.map(t => ({ value: t.id, label: t.name, image: t.logo }))} value={preGameData.homeTeamId} onChange={val => setPreGameData({ ...preGameData, homeTeamId: val })} placeholder="Procurar..." searchable={true} isDarkMode={isDarkMode} />
-                </div>
-                <div>
-                  <label className={`block ${themeTextMuted} font-bold mb-1.5`}>Equipa Visitante</label>
-                  <CustomSelect options={teams.map(t => ({ value: t.id, label: t.name, image: t.logo }))} value={preGameData.awayTeamId} onChange={val => setPreGameData({ ...preGameData, awayTeamId: val })} placeholder="Procurar..." searchable={true} isDarkMode={isDarkMode} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className={`block ${themeTextMuted} font-bold mb-1.5`}>Data do Jogo</label>
-                  <input type="date" required value={preGameData.gameDate} onChange={e => setPreGameData({ ...preGameData, gameDate: e.target.value })} className={`w-full border rounded-xl p-3 focus:outline-none focus:border-blue-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'}`} />
-                </div>
-                <div>
-                  <label className={`block ${themeTextMuted} font-bold mb-1.5`}>Tipo de Observação</label>
-                  <CustomSelect options={[{ value: '🏟️ Live', label: 'Live', icon: '🏟️' }, { value: '💻 Stream', label: 'Stream', icon: '💻' }]} value={preGameData.type} onChange={val => setPreGameData({ ...preGameData, type: val })} placeholder="Selecionar..." isDarkMode={isDarkMode} />
-                </div>
-              </div>
-
-              <div>
-                <label className={`block ${themeTextMuted} font-bold mb-1.5 flex items-center justify-between`}>
-                  <span>Scouts Observadores</span>
-                  <span className={`text-[9px] ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} px-2 py-0.5 rounded font-normal`}>Auto-preenchido</span>
-                </label>
-                <CustomMultiSelect 
-                  options={displayScouts.map(s => ({ value: s.id, label: s.name, image: s.photo }))} 
-                  selectedIds={preGameData.scoutIds} 
-                  onChange={(ids: string[]) => setPreGameData({ ...preGameData, scoutIds: ids })} 
-                  placeholder="Selecionar Scouts..." 
-                  isDarkMode={isDarkMode}
-                />
-              </div>
-
-              <div>
-                <label className={`block ${themeTextMuted} font-bold mb-1.5`}>Competição / Liga</label>
-                <CustomSelect options={competitions.map(c => ({ value: c.id, label: c.name }))} value={preGameData.competitionId} onChange={val => setPreGameData({ ...preGameData, competitionId: val })} placeholder="Procurar Competição..." searchable={true} isDarkMode={isDarkMode} />
-              </div>
-
-              <div className={`flex gap-3 pt-4 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} mt-6`}>
-                <button type="button" onClick={() => setIsRegisterOpen(false)} className={`flex-1 px-4 py-3 ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} font-bold rounded-xl`}>Cancelar</button>
-                <button type="submit" disabled={submittingPre} className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
-                  {submittingPre ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Agendar Jogo'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-{/* MINI-MODAL: CRIAR NOVO ATLETA */}
-      {isNewPlayerOpen && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
-          <div className={`${themeCard} border w-full max-w-md rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95`}>
-            <div className={`flex justify-between items-center border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-3`}>
-              <h3 className="font-bold text-base md:text-sm flex items-center gap-2">
-                <UserPlus className="w-4 h-4 text-emerald-500" /> Criar Atleta
-              </h3>
-              <button onClick={() => setIsNewPlayerOpen(false)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-full text-slate-400 hover:text-white`}><X className="w-4 h-4" /></button>
-            </div>
-
-            <form onSubmit={handleCreateNewPlayer} className="space-y-4 text-xs md:text-sm">
-              <div>
-                <label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Nome Completo</label>
-                <input type="text" required value={newPlayerData.name} onChange={e => setNewPlayerData({ ...newPlayerData, name: e.target.value })} className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-emerald-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'}`} />
-              </div>
-              <div>
-                <label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Clube Atual</label>
-                <CustomSelect options={(availableMatchTeams.length > 0 ? availableMatchTeams : teams).map(t => ({ value: t.id, label: t.name, image: t.logo }))} value={newPlayerData.clubId} onChange={val => setNewPlayerData({ ...newPlayerData, clubId: val })} placeholder="Selecionar Clube..." searchable={true} isDarkMode={isDarkMode} />
-              </div>
-              <div>
-                <label className={`block ${themeTextMuted} mb-1.5 font-bold`}>Posição Principal</label>
-                <CustomSelect options={POSITIONS_OPTIONS.map(pos => ({ value: pos, label: pos }))} value={newPlayerData.position} onChange={val => setNewPlayerData({ ...newPlayerData, position: val })} placeholder="Selecionar..." searchable={true} isDarkMode={isDarkMode} />
-              </div>
-              <div className={`flex gap-3 pt-4 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} mt-4`}>
-                <button type="button" onClick={() => setIsNewPlayerOpen(false)} className={`flex-1 py-3 ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} font-bold rounded-xl`}>Voltar</button>
-                <button type="submit" disabled={creatingPlayer} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-900/20">
-                  {creatingPlayer ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar Atleta'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* PERFIL DETALHADO DO JOGADOR */}
-      {selectedPlayer && (() => {
-        const playerCleanName = extractPlayerBaseName(selectedPlayer.name);
-        const isGK = (selectedPlayer.position || '').toLowerCase().includes('goalkeeper') || (selectedPlayer.position || '').toLowerCase().includes('gk');
-        const posKey = isGK ? '_gk' : '_field';
-        
-        const rawEntry = getPlayerAlgoEntries(selectedPlayer, algorithmData);
-        
-        const sortedEntry = [...rawEntry].sort((a, b) => {
-          if (a.tag === 'Atual') return -1;
-          if (b.tag === 'Atual') return 1;
-          return b.tag.localeCompare(a.tag);
-        });
-
-        const activeItem = sortedEntry[selectedSeasonIdx] || sortedEntry[0];
-        const playerAlgo = activeItem?.row;
-
-        const pillarList = isGK ? [
-          { title: 'GK Defesa', key: 'GK Defesa' },
-          { title: 'GK Distribuicao', key: 'GK Distribuicao' },
-        ] : [
-          { title: 'Jogo Aéreo', key: 'Jogo Aéreo' },
-          { title: 'Defesa', key: 'Defesa' },
-          { title: 'Construção', key: 'Construção' },
-          { title: 'Criação', key: 'Criação' },
-          { title: 'Cruzamento', key: 'Cruzamento' },
-          { title: 'Capacidade 1v1', key: 'Capacidade 1v1' },
-          { title: 'Profundidade', key: 'Profundidade' },
-          { title: 'Finalização', key: 'Finalização' },
-        ];
-
-        return (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-            <div className={`${themeCard} border w-full max-w-4xl h-[90vh] flex flex-col rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden`}>
-              
-              <div className={`${themeCard} border-b p-5 md:p-8 flex-shrink-0 relative`}>
-                <button onClick={() => setSelectedPlayer(null)} className={`absolute top-4 right-4 md:top-6 md:right-6 p-2 md:p-2.5 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-full text-slate-400 hover:text-white transition z-10`}><X className="w-5 h-5" /></button>
-                <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6 mt-2 md:mt-0">
-                  {selectedPlayer.photo ? <img src={selectedPlayer.photo} alt={selectedPlayer.name} className="w-20 h-20 md:w-28 md:h-28 rounded-2xl object-cover border-4 border-slate-700 shadow-xl" /> : <div className={`w-20 h-20 md:w-28 md:h-28 rounded-2xl ${isDarkMode ? 'bg-[#0d131f] border-slate-800' : 'bg-slate-100 border-slate-300'} border-4 flex items-center justify-center text-slate-400 font-bold text-3xl shadow-xl`}>{(selectedPlayer.name || 'J').charAt(0)}</div>}
-                  <div className="text-center md:text-left flex-1">
-                    <h2 className="text-xl md:text-3xl font-black mb-2 tracking-tight">{selectedPlayer.name}</h2>
-                    <div className="flex flex-wrap justify-center md:justify-start items-center gap-2 md:gap-3 text-xs md:text-sm">
-                      <span className="bg-blue-600 text-white px-3 py-1 md:py-1.5 rounded-lg font-bold shadow-md shadow-blue-900/20">{selectedPlayer.position}</span>
-                      <div className={`flex items-center gap-1.5 ${isDarkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-200 border-slate-300'} px-3 py-1 md:py-1.5 rounded-lg border font-medium`}>{selectedPlayer.clubLogo ? <img src={selectedPlayer.clubLogo} alt={selectedPlayer.club} className="w-4 h-4 md:w-5 md:h-5 object-contain" /> : <Shield className="w-4 h-4 text-blue-500" />}<span className="truncate max-w-[120px] md:max-w-none">{selectedPlayer.club}</span></div>
-                      <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 px-3 py-1 md:py-1.5 rounded-lg font-bold uppercase tracking-wide flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> {selectedPlayer.status}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className={`flex-1 overflow-y-auto ${themeBg} p-4 md:p-8`}>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
-                <div className={`${themeCard} p-4 rounded-2xl border flex flex-col justify-center items-center md:items-start text-center md:text-left`}>
-  <span className={`${themeTextMuted} text-[10px] uppercase font-bold tracking-widest block mb-1`}>Idade</span>
-  <div className="flex flex-col items-center md:items-start">
-    <span className="text-lg font-black leading-tight">
-      {selectedPlayer.age !== 'N/D' ? `${selectedPlayer.age} anos` : '--'}
-    </span>
-    {(() => {
-      const birth = selectedPlayer.birthDate 
-        || selectedPlayer.birth_date 
-        || selectedPlayer.dataNascimento 
-        || selectedPlayer.data_nascimento
-        || (selectedPlayer.birthYear ? `(${selectedPlayer.birthYear})` : null);
-
-      return birth ? (
-        <span className={`text-[11px] ${themeTextMuted} font-semibold mt-0.5`}>
-          {birth}
-        </span>
-      ) : null;
-    })()}
-  </div>
-</div>
-                  <div className={`${themeCard} p-4 rounded-2xl border flex flex-col justify-center items-center md:items-start text-center md:text-left`}><span className={`${themeTextMuted} text-[10px] uppercase font-bold tracking-widest block mb-1`}>Nacionalidade</span><span className="text-base md:text-lg font-black flex items-center justify-center md:justify-start gap-1.5 truncate w-full"><Flag className="w-3.5 h-3.5 text-slate-400 flex-shrink-0"/> <span className="truncate">{selectedPlayer.nationality || '--'}</span></span></div>
-                  <div className={`${themeCard} p-4 rounded-2xl border flex flex-col justify-center items-center md:items-start text-center md:text-left`}><span className={`${themeTextMuted} text-[10px] uppercase font-bold tracking-widest block mb-1`}>Pé / Altura</span><span className="text-lg font-black">{selectedPlayer.foot || '-'} • {selectedPlayer.height || '-'}</span></div>
-                  <div className={`${themeCard} p-4 rounded-2xl border flex flex-col justify-center items-center md:items-start text-center md:text-left bg-blue-900/10 border-blue-900/30`}><span className="text-blue-500/70 text-[10px] uppercase font-bold tracking-widest block mb-1">Jogos Vistos</span><span className="text-blue-500 text-2xl font-black">{getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length}</span></div>
-                </div>
-
-                {/* TABS DO PERFIL */}
-                <div className={`flex gap-4 md:gap-8 border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} text-xs md:text-sm font-bold mb-6 overflow-x-auto no-scrollbar pb-1`}>
-                  <button onClick={() => setProfileTab('timeline')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'timeline' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-400 hover:text-slate-200'}`}><FileText className="w-4 h-4" /> Observações & Timeline</button>
-                  <button onClick={() => setProfileTab('algo')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'algo' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-400 hover:text-slate-200'}`}><BarChart3 className="w-4 h-4" /> Ratings</button>
-                  <button onClick={() => setProfileTab('reports')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'reports' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-400 hover:text-slate-200'}`}><BrainCircuit className="w-4 h-4" /> Relatórios & Análise</button>
-                  {canSeeMarket && (
-                    <button onClick={() => setProfileTab('market')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'market' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
-                      <Briefcase className="w-4 h-4" /> Mercado & Decisão
-                    </button>
-                  )}
-                </div>
-
-                {profileTab === 'timeline' && (
-                  <div className="space-y-6">
-                    {getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).length > 0 ? (
-                      <div className={`relative border-l-2 ${isDarkMode ? 'border-slate-800' : 'border-slate-300'} ml-3 md:ml-4 space-y-8 pb-4`}>
-                        {getPlayerTimeline(selectedPlayer.id, selectedPlayer.name).map((report, idx) => (
-                          <div key={idx} className="relative pl-6 md:pl-8">
-                            <div className="absolute w-4 h-4 bg-blue-500 rounded-full left-[-9px] top-1 border-4 border-slate-900 shadow-sm"></div>
-                            <div className={`${themeCard} p-4 md:p-5 rounded-2xl border shadow-sm`}>
-                              <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-3`}>
-                                <div><h4 className="font-bold text-sm md:text-base leading-tight">{report.matchName}</h4><div className={`flex items-center gap-2 text-[10px] md:text-xs ${themeTextMuted} mt-1`}><span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {report.gameDate}</span></div></div>
-                                <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                                  <div className={`px-3 py-1.5 rounded-lg border flex items-center gap-1.5 text-[10px] md:text-xs font-medium ${isDarkMode ? 'bg-slate-800/50 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-700'}`}><UserCheck className="w-3 h-3 text-blue-500"/> Scout: {report.scout}</div>
-                                  <button onClick={() => navigateToMatch(report.matchId)} className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-500 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5">Ir para Jogo <ExternalLink className="w-3 h-3" /></button>
-                                </div>
-                              </div>
-                              <div className="text-xs md:text-sm leading-relaxed font-sans whitespace-pre-wrap">{report.note}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className={`text-center py-12 ${themeCard} rounded-2xl border border-dashed`}><FileText className="w-8 h-8 mx-auto text-slate-400 mb-3" /><p className="text-sm font-medium">Ainda não existem observações de jogo para este atleta.</p><p className={`text-xs ${themeTextMuted} mt-1`}>As avaliações individuais feitas no Match Center aparecerão aqui.</p></div>
-                    )}
-                  </div>
-                )}
-
-                {/* VISTA RATINGS */}
-                {profileTab === 'algo' && (
-                  <div className="space-y-6 animate-in fade-in duration-300">
-                    {sortedEntry.length > 0 && playerAlgo ? (
-                      <>
-                        {/* BARRA DE CONTEXTO E FONTE EXCEL */}
-                        <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${themeCard} p-3.5 rounded-2xl border border-purple-500/30`}>
-                          <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
-                            <span className="text-xs font-bold text-purple-500 uppercase tracking-wider flex items-center gap-1.5 flex-shrink-0">
-                              <Calendar className="w-4 h-4 text-purple-500" /> Contexto:
-                            </span>
-                            <div className="flex gap-2">
-                              {sortedEntry.map((item, idx) => (
-                                <button
-                                  key={idx}
-                                  onClick={() => setSelectedSeasonIdx(idx)}
-                                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 ${
-                                    selectedSeasonIdx === idx
-                                      ? 'bg-purple-600 text-white shadow-md'
-                                      : `${themeInnerCard} border text-slate-400`
-                                  }`}
-                                >
-                                  {item.tag}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div 
-                            title="Registo exato mapeado no ficheiro Excel"
-                            className="text-[10px] text-slate-500 bg-slate-800/40 hover:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700/50 font-mono opacity-60 hover:opacity-100 transition cursor-help flex items-center gap-1.5 self-start sm:self-auto flex-shrink-0"
-                          >
-                            <Info className="w-3 h-3 text-purple-400" />
-                            <span className="truncate max-w-[200px] md:max-w-[280px]">
-                              {playerAlgo.Player_ID || playerAlgo.Player || 'Sem ID'}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className={`${themeCard} p-4 rounded-2xl border grid grid-cols-2 gap-3 text-center`}>
-                          <div className={`${themeInnerCard} p-3.5 rounded-xl border`}>
-                            <span className={`text-[10px] ${themeTextMuted} uppercase font-bold block mb-0.5`}>Jogos Disputados</span>
-                            <span className="text-xl font-black text-emerald-500">{playerAlgo['Matches played'] || '--'}</span>
-                          </div>
-                          <div className={`${themeInnerCard} p-3.5 rounded-xl border`}>
-                            <span className={`text-[10px] ${themeTextMuted} uppercase font-bold block mb-0.5 flex items-center justify-center gap-1`}>
-                              <Clock className="w-3 h-3 text-blue-500"/> Minutos Jogados
-                            </span>
-                            <span className="text-xl font-black text-blue-500">{playerAlgo['Minutes'] ? `${playerAlgo['Minutes']}'` : '--'}</span>
-                          </div>
-                        </div>
-
-                        {(() => {
-                          const notaValRaw = playerAlgo.Top_Profile_1_Score || playerAlgo.Nota_Melhor_Perfil;
-                          const notaVal = notaValRaw ? parseFloat(notaValRaw) : null;
-                          const notaMedianRaw = playerAlgo.Top_Profile_1_Score_Median_Liga || playerAlgo.Nota_Melhor_Perfil_Median_Liga || playerAlgo.Top_Profile_1_Score_Median || playerAlgo.Nota_Melhor_Perfil_Median;
-                          const notaMedian = notaMedianRaw ? parseFloat(notaMedianRaw) : null;
-                          const notaDelta = (notaVal !== null && notaMedian !== null) ? (notaVal - notaMedian) : null;
-                          
-                          const top5Attrs = [];
-                          for (let i = 1; i <= 5; i++) {
-                            const name = playerAlgo[`Top_Attr_${i}_Name`];
-                            const val = playerAlgo[`Top_Attr_${i}_Val`];
-                            if (name) {
-                              top5Attrs.push({ name, val });
-                            }
-                          }
-
-                          return (
-                            <div className="space-y-6">
-                              {/* NOTA PRINCIPAL E PERFIL */}
-                              <div className={`${themeCard} p-6 rounded-2xl border border-purple-500/30 relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4`}>
-                                <div className="space-y-1 text-center md:text-left">
-                                  <span className="text-[10px] uppercase font-bold tracking-widest text-purple-500 flex items-center gap-1 justify-center md:justify-start">
-                                    <Cpu className="w-3.5 h-3.5" /> Perfil Principal {activeItem?.tag ? `(${activeItem.tag})` : ''}
-                                  </span>
-                                  <h3 className="text-2xl font-black">{playerAlgo.Top_Profile_1_Name || playerAlgo.Melhor_Perfil || 'N/D'}</h3>
-                                  <p className={`text-xs ${themeTextMuted}`}>Fase da Carreira: <span className="text-emerald-500 font-bold">{playerAlgo.Fase_Carreira || 'N/D'}</span> • Tier: <span className="text-purple-400 font-bold">{playerAlgo.Scout_Tier || 'N/D'}</span></p>
-                                </div>
-                                
-                                <div className="bg-purple-900/20 px-6 py-3.5 rounded-xl border border-purple-500/30 text-center min-w-[120px] flex flex-col items-center">
-                                  <span className="block text-[10px] text-purple-400 uppercase font-bold">Nota</span>
-                                  <span className="text-3xl font-black text-purple-400">{notaVal !== null ? notaVal.toFixed(1) : '0'}</span>
-                                  {notaDelta !== null && (
-                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded mt-1.5 ${notaDelta >= 0 ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
-                                      {notaDelta >= 0 ? `+${notaDelta.toFixed(1)}` : notaDelta.toFixed(1)}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* PILARES DE DESEMPENHO (EM CIMA) */}
-                              <div className={`${themeCard} p-6 rounded-2xl border space-y-4`}>
-                                <div className="flex justify-between items-center">
-                                  <h4 className={`text-xs font-bold ${themeTextMuted} uppercase tracking-wider flex items-center gap-2`}>
-                                    <Award className="w-4 h-4 text-blue-500"/> Pilares de Desempenho
-                                  </h4>
-                                  <span className={`text-[10px] ${themeTextMuted} font-medium`}>Clica num pilar para ver os detalhes</span>
-                                </div>
-
-                                <div className={`grid grid-cols-2 ${isGK ? 'md:grid-cols-2' : 'md:grid-cols-4'} gap-3`}>
-                                  {pillarList.map((pilar, idx) => {
-                                    const val = playerAlgo[pilar.key];
-                                    const numVal = val ? parseFloat(val) : 0;
-                                    
-                                    const medianLiga = playerAlgo[`${pilar.title}_Median_Liga`];
-                                    const numMedian = medianLiga ? parseFloat(medianLiga) : null;
-                                    const delta = numMedian !== null ? numVal - numMedian : null;
-
-                                    return (
-                                      <button 
-                                        key={idx} 
-                                        onClick={() => setSelectedPillarDetail(pilar.title)}
-                                        className={`${themeInnerCard} p-3.5 rounded-xl border hover:border-blue-500/50 transition text-left group flex flex-col justify-between`}
-                                      >
-                                        <span className={`block text-[10px] ${themeTextMuted} font-bold mb-1 group-hover:text-blue-500 transition`}>{pilar.title}</span>
-                                        <div className="flex items-center justify-between mt-1">
-                                          <span className="text-lg font-bold">{val ? numVal.toFixed(1) : '--'}</span>
-                                          
-                                          {delta !== null && (
-                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${delta >= 0 ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
-                                              {delta >= 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-
-                              {/* TOP 5 ATRIBUTOS EM DESTAQUE (EM BAIXO) */}
-                              {top5Attrs.length > 0 && (
-                                <div className={`${themeInnerCard} p-4 md:p-5 rounded-2xl border space-y-3`}>
-                                  <h4 className={`text-xs font-bold ${themeTextMuted} uppercase tracking-wider flex items-center gap-2`}>
-                                    <Star className="w-4 h-4 text-amber-500"/> Top 5 Atributos em Destaque
-                                  </h4>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                                    {top5Attrs.map((attr, i) => {
-                                      const numVal = attr.val !== undefined && attr.val !== null ? parseFloat(attr.val) : null;
-                                      return (
-                                        <div key={i} className={`flex items-center justify-between p-3 rounded-xl border ${isDarkMode ? 'bg-slate-800/80 border-slate-700/80' : 'bg-white border-slate-200'} shadow-sm`}>
-                                          <span className="text-xs font-bold truncate pr-2">{attr.name}</span>
-                                          {numVal !== null && (
-                                            <span className="text-xs font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 font-mono flex-shrink-0">
-                                              {numVal.toFixed(1)} Pct
-                                            </span>
-                                          )}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </>
-                    ) : (
-                      <div className={`flex flex-col items-center justify-center py-20 ${themeCard} rounded-2xl border border-dashed text-center px-4`}>
-                        <BarChart3 className="w-12 h-12 text-slate-400 mb-4" />
-                        <h3 className="text-lg font-bold mb-2">Sem Dados de Ratings Registados</h3>
-                        <p className={`text-sm ${themeTextMuted} max-w-md`}>
-                          Este atleta ainda não foi associado a um ficheiro de métricas. Faça o upload do ficheiro Excel no <strong>Painel Admin</strong> para carregar os ratings.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-               {/* VISTA RELATÓRIOS & ANÁLISE */}
-               {profileTab === 'reports' && (
-                  <div className="space-y-6 animate-in fade-in duration-300">
-                    <div className={`${themeCard} p-6 md:p-8 rounded-2xl border border-blue-500/30 shadow-xl space-y-4`}>
-                      <div className="flex items-center justify-between border-b border-slate-700/40 pb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2.5 bg-blue-600/20 text-blue-400 rounded-xl border border-blue-500/30">
-                            <BrainCircuit className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h3 className="text-sm md:text-base font-bold uppercase tracking-wider">
-                              Relatório Consolidado de Prospeção
-                            </h3>
-                          </div>
-                        </div>
-                      </div>
-
-                      {(() => {
-                        const rep = selectedPlayer.finalReport;
-                        const reportText = typeof rep === 'string' ? rep : '';
-                        const isValid = reportText && reportText !== 'N/D' && reportText !== 'Sem observações registadas.' && reportText !== '[object Object]';
-
-                        return isValid ? (
-                          <div className={`${themeInnerCard} p-5 md:p-6 rounded-xl border border-slate-700/40 text-xs md:text-sm`}>
-                            {renderFormattedMarkdown(reportText)}
-                          </div>
-                        ) : (
-                          <div className={`text-center py-12 ${themeInnerCard} rounded-xl border border-dashed text-xs md:text-sm space-y-2`}>
-                            <Info className="w-6 h-6 text-slate-500 mx-auto" />
-                            <p className="font-bold text-slate-400">Sem report</p>
-                          </div>
-                        );
-                      })()}
-                    </div>
-
-                    <div className={`${themeCard} p-6 md:p-8 rounded-2xl border border-dashed space-y-3 opacity-80`}>
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-xs md:text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-purple-400" /> Relatório Individual de Observador
-                        </h3>
-                        <span className="text-[10px] bg-purple-500/20 text-purple-400 font-bold px-2.5 py-1 rounded border border-purple-500/30">
-                          Em Breve
-                        </span>
-                      </div>
-                      <p className={`text-xs ${themeTextMuted}`}>
-                        Espaço reservado para inserção de proformas técnicas, matrizes de observação pontuais e formulários de scouting individualizados.
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {profileTab === 'market' && canSeeMarket && (() => {
-                  // Filtrar oportunidades ativas para este atleta
-                  const playerOpps = marketOpportunities.filter(opp => {
-                    const linked = opp.fields?.Jogador || [];
-                    return linked.includes(selectedPlayer.id);
-                  });
-
-                  return (
-                    <div className="space-y-6 animate-in fade-in duration-300">
-                      <div className={`${themeCard} p-6 md:p-8 rounded-2xl border border-pink-500/20 relative overflow-hidden space-y-6`}>
-                        <div className="flex items-center justify-between border-b border-slate-700/40 pb-4">
-                          <div>
-                            <h3 className="text-sm md:text-base font-bold uppercase tracking-wider flex items-center gap-2">
-                              <Briefcase className="w-5 h-5 text-pink-500" /> Histórico de Mercado & Decisões
-                            </h3>
-                            <p className={`text-xs ${themeTextMuted} mt-1`}>
-                              Registo dinâmico de propostas, pareceres da direção e status de contratação.
-                            </p>
-                          </div>
-                          <button 
-                            onClick={() => {
-                              setMarketFormData({ ...marketFormData, name: selectedPlayer.name, club: selectedPlayer.club || '', position: selectedPlayer.position || '' });
-                              setIsMarketModalOpen(true);
-                            }}
-                            className="px-3.5 py-2 bg-pink-600/20 border border-pink-500/30 text-pink-400 hover:bg-pink-600/30 text-xs font-bold rounded-xl transition flex items-center gap-1.5"
-                          >
-                            <Plus className="w-4 h-4" /> Registar Oportunidade
-                          </button>
-                        </div>
-
-                        {playerOpps.length > 0 ? (
-                          <div className="space-y-4">
-                            {playerOpps.map((opp) => {
-                              const f = opp.fields || {};
-                              const status = f['Status Negociação'] || 'Em Avaliação';
-                              
-                              let statusClass = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-                              if (status === 'Vetado') statusClass = 'bg-red-500/20 text-red-400 border-red-500/30';
-                              if (status === 'Aprovado' || status === 'Concluído') statusClass = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
-
-                              return (
-                                <div key={opp.id} className={`${themeInnerCard} p-5 rounded-2xl border space-y-4`}>
-                                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/40 pb-3">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-xs font-bold text-white">{f['Mercado Target'] || 'Janela N/D'}</span>
-                                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${statusClass}`}>{status}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <span className={`text-[11px] ${themeTextMuted}`}>Ref: <strong>{f['Scout'] || 'Departamento'}</strong></span>
-                                      <button
-                                        onClick={() => {
-                                          setSelectedMarketOppToEdit(opp);
-                                          setDecisionFormData({
-                                            status: f['Status Negociação'] || 'Em Avaliação',
-                                            vetoReason: f['Motivo do Veto'] || '',
-                                            vetoDate: f['Data do Veto'] || new Date().toISOString().split('T')[0],
-                                            presidentOpinion: f['Opinião do Presidente'] || '',
-                                            notesDD: f['Notas Diretor Desportivo'] || ''
-                                          });
-                                        }}
-                                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-pink-400 border border-pink-500/30 text-[10px] font-bold rounded-lg transition flex items-center gap-1"
-                                      >
-                                        <Sliders className="w-3 h-3" /> Decisão
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                                    <div className="bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/40">
-                                      <span className={`block text-[9px] ${themeTextMuted} uppercase font-bold`}>Viabilidade</span>
-                                      <span className="font-semibold text-emerald-400">{f['Viabilidade Financeira'] || '-'}</span>
-                                    </div>
-                                    <div className="bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/40">
-                                      <span className={`block text-[9px] ${themeTextMuted} uppercase font-bold`}>Confiança L3 / L2</span>
-                                      <span className="font-semibold text-slate-200">{f['Confiança Liga 3'] || '-'}/3 • {f['Confiança Liga 2'] || '-'}/3</span>
-                                    </div>
-                                    <div className="bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/40">
-                                      <span className={`block text-[9px] ${themeTextMuted} uppercase font-bold`}>Contrato</span>
-                                      <span className="font-semibold text-slate-200">{f['Contrato'] || '-'}</span>
-                                    </div>
-                                    <div className="bg-slate-800/40 p-2.5 rounded-xl border border-slate-700/40">
-                                      <span className={`block text-[9px] ${themeTextMuted} uppercase font-bold`}>Utilização</span>
-                                      <span className="font-semibold text-slate-200">{f['Utilização'] || '-'}</span>
-                                    </div>
-                                  </div>
-
-                                  {f['Motivo da Contratação'] && (
-                                    <div>
-                                      <span className={`block text-[10px] ${themeTextMuted} uppercase font-bold mb-1`}>Motivo da Referenciação</span>
-                                      <p className="text-xs text-slate-300 leading-relaxed">{f['Motivo da Contratação']}</p>
-                                    </div>
-                                  )}
-
-                                  {/* PONTOS FORTES E FRACOS */}
-                                  {(f['Pontos Fortes'] || f['Pontos Fracos']) && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                                      {f['Pontos Fortes'] && (
-                                        <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl space-y-1">
-                                          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Pontos Fortes</span>
-                                          <p className="text-xs text-slate-200 leading-relaxed">{f['Pontos Fortes']}</p>
-                                        </div>
-                                      )}
-                                      {f['Pontos Fracos'] && (
-                                        <div className="bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl space-y-1">
-                                          <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider block">Pontos Fracos</span>
-                                          <p className="text-xs text-slate-200 leading-relaxed">{f['Pontos Fracos']}</p>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-
-                                  {status === 'Vetado' && (
-                                    <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl space-y-2">
-                                      <span className="text-xs font-bold text-red-400 uppercase tracking-wider block">Detalhes do Veto</span>
-                                      {f['Data do Veto'] && <span className="text-[10px] text-red-300/80 block">Data: {f['Data do Veto']}</span>}
-                                      {f['Motivo do Veto'] && <p className="text-xs text-red-200"><strong>Motivo:</strong> {f['Motivo do Veto']}</p>}
-                                      {f['Opinião do Presidente'] && <p className="text-xs text-red-200"><strong>Opinião do Presidente:</strong> {f['Opinião do Presidente']}</p>}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <div className={`text-center py-12 ${themeInnerCard} rounded-xl border border-dashed text-xs md:text-sm space-y-2`}>
-                            <Info className="w-6 h-6 text-slate-500 mx-auto" />
-                            <p className="font-bold text-slate-400">Nenhum registo de mercado para este atleta</p>
-                            <p className={`${themeTextMuted} text-xs`}>
-                              Regista uma proposta ou oportunidade para guardar os valores e decisões no Airtable.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* MODAL PERFIL EQUIPA */}
-      {selectedTeam && (() => {
-        const teamPlayers = players.filter(p => (p.club || '').toLowerCase() === (selectedTeam.name || '').toLowerCase());
-        const teamMatches = matches.filter(m => (m.matchName || '').toLowerCase().includes((selectedTeam.name || '').toLowerCase()));
-
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className={`${themeCard} border w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl shadow-2xl p-5 md:p-6 space-y-6`}>
-              
-              <div className={`flex justify-between items-start border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-4`}>
-                <div className="flex items-center gap-4">
-                  {selectedTeam.logo ? (
-                    <img src={selectedTeam.logo} alt={selectedTeam.name} className="w-14 h-14 md:w-16 md:h-16 object-contain p-1.5 bg-slate-900 rounded-xl border border-slate-800 flex-shrink-0" />
-                  ) : (
-                    <div className={`w-14 h-14 md:w-16 md:h-16 rounded-xl ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold flex-shrink-0`}>
-                      <Building2 className="w-7 h-7 text-slate-400" />
-                    </div>
-                  )}
-                  <div>
-                    <h2 className="text-xl md:text-2xl font-bold">{selectedTeam.name}</h2>
-                    <p className="text-xs text-blue-500 font-medium mt-1">
-                      {selectedTeam.competition && selectedTeam.competition !== 'N/D' ? selectedTeam.competition : ''}
-                      {selectedTeam.competition && selectedTeam.competition !== 'N/D' && selectedTeam.country ? <span className="text-slate-400"> • </span> : ''}
-                      {selectedTeam.country && <span className="text-slate-400">{selectedTeam.country}</span>}
-                    </p>
-                  </div>
-                </div>
-                <button onClick={() => setSelectedTeam(null)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-full text-slate-400 hover:text-white transition`}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className={`${themeInnerCard} p-4 rounded-xl border`}>
-                  <span className={`text-xs ${themeTextMuted} block mb-1 font-semibold`}>Jogos Observados</span>
-                  <span className="text-xl font-bold text-emerald-500">{teamMatches.length} Partidas</span>
-                </div>
-                <div className={`${themeInnerCard} p-4 rounded-xl border`}>
-                  <span className={`text-xs ${themeTextMuted} block mb-1 font-semibold`}>Estatuto de Observação</span>
-                  <span className="text-xl font-bold text-blue-500">{selectedTeam.status || 'Monitored'}</span>
-                </div>
-              </div>
-
-              <div>
-                <h3 className={`text-xs md:text-sm font-bold ${themeTextMuted} uppercase tracking-wider mb-3`}>Atletas de Interesse na Base de Dados ({teamPlayers.length})</h3>
-                {teamPlayers.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {teamPlayers.map(p => (
-                      <div key={p.id} className={`${themeInnerCard} p-3.5 rounded-xl border flex items-center justify-between`}>
-                        <div className="flex items-center gap-3 min-w-0">
-                          {p.photo ? (
-                            <img src={p.photo} alt={p.name} className="w-10 h-10 rounded-full object-cover border border-slate-700 bg-slate-800 flex-shrink-0" />
-                          ) : (
-                            <div className={`w-10 h-10 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold text-xs flex-shrink-0`}>
-                              {(p.name || 'J').charAt(0)}
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <h4 className="font-bold text-sm truncate">{p.name}</h4>
-                            <p className="text-xs text-blue-500 font-medium mt-0.5 truncate">{p.position}</p>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => {
-                            setSelectedTeam(null);
-                            setSelectedPlayer(p);
-                            setProfileTab('timeline');
-                          }}
-                          className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-500 border border-blue-500/30 text-xs font-bold rounded-lg transition flex-shrink-0 ml-2"
-                        >
-                          Ver Perfil
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className={`text-xs ${themeTextMuted} ${themeInnerCard} p-4 rounded-xl border text-center`}>
-                    Ainda não existem atletas desta equipa registados na base de dados.
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <h3 className={`text-xs md:text-sm font-bold ${themeTextMuted} uppercase tracking-wider mb-3`}>Histórico de Jogos Observados ({teamMatches.length})</h3>
-                {teamMatches.length > 0 ? (
-                  <div className="space-y-2.5">
-                    {teamMatches.map(m => (
-                      <div key={m.id} className={`${themeInnerCard} p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2`}>
-                        <div>
-                          <h4 className="font-bold text-sm">{m.matchName}</h4>
-                          <div className={`flex items-center gap-2 text-xs ${themeTextMuted} mt-1`}>
-                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {m.gameDate}</span>
-                            <span>•</span>
-                            <span className="text-blue-500 font-medium">{m.competition}</span>
-                            <span>•</span>
-                            <span className={`${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} px-1.5 py-0.5 rounded text-[10px]`}>{m.type}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                          <div className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 ${isDarkMode ? 'bg-slate-800/60 border-slate-700/50' : 'bg-slate-100 border-slate-300'}`}>
-                            <UserCheck className="w-3.5 h-3.5 text-blue-500"/> Scout: {m.scout}
-                          </div>
-                          <button 
-                            onClick={() => navigateToMatch(m.id)}
-                            className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-500 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5"
-                          >
-                            Ir para Jogo <ExternalLink className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className={`text-xs ${themeTextMuted} ${themeInnerCard} p-4 rounded-xl border text-center`}>
-                    Ainda não foram registados jogos observados desta equipa no Match Center.
-                  </div>
-                )}
-              </div>
-
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* MODAL: NOVA OPORTUNIDADE DE MERCADO */}
-      {isMarketModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className={`${themeCard} border border-pink-500/30 w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[90vh]`}>
-            
-            {/* CABEÇALHO DO MODAL */}
-            <div className={`flex justify-between items-center p-5 border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-pink-600/20 border border-pink-500/30 text-pink-500 rounded-xl">
-                  <Briefcase className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold">Oportunidade de Mercado</h2>
-                  <p className={`text-xs ${themeTextMuted}`}>Registar novo alvo referenciado no Airtable.</p>
-                </div>
-              </div>
-              <button onClick={resetMarketModal} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white transition">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleMarketSubmit} className="p-6 space-y-6 overflow-y-auto custom-scrollbar">
-              
-              {/* BLOCO 1: IDENTIFICAÇÃO DO ATLETA */}
-              <div className={`${themeInnerCard} p-5 rounded-2xl border space-y-4`}>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                  <h3 className="text-xs font-bold text-pink-500 uppercase tracking-wider flex items-center gap-2">
-                    <UserCheck className="w-4 h-4"/> Dados do Atleta
-                  </h3>
-                  {marketFormData.playerId && (
-                    <button
-                      type="button"
-                      onClick={() => setMarketFormData({ ...marketFormData, playerId: '', name: '', club: '', position: '', foot: '', birthDate: '' })}
-                      className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20 font-bold self-start sm:self-auto"
-                    >
-                      Limpar Seleção (Atleta Novo)
-                    </button>
-                  )}
-                </div>
-
-                <div>
-                  <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Procurar na Base de Dados (Atleta Existente)</label>
-                  <CustomSelect
-                    options={players.map((p: any) => ({ value: p.id, label: `${p.name} (${p.club || 'S/ Clube'})`, image: p.photo }))}
-                    value={marketFormData.playerId}
-                    onChange={handleSelectExistingPlayerForMarket}
-                    placeholder="Pesquisar atleta na BD do Leça..."
-                    searchable={true}
-                    isDarkMode={isDarkMode}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                  <div>
-                    <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Nome Completo *</label>
-                    <input 
-                      type="text" required 
-                      value={marketFormData.name} 
-                      onChange={e => setMarketFormData({...marketFormData, name: e.target.value, playerId: ''})} 
-                      className={`w-full border rounded-xl p-3 text-sm focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} 
-                      placeholder="Ex: João Silva" 
-                    />
-                  </div>
-                  <div>
-                    <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Clube Atual *</label>
-                    <CustomSelect 
-                      options={teams.map((t: any) => ({ value: t.name, label: t.name }))} 
-                      value={marketFormData.club} 
-                      onChange={v => setMarketFormData({...marketFormData, club: v})} 
-                      placeholder="Selecione o clube..." 
-                      searchable={true} 
-                      isDarkMode={isDarkMode} 
-                    />
-                  </div>
-                  <div>
-                    <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Data da Oferta / Entrada *</label>
-                    <input 
-                      type="date" required 
-                      value={marketFormData.offerDate} 
-                      onChange={e => setMarketFormData({...marketFormData, offerDate: e.target.value})} 
-                      className={`w-full border rounded-xl p-3 text-sm focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} 
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Data de Nascimento *</label>
-                    <input 
-                      type="date" required 
-                      value={marketFormData.birthDate} 
-                      onChange={e => setMarketFormData({...marketFormData, birthDate: e.target.value})} 
-                      className={`w-full border rounded-xl p-3 text-sm focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} 
-                    />
-                  </div>
-                  <div>
-                    <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Posição *</label>
-                    <CustomSelect 
-                      options={POSITIONS_OPTIONS.map((p: string) => ({value: p, label: p}))} 
-                      value={marketFormData.position} 
-                      onChange={v => setMarketFormData({...marketFormData, position: v})} 
-                      placeholder="Selecione..." 
-                      isDarkMode={isDarkMode} 
-                    />
-                  </div>
-                  <div>
-                    <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Pé Preferencial</label>
-                    <CustomSelect 
-                      options={[{value:'Direito', label:'Direito'}, {value:'Esquerdo', label:'Esquerdo'}, {value:'Ambos', label:'Ambos'}]} 
-                      value={marketFormData.foot} 
-                      onChange={v => setMarketFormData({...marketFormData, foot: v})} 
-                      placeholder="Selecione..." 
-                      isDarkMode={isDarkMode} 
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* BLOCO 2: CONTEXTO DE NEGÓCIO */}
-              <div className={`${themeInnerCard} p-5 rounded-2xl border space-y-4`}>
-                <h3 className="text-xs font-bold text-pink-500 uppercase tracking-wider flex items-center gap-2 mb-2">
-                  <Globe className="w-4 h-4"/> Contexto de Negócio
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Mercado Target *</label>
-                    <CustomSelect 
-                    options={[
-                      { value: 'Época 26/27 (Verão)', label: 'Época 26/27 (Verão)' },
-                      { value: 'Época 26/27 (Inverno)', label: 'Época 26/27 (Inverno)' },
-                      { value: 'Época 27/28 (Verão)', label: 'Época 27/28 (Verão)' },
-                      { value: 'Época 27/28 (Inverno)', label: 'Época 27/28 (Inverno)' }
-                    ]} 
-                    value={marketFormData.marketTarget} 
-                    onChange={v => setMarketFormData({...marketFormData, marketTarget: v})} 
-                    placeholder="Qual a janela?" 
-                    isDarkMode={isDarkMode} 
-                  />
-                  </div>
-                  <div>
-                    <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Scout / Observador *</label>
-                    <CustomSelect options={displayScouts.map((s: any) => ({value: s.name, label: s.name}))} value={marketFormData.scout} onChange={v => setMarketFormData({...marketFormData, scout: v})} placeholder="Quem referenciou?" isDarkMode={isDarkMode} />
-                  </div>
-                  <div>
-                    <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Situação Contratual</label>
-                    <CustomSelect options={[{value:'Livre / Sem contrato', label:'Livre / Sem contrato'}, {value:'Fim de contrato', label:'Fim de contrato'}, {value:'Sob contrato (Empréstimo)', label:'Sob contrato (Empréstimo)'}, {value:'Sob contrato (Transferência)', label:'Sob contrato (Transferência)'}]} value={marketFormData.contract} onChange={v => setMarketFormData({...marketFormData, contract: v})} placeholder="Contrato..." isDarkMode={isDarkMode} />
-                  </div>
-                </div>
-              </div>
-
-              {/* BLOCO 3: ANÁLISE & CONFIANÇA */}
-              <div className={`${themeInnerCard} p-5 rounded-2xl border space-y-4`}>
-                <h3 className="text-xs font-bold text-emerald-500 uppercase tracking-wider flex items-center gap-2 mb-2">
-                  <Target className="w-4 h-4"/> Análise & Confiança
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className={`block ${themeTextMuted} text-[10px] font-bold mb-1.5 uppercase`}>Confiança Liga 3</label>
-                    <CustomSelect options={[{value:'1', label:'1 - Fraca'}, {value:'2', label:'2 - Média'}, {value:'3', label:'3 - Alta'}]} value={marketFormData.confLiga3} onChange={v => setMarketFormData({...marketFormData, confLiga3: v})} placeholder="-" isDarkMode={isDarkMode} />
-                  </div>
-                  <div>
-                    <label className={`block ${themeTextMuted} text-[10px] font-bold mb-1.5 uppercase`}>Confiança Liga 2</label>
-                    <CustomSelect options={[{value:'1', label:'1 - Fraca'}, {value:'2', label:'2 - Média'}, {value:'3', label:'3 - Alta'}]} value={marketFormData.confLiga2} onChange={v => setMarketFormData({...marketFormData, confLiga2: v})} placeholder="-" isDarkMode={isDarkMode} />
-                  </div>
-                  <div>
-                    <label className={`block ${themeTextMuted} text-[10px] font-bold mb-1.5 uppercase`}>Viabilidade Financeira</label>
-                    <CustomSelect options={[{value:'1 - Caro', label:'1 - Fora do Teto / Caro'}, {value:'2 - Possível', label:'2 - Exige Esforço'}, {value:'3 - Acessível', label:'3 - Totalmente Acessível'}]} value={marketFormData.viability} onChange={v => setMarketFormData({...marketFormData, viability: v})} placeholder="-" isDarkMode={isDarkMode} />
-                  </div>
-                  <div>
-                    <label className={`block ${themeTextMuted} text-[10px] font-bold mb-1.5 uppercase`}>Utilização Prevista</label>
-                    <CustomSelect options={[{value:'Titular Absoluto', label:'Titular Absoluto'}, {value:'Rotação Constante', label:'Rotação Constante'}, {value:'Compositor de Plantel', label:'Compositor de Plantel'}, {value:'Aposta de Futuro', label:'Aposta de Futuro'}]} value={marketFormData.utilization} onChange={v => setMarketFormData({...marketFormData, utilization: v})} placeholder="-" isDarkMode={isDarkMode} />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Pontos Fortes</label>
-                    <textarea rows={3} value={marketFormData.strengths} onChange={e => setMarketFormData({...marketFormData, strengths: e.target.value})} className={`w-full border rounded-xl p-3 text-sm resize-none focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} />
-                  </div>
-                  <div>
-                    <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Pontos Fracos</label>
-                    <textarea rows={3} value={marketFormData.weaknesses} onChange={e => setMarketFormData({...marketFormData, weaknesses: e.target.value})} className={`w-full border rounded-xl p-3 text-sm resize-none focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} />
-                  </div>
-                </div>
-
-                <div>
-                  <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Motivo da Contratação</label>
-                  <textarea rows={2} value={marketFormData.reason} onChange={e => setMarketFormData({...marketFormData, reason: e.target.value})} className={`w-full border rounded-xl p-3 text-sm resize-none focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} placeholder="O que acrescenta ao plantel?" />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Semelhança no Plantel</label>
-                    <input type="text" value={marketFormData.similarity} onChange={e => setMarketFormData({...marketFormData, similarity: e.target.value})} className={`w-full border rounded-xl p-3 text-sm focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} placeholder="Parecido com..." />
-                  </div>
-                  <div>
-                    <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Caráter e Mental</label>
-                    <input type="text" value={marketFormData.mental} onChange={e => setMarketFormData({...marketFormData, mental: e.target.value})} className={`w-full border rounded-xl p-3 text-sm focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} placeholder="Notas sobre a personalidade..." />
-                  </div>
-                </div>
-              </div>
-
-              {/* BOTÕES DE SUBMISSÃO */}
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={resetMarketModal} className="flex-1 py-3.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-sm hover:bg-slate-700 transition">
-                  Cancelar
-                </button>
-                <button type="submit" disabled={submittingMarket} className="flex-1 py-3.5 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-pink-900/20 transition">
-                  {submittingMarket ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Registar Oportunidade'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-
-{/* MODAL: GERIR DECISÃO & VETO */}
-{selectedMarketOppToEdit && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className={`${themeCard} border border-pink-500/30 w-full max-w-xl rounded-2xl shadow-2xl flex flex-col overflow-hidden`}>
-            
-            <div className={`flex justify-between items-center p-5 border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-pink-600/20 border border-pink-500/30 text-pink-500 rounded-xl">
-                  <Sliders className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold">Atualizar Decisão de Mercado</h2>
-                  <p className={`text-xs ${themeTextMuted}`}>Registar pareceres da Direção, Presidente ou Vetos.</p>
-                </div>
-              </div>
-              <button onClick={() => setSelectedMarketOppToEdit(null)} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white transition">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleUpdateDecisionSubmit} className="p-6 space-y-5">
-              <div>
-                <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5 uppercase`}>Estado da Negociação *</label>
-                <CustomSelect
-                  options={[
-                    { value: 'Em Avaliação', label: 'Em Avaliação (Entrada)' },
-                    { value: 'Em Negociação', label: 'Em Negociação' },
-                    { value: 'Aprovado', label: 'Aprovado / Contratado' },
-                    { value: 'Vetado', label: 'Vetado / Descartado' }
-                  ]}
-                  value={decisionFormData.status}
-                  onChange={v => setDecisionFormData({ ...decisionFormData, status: v })}
-                  isDarkMode={isDarkMode}
-                />
-              </div>
-
-              {decisionFormData.status === 'Vetado' && (
-                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl space-y-4">
-                  <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Flag className="w-4 h-4"/> Registo de Veto
-                  </h4>
-                  <div>
-                    <label className={`block ${themeTextMuted} text-xs font-bold mb-1`}>Data do Veto</label>
-                    <input type="date" value={decisionFormData.vetoDate} onChange={e => setDecisionFormData({ ...decisionFormData, vetoDate: e.target.value })} className={`w-full border rounded-xl p-2.5 text-xs ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} />
-                  </div>
-                  <div>
-                    <label className={`block ${themeTextMuted} text-xs font-bold mb-1`}>Motivo Principal do Veto *</label>
-                    <textarea rows={2} value={decisionFormData.vetoReason} onChange={e => setDecisionFormData({ ...decisionFormData, vetoReason: e.target.value })} className={`w-full border rounded-xl p-2.5 text-xs resize-none ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} placeholder="Ex: Pedido financeiro fora de teto / Comportamento..." />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Opinião do Presidente</label>
-                <textarea rows={2} value={decisionFormData.presidentOpinion} onChange={e => setDecisionFormData({ ...decisionFormData, presidentOpinion: e.target.value })} className={`w-full border rounded-xl p-2.5 text-xs resize-none ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} placeholder="Notas diretas da presidência..." />
-              </div>
-
-              <div>
-                <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Notas do Diretor Desportivo</label>
-                <textarea rows={2} value={decisionFormData.notesDD} onChange={e => setDecisionFormData({ ...decisionFormData, notesDD: e.target.value })} className={`w-full border rounded-xl p-2.5 text-xs resize-none ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} placeholder="Observações de gestão/agente..." />
-              </div>
-
-              <div className="flex gap-3 pt-3">
-                <button type="button" onClick={() => setSelectedMarketOppToEdit(null)} className="flex-1 py-3 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-700 transition">Cancelar</button>
-                <button type="submit" disabled={updatingDecision} className="flex-1 py-3 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-pink-900/20 transition">
-                  {updatingDecision ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar Decisão'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* MODAIS COMPONENTIZADOS */}
+      <MarketModal isOpen={isMarketModalOpen} onClose={resetMarketModal} marketFormData={marketFormData} setMarketFormData={setMarketFormData} onSubmit={handleMarketSubmit} submittingMarket={submittingMarket} players={players} teams={teams} displayScouts={displayScouts} onSelectExistingPlayer={handleSelectExistingPlayerForMarket} isDarkMode={isDarkMode} />
+      <MarketDecisionModal isOpen={Boolean(selectedMarketOppToEdit)} onClose={() => setSelectedMarketOppToEdit(null)} decisionFormData={decisionFormData} setDecisionFormData={setDecisionFormData} onSubmit={handleUpdateDecisionSubmit} updatingDecision={updatingDecision} isDarkMode={isDarkMode} />
+      <PlayerProfileModal selectedPlayer={selectedPlayer} onClose={() => setSelectedPlayer(null)} profileTab={profileTab} setProfileTab={setProfileTab} selectedSeasonIdx={selectedSeasonIdx} setSelectedSeasonIdx={setSelectedSeasonIdx} setSelectedPillarDetail={setSelectedPillarDetail} algorithmData={algorithmData} marketOpportunities={marketOpportunities} canSeeMarket={canSeeMarket} setMarketFormData={setMarketFormData} setIsMarketModalOpen={setIsMarketModalOpen} setSelectedMarketOppToEdit={setSelectedMarketOppToEdit} setDecisionFormData={setDecisionFormData} navigateToMatch={navigateToMatch} getPlayerTimeline={getPlayerTimeline} getPlayerAlgoEntries={getPlayerAlgoEntries} extractPlayerBaseName={extractPlayerBaseName} renderFormattedMarkdown={renderFormattedMarkdown} isDarkMode={isDarkMode} />
+      <NewTeamModal isOpen={isNewTeamOpen} onClose={() => setIsNewTeamOpen(false)} newTeamData={newTeamData} setNewTeamData={setNewTeamData} onSubmit={handleCreateNewTeam} creatingTeam={creatingTeam} competitions={competitions} isDarkMode={isDarkMode} />
+      <NewPlayerModal isOpen={isNewPlayerOpen} onClose={() => setIsNewPlayerOpen(false)} newPlayerData={newPlayerData} setNewPlayerData={setNewPlayerData} onSubmit={async e => { e.preventDefault(); setCreatingPlayer(true); const res = await fetch('/api/players', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newPlayerData) }); if (res.ok) { await loadData(); setIsNewPlayerOpen(false); setNewPlayerData({ name: '', clubId: '', position: '' }); showToast("Atleta criado!"); } setCreatingPlayer(false); }} creatingPlayer={creatingPlayer} teams={teams} availableMatchTeams={availableMatchTeams} isDarkMode={isDarkMode} />
+      <PillarDetailModal selectedPillarDetail={selectedPillarDetail} selectedPlayer={selectedPlayer} onClose={() => setSelectedPillarDetail(null)} selectedSeasonIdx={selectedSeasonIdx} algorithmData={algorithmData} getPlayerAlgoEntries={getPlayerAlgoEntries} isDarkMode={isDarkMode} />
     </main>
   );
 }
-
-
