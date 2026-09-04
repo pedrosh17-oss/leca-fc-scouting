@@ -34,7 +34,8 @@ export default function ScoutsTab({
         
         const countFromMatches = matches.filter(m => {
           const matchScout = (m.scout || '').trim().toLowerCase();
-          return matchScout.includes(scoutNameLower) || (m.scoutIds && m.scoutIds.includes(scout.id));
+          const mAny = m as any;
+          return matchScout.includes(scoutNameLower) || (mAny.scoutIds && Array.isArray(mAny.scoutIds) && mAny.scoutIds.includes(scout.id));
         }).length;
 
         const totalMatches = countFromMatches || getScoutMatches(scout.name).length;
