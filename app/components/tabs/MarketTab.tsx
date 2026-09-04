@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Briefcase, Plus, Sliders, ArrowRight, ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Handshake, AlertTriangle, Trophy, Search } from 'lucide-react';
+import { Briefcase, Plus, Sliders, ShieldCheck, ShieldAlert, CheckCircle2, XCircle, AlertTriangle, Trophy, Search, Users } from 'lucide-react';
 import { Player, Role } from '../../types';
 
 interface MarketTabProps {
@@ -47,7 +47,6 @@ export default function MarketTab({
 
   const isManagement = userRole === 'ADMIN' || userRole === 'DIRECTOR' || userRole === 'EXECUTIVE';
 
-  // Filtragem de oportunidades por texto
   const filteredOpps = useMemo(() => {
     return marketOpportunities.filter(opp => {
       const f = opp.fields || {};
@@ -60,7 +59,6 @@ export default function MarketTab({
     });
   }, [marketOpportunities, players, searchTerm]);
 
-  // Função auxiliar para abrir formulário com o estado pretendido
   const openDecisionWithStatus = (opp: any, targetStatus: string) => {
     const f = opp.fields || {};
     setSelectedMarketOppToEdit(opp);
@@ -75,7 +73,6 @@ export default function MarketTab({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* CABEÇALHO DO PAINEL DE MERCADO */}
       <div className={`${themeCard} p-5 md:p-6 rounded-2xl border border-pink-500/30 shadow-xl space-y-4`}>
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-700/40 pb-4">
           <div>
@@ -124,7 +121,6 @@ export default function MarketTab({
         </div>
       </div>
 
-      {/* VISTA KANBAN (COLUNAS HORIZONTAIS) */}
       {viewMode === 'kanban' && (
         <div className="flex gap-4 overflow-x-auto pb-6 pt-2 no-scrollbar min-h-[600px]">
           {KANBAN_COLUMNS.map((col) => {
@@ -175,9 +171,7 @@ export default function MarketTab({
                           </div>
                         </div>
 
-                        {/* BOTÕES DE AÇÃO RÁPIDA POR TIPO DE LOGIN */}
                         <div className="pt-2 border-t border-slate-700/40 flex flex-col gap-1.5">
-                          {/* AÇÕES DO SCOUTING (Em Avaliação) */}
                           {currentStatus === 'Em Avaliação' && (
                             <div className="flex gap-1.5">
                               <button
@@ -195,7 +189,6 @@ export default function MarketTab({
                             </div>
                           )}
 
-                          {/* AÇÕES DA DIREÇÃO / GESTÃO */}
                           {isManagement && currentStatus === 'Aprovado Scouting' && (
                             <div className="flex gap-1.5">
                               <button
@@ -213,17 +206,15 @@ export default function MarketTab({
                             </div>
                           )}
 
-                          {/* AÇÕES DE NEGOCIAÇÃO (Direção) */}
                           {isManagement && currentStatus === 'Aprovado Direção' && (
                             <button
                               onClick={() => openDecisionWithStatus(opp, 'Em Negociação')}
                               className="w-full py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-bold rounded-lg transition flex items-center justify-center gap-1"
                             >
-                              <Handshake className="w-3.5 h-3.5" /> Iniciar Negociação
+                              <Users className="w-3.5 h-3.5" /> Iniciar Negociação
                             </button>
                           )}
 
-                          {/* DESFECHO DA NEGOCIAÇÃO */}
                           {isManagement && currentStatus === 'Em Negociação' && (
                             <div className="flex gap-1.5">
                               <button
@@ -267,7 +258,6 @@ export default function MarketTab({
         </div>
       )}
 
-      {/* VISTA EM GRELHA / LISTA TRADICIONAL */}
       {viewMode === 'grid' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredOpps.map((opp) => {
