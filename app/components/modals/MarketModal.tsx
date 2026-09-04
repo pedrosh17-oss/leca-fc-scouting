@@ -16,7 +16,6 @@ interface MarketModalProps {
   players: Player[];
   teams: Team[];
   displayScouts: Scout[];
-  onSelectExistingPlayer: (id: string) => void;
   isDarkMode: boolean;
 }
 
@@ -30,7 +29,6 @@ export default function MarketModal({
   players,
   teams,
   displayScouts,
-  onSelectExistingPlayer,
   isDarkMode
 }: MarketModalProps) {
   if (!isOpen) return null;
@@ -38,6 +36,22 @@ export default function MarketModal({
   const themeCard = isDarkMode ? 'bg-[#151c2c] border-slate-800' : 'bg-white border-slate-200 shadow-sm';
   const themeInnerCard = isDarkMode ? 'bg-[#0d131f] border-slate-800/80' : 'bg-slate-50 border-slate-200';
   const themeTextMuted = isDarkMode ? 'text-slate-400' : 'text-slate-500';
+
+  // Lógica corrigida: ao selecionar na dropdown, preenchemos o formulário automaticamente
+  const handleSelectExistingPlayer = (playerId: string) => {
+    const p = players.find(player => player.id === playerId);
+    if (p) {
+      setMarketFormData(prev => ({
+        ...prev,
+        playerId: p.id,
+        name: p.name,
+        club: p.club || '',
+        position: p.position || '',
+        foot: p.foot || '',
+        birthDate: p.birthDate || ''
+      }));
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -80,7 +94,7 @@ export default function MarketModal({
               <CustomSelect
                 options={players.map((p) => ({ value: p.id, label: `${p.name} (${p.club || 'S/ Clube'})`, image: p.photo }))}
                 value={marketFormData.playerId}
-                onChange={onSelectExistingPlayer}
+                onChange={handleSelectExistingPlayer}
                 placeholder="Pesquisar atleta na BD do Leça..."
                 searchable={true}
                 isDarkMode={isDarkMode}
@@ -122,9 +136,9 @@ export default function MarketModal({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Data de Nascimento *</label>
+                <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Data de Nascimento</label>
                 <input 
-                  type="date" required 
+                  type="date"
                   value={marketFormData.birthDate} 
                   onChange={e => setMarketFormData({...marketFormData, birthDate: e.target.value})} 
                   className={`w-full border rounded-xl p-3 text-sm focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} 
@@ -218,17 +232,6 @@ export default function MarketModal({
             <div>
               <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Motivo da Contratação</label>
               <textarea rows={2} value={marketFormData.reason} onChange={e => setMarketFormData({...marketFormData, reason: e.target.value})} className={`w-full border rounded-xl p-3 text-sm resize-none focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} placeholder="O que acrescenta ao plantel?" />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Semelhança no Plantel</label>
-                <input type="text" value={marketFormData.similarity} onChange={e => setMarketFormData({...marketFormData, similarity: e.target.value})} className={`w-full border rounded-xl p-3 text-sm focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} placeholder="Parecido com..." />
-              </div>
-              <div>
-                <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Caráter e Mental</label>
-                <input type="text" value={marketFormData.mental} onChange={e => setMarketFormData({...marketFormData, mental: e.target.value})} className={`w-full border rounded-xl p-3 text-sm focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} placeholder="Notas sobre a personalidade..." />
-              </div>
             </div>
           </div>
 

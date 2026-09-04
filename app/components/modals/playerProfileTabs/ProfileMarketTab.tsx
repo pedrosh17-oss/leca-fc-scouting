@@ -50,7 +50,13 @@ export default function ProfileMarketTab({
           </div>
           <button 
             onClick={() => {
-              setMarketFormData(prev => ({ ...prev, playerId: selectedPlayer.id, name: selectedPlayer.name, club: selectedPlayer.club || '', position: selectedPlayer.position || '' }));
+              setMarketFormData(prev => ({ 
+                ...prev, 
+                playerId: selectedPlayer.id, 
+                name: selectedPlayer.name, 
+                club: selectedPlayer.club || '', 
+                position: selectedPlayer.position || '' 
+              }));
               setIsMarketModalOpen(true);
             }}
             className="px-3.5 py-2 bg-pink-600/20 border border-pink-500/30 text-pink-400 hover:bg-pink-600/30 text-xs font-bold rounded-xl transition flex items-center gap-1.5"
@@ -66,8 +72,8 @@ export default function ProfileMarketTab({
               const status = f['Status Negociação'] || 'Em Avaliação';
               
               let statusClass = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-              if (status === 'Vetado') statusClass = 'bg-red-500/20 text-red-400 border-red-500/30';
-              if (status === 'Aprovado' || status === 'Concluído') statusClass = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+              if (status.includes('Vetado') || status.includes('Caiu')) statusClass = 'bg-red-500/20 text-red-400 border-red-500/30';
+              if (status.includes('Aprovado') || status.includes('Contratado')) statusClass = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
 
               return (
                 <div key={opp.id} className={`${themeInnerCard} p-5 rounded-2xl border space-y-4`}>
@@ -122,29 +128,12 @@ export default function ProfileMarketTab({
                     </div>
                   )}
 
-                  {(f['Pontos Fortes'] || f['Pontos Fracos']) && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                      {f['Pontos Fortes'] && (
-                        <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl space-y-1">
-                          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Pontos Fortes</span>
-                          <p className="text-xs text-slate-200 leading-relaxed">{f['Pontos Fortes']}</p>
-                        </div>
-                      )}
-                      {f['Pontos Fracos'] && (
-                        <div className="bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl space-y-1">
-                          <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider block">Pontos Fracos</span>
-                          <p className="text-xs text-slate-200 leading-relaxed">{f['Pontos Fracos']}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {status === 'Vetado' && (
-                    <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl space-y-2">
+                  {status.includes('Vetado') && (
+                    <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl space-y-2 mt-4">
                       <span className="text-xs font-bold text-red-400 uppercase tracking-wider block">Detalhes do Veto</span>
                       {f['Data do Veto'] && <span className="text-[10px] text-red-300/80 block">Data: {f['Data do Veto']}</span>}
                       {f['Motivo do Veto'] && <p className="text-xs text-red-200"><strong>Motivo:</strong> {f['Motivo do Veto']}</p>}
-                      {f['Opinião do Presidente'] && <p className="text-xs text-red-200"><strong>Opinião do Presidente:</strong> {f['Opinião do Presidente']}</p>}
+                      {f['Opinião do Presidente'] && <p className="text-xs text-red-200"><strong>Opinião da Direção:</strong> {f['Opinião do Presidente']}</p>}
                     </div>
                   )}
                 </div>

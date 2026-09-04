@@ -89,6 +89,7 @@ export default function Home() {
   const [marketFormData, setMarketFormData] = useState<MarketFormData>(initialMarketForm);
   const [selectedMarketOppToEdit, setSelectedMarketOppToEdit] = useState<any>(null);
   const [decisionFormData, setDecisionFormData] = useState<DecisionFormData>({ status: 'Em Avaliação', vetoReason: '', vetoDate: new Date().toISOString().split('T')[0], presidentOpinion: '', notesDD: '' });
+  const [updatingDecision, setUpdatingDecision] = useState(false);
 
   // Destaques e Observações Recentes
   const getRecentHighlights = () => {
@@ -137,7 +138,6 @@ export default function Home() {
     return [...seriesOptions, ...otherComps];
   };
 
-  // Seletores para o separador Stats
   const algoOptions = useMemo(() => {
     if (!algorithmData) return [];
     const optionsMap = new Map<string, { value: string; label: string; row: any }>();
@@ -184,8 +184,48 @@ export default function Home() {
     e.preventDefault(); setSubmittingMarket(true);
     try {
       const res = await fetch('/api/market', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...marketFormData, scout: marketFormData.scout || authScoutName }) });
-      if (res.ok) { setIsMarketModalOpen(false); setMarketFormData(initialMarketForm); await loadData(); showToast("Oportunidade registada!"); }
+      if (res.ok) { 
+        setIsMarketModalOpen(false); 
+        setMarketFormData(initialMarketForm); 
+        await loadData(); 
+        showToast("Oportunidade registada!"); 
+      } else {
+        showToast("Erro ao gravar. Verifica se preencheste os campos.");
+      }
     } catch (err) { console.error(err); showToast("Erro de ligação."); } finally { setSubmittingMarket(false); }
+  };
+
+  const handleDecisionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); 
+    if (!selectedMarketOppToEdit) return;
+    setUpdatingDecision(true);
+    try {
+      const res = await fetch('/api/market', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recordId: selectedMarketOppToEdit.id,
+          status: decisionFormData.status,
+          previousStatus: selectedMarketOppToEdit.fields?.['Status Negociação'] || 'N/D',
+          user: authScoutName,
+          vetoReason: decisionFormData.vetoReason,
+          vetoDate: decisionFormData.vetoDate,
+          presidentOpinion: decisionFormData.presidentOpinion,
+          notesDD: decisionFormData.notesDD,
+        })
+      });
+      if (res.ok) {
+        setSelectedMarketOppToEdit(null);
+        await loadData(); 
+        showToast("Decisão registada e auditada no Histórico!");
+      } else {
+        showToast("Erro ao atualizar a decisão.");
+      }
+    } catch (error) {
+      console.error(error); showToast("Erro de ligação.");
+    } finally {
+      setUpdatingDecision(false);
+    }
   };
 
   const navigateToMatch = (matchId: string) => {
@@ -330,33 +370,23 @@ export default function Home() {
       </div>
 
       {/* COMPONENTES DE MODAIS ISOLADOS */}
-      <MarketModal isOpen={isMarketModalOpen} onClose={() => setIsMarketModalOpen(false)} marketFormData={marketFormData} setMarketFormData={setMarketFormData} onSubmit={handleMarketSubmit} submittingMarket={submittingMarket} players={players} teams={teams} displayScouts={scouts} onSelectExistingPlayer={()=>{}} isDarkMode={isDarkMode} />
+      <MarketModal isOpen={isMarketModalOpen} onClose={() => setIsMarketModalOpen(false)} marketFormData={marketFormData} setMarketFormData={setMarketFormData} onSubmit={handleMarketSubmit} submittingMarket={submittingMarket} players={players} teams={teams} displayScouts={scouts} isDarkMode={isDarkMode} />
+      
+      <MarketDecisionModal 
+        selectedMarketOppToEdit={selectedMarketOppToEdit} 
+        onClose={() => setSelectedMarketOppToEdit(null)} 
+        decisionFormData={decisionFormData} 
+        setDecisionFormData={setDecisionFormData} 
+        onSubmit={handleDecisionSubmit} 
+        updatingDecision={updatingDecision} 
+        isDarkMode={isDarkMode} 
+      />
       
       <PlayerProfileModal selectedPlayer={selectedPlayer} onClose={() => setSelectedPlayer(null)} profileTab={profileTab} setProfileTab={setProfileTab} selectedSeasonIdx={selectedSeasonIdx} setSelectedSeasonIdx={setSelectedSeasonIdx} setSelectedPillarDetail={setSelectedPillarDetail} algorithmData={algorithmData} marketOpportunities={marketOpportunities} canSeeMarket={true} setMarketFormData={setMarketFormData} setIsMarketModalOpen={setIsMarketModalOpen} setSelectedMarketOppToEdit={setSelectedMarketOppToEdit} setDecisionFormData={setDecisionFormData} navigateToMatch={navigateToMatch} getPlayerTimeline={() => []} getPlayerAlgoEntries={getPlayerAlgoEntries} extractPlayerBaseName={extractPlayerBaseName} renderFormattedMarkdown={renderFormattedMarkdown} isDarkMode={isDarkMode} />
 
-      <TeamProfileModal
-        selectedTeam={selectedTeam}
-        onClose={() => setSelectedTeam(null)}
-        players={players}
-        matches={matches}
-        setSelectedPlayer={setSelectedPlayer}
-        setProfileTab={setProfileTab}
-        navigateToMatch={navigateToMatch}
-        isDarkMode={isDarkMode}
-      />
+      <TeamProfileModal selectedTeam={selectedTeam} onClose={() => setSelectedTeam(null)} players={players} matches={matches} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} navigateToMatch={navigateToMatch} isDarkMode={isDarkMode} />
 
-      <ScoutProfileModal
-        selectedScout={selectedScout}
-        onClose={() => setSelectedScout(null)}
-        getScoutMatches={getScoutMatches}
-        scoutMarketAssignments={scoutMarketAssignments}
-        getUserTitle={getUserTitle}
-        isAdmin={userRole === 'ADMIN'}
-        getScoutMarketOptions={getScoutMarketOptions}
-        handleSaveScoutMarkets={handleSaveScoutMarkets}
-        navigateToMatch={navigateToMatch}
-        isDarkMode={isDarkMode}
-      />
+      <ScoutProfileModal selectedScout={selectedScout} onClose={() => setSelectedScout(null)} getScoutMatches={getScoutMatches} scoutMarketAssignments={scoutMarketAssignments} getUserTitle={getUserTitle} isAdmin={userRole === 'ADMIN'} getScoutMarketOptions={getScoutMarketOptions} handleSaveScoutMarkets={handleSaveScoutMarkets} navigateToMatch={navigateToMatch} isDarkMode={isDarkMode} />
 
     </main>
   );
