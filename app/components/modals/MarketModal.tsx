@@ -55,7 +55,8 @@ export default function MarketModal({
         club: p.club || '',
         position: p.position || '',
         foot: mappedFoot,
-        birthDate: p.birthDate || ''
+        birthDate: p.birthDate || '',
+        nationality: p.nationality || ''
       }));
     }
   };
@@ -69,7 +70,8 @@ export default function MarketModal({
       club: '',
       position: '',
       foot: '',
-      birthDate: ''
+      birthDate: '',
+      nationality: ''
     }));
   };
 
@@ -82,7 +84,8 @@ export default function MarketModal({
       club: '',
       position: '',
       foot: '',
-      birthDate: ''
+      birthDate: '',
+      nationality: ''
     }));
   };
 
@@ -206,7 +209,7 @@ export default function MarketModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Data de Nascimento</label>
                 <input 
@@ -215,6 +218,17 @@ export default function MarketModal({
                   value={marketFormData.birthDate} 
                   onChange={e => setMarketFormData({...marketFormData, birthDate: e.target.value})} 
                   className={`w-full border rounded-xl p-3 text-sm focus:border-pink-500 disabled:opacity-60 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} 
+                />
+              </div>
+              <div>
+                <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Nacionalidade</label>
+                <input 
+                  type="text"
+                  disabled={!isCreatingNewPlayer && !!marketFormData.playerId}
+                  value={(marketFormData as any).nationality || ''} 
+                  onChange={e => setMarketFormData({...marketFormData, nationality: e.target.value } as any)} 
+                  className={`w-full border rounded-xl p-3 text-sm focus:border-pink-500 disabled:opacity-60 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} 
+                  placeholder="Ex: Portugal" 
                 />
               </div>
               <div>

@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
-      playerId, name, club, position, foot, birthDate, offerDate, 
+      playerId, name, club, position, foot, birthDate, nationality, offerDate, 
       marketTarget, scout, status, viability, confLiga3, confLiga2, 
       contract, utilization, strengths, weaknesses, reason, 
       similarity, mental, vetoReason, vetoDate, presidentOpinion, notesDD
@@ -83,6 +83,7 @@ export async function POST(request: Request) {
         const playerFields: Record<string, any> = { 'Player Name': cleanName };
         if (club && club.trim()) playerFields['Current Team'] = club;
         if (position && position.trim()) playerFields['Position'] = position;
+        if (nationality && nationality.trim()) playerFields['Nationality'] = nationality;
         
         if (foot && foot.trim()) {
           if (foot === 'Direito') playerFields['Foot'] = 'D';
@@ -269,7 +270,6 @@ export async function PATCH(request: Request) {
   }
 }
 
-// DELETE: Apagar permanentemente a oportunidade E todos os seus logs associados
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -279,7 +279,6 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Record ID é obrigatório' }, { status: 400 });
     }
 
-    // 1. Procurar e apagar todos os logs associados na tabela Logs_Mercado filtrando em JS
     try {
       const logUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado`;
       const logRes = await fetch(logUrl, { headers, cache: 'no-store' });
@@ -299,7 +298,6 @@ export async function DELETE(request: Request) {
       console.warn("Aviso ao apagar logs associados:", logDeleteErr);
     }
 
-    // 2. Apagar a oportunidade principal em Mercado_Oportunidades
     const deleteUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Mercado_Oportunidades/${recordId}`;
     const res = await fetch(deleteUrl, { method: 'DELETE', headers });
 

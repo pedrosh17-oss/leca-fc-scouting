@@ -2,8 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { 
-  Briefcase, Plus, Sliders, ShieldCheck, ShieldAlert, CheckCircle2, 
-  XCircle, AlertTriangle, Trophy, Search, Users, Archive, Layers, FileText 
+  Briefcase, Plus, Sliders, Search, Layers, Archive, FileText, Filter 
 } from 'lucide-react';
 import { Player, Role } from '../../types';
 
@@ -41,10 +40,11 @@ export default function MarketTab({
   setDecisionFormData,
   setSelectedPlayer,
   setProfileTab,
-  userRole = 'SCOUT',
   isDarkMode,
 }: MarketTabProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [positionFilter, setPositionFilter] = useState('');
+  const [nationalityFilter, setNationalityFilter] = useState('');
   const [viewMode, setViewMode] = useState<'kanban' | 'grid'>('kanban');
   const [pipelineScope, setPipelineScope] = useState<'active' | 'archive' | 'all'>('active');
 
@@ -52,25 +52,43 @@ export default function MarketTab({
   const themeInnerCard = isDarkMode ? 'bg-[#0d131f] border-slate-800/80' : 'bg-slate-50 border-slate-200';
   const themeTextMuted = isDarkMode ? 'text-slate-400' : 'text-slate-500';
 
-  const isManagement = userRole === 'ADMIN' || userRole === 'DIRECTOR' || userRole === 'EXECUTIVE';
-
   const columnsToRender = useMemo(() => {
     if (pipelineScope === 'active') return ACTIVE_COLUMNS;
     if (pipelineScope === 'archive') return ARCHIVE_COLUMNS;
     return [...ACTIVE_COLUMNS, ...ARCHIVE_COLUMNS];
   }, [pipelineScope]);
 
+  const uniquePositions = useMemo(() => {
+    const set = new Set<string>();
+    players.forEach(p => { if (p.position) set.add(p.position); });
+    marketOpportunities.forEach(opp => { if (opp.fields?.['Posição']) set.add(opp.fields['Posição']); });
+    return Array.from(set).sort();
+  }, [players, marketOpportunities]);
+
+  const uniqueNationalities = useMemo(() => {
+    const set = new Set<string>();
+    players.forEach(p => { if (p.nationality) set.add(p.nationality); });
+    return Array.from(set).sort();
+  }, [players]);
+
   const filteredOpps = useMemo(() => {
     return marketOpportunities.filter(opp => {
       const f = opp.fields || {};
       const linkedPlayers = f.Jogador || [];
       const playerRecord = players.find(p => linkedPlayers.includes(p.id));
+      
       const name = playerRecord ? playerRecord.name : (f['Nome do Jogador'] || '');
       const club = playerRecord ? playerRecord.club : (f['Clube'] || '');
+      const position = playerRecord ? playerRecord.position : (f['Posição'] || '');
+      const nationality = playerRecord?.nationality || '';
 
-      return name.toLowerCase().includes(searchTerm.toLowerCase()) || club.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) || club.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesPosition = positionFilter ? position === positionFilter : true;
+      const matchesNationality = nationalityFilter ? nationality === nationalityFilter : true;
+
+      return matchesSearch && matchesPosition && matchesNationality;
     });
-  }, [marketOpportunities, players, searchTerm]);
+  }, [marketOpportunities, players, searchTerm, positionFilter, nationalityFilter]);
 
   const openDecisionWithStatus = (opp: any, targetStatus: string) => {
     const f = opp.fields || {};
@@ -153,15 +171,45 @@ export default function MarketTab({
           </div>
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-4 top-3 text-slate-400 w-4 h-4" />
-          <input
-            type="text"
-            placeholder="Pesquisar por atleta ou clube em mercado..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className={`w-full border rounded-xl py-2.5 pl-11 pr-4 text-xs focus:outline-none focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-white border-slate-800'}`}
-          />
+        {/* BARRA DE PESQUISA E FILTROS DE PIPELINE */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="relative md:col-span-2">
+            <Search className="absolute left-4 top-3 text-slate-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Pesquisar por atleta ou clube em mercado..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={`w-full border rounded-xl py-2.5 pl-11 pr-4 text-xs focus:outline-none focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-white border-slate-800'}`}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            <select
+              value={positionFilter}
+              onChange={(e) => setPositionFilter(e.target.value)}
+              className={`w-full border rounded-xl py-2.5 px-3 text-xs font-semibold focus:outline-none focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-white border-slate-300'}`}
+            >
+              <option value="">Todas as Posições</option>
+              {uniquePositions.map(pos => (
+                <option key={pos} value={pos}>{pos}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <select
+              value={nationalityFilter}
+              onChange={(e) => setNationalityFilter(e.target.value)}
+              className={`w-full border rounded-xl py-2.5 px-3 text-xs font-semibold focus:outline-none focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-white border-slate-300'}`}
+            >
+              <option value="">Todas as Nacionalidades</option>
+              {uniqueNationalities.map(nat => (
+                <option key={nat} value={nat}>{nat}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -200,7 +248,8 @@ export default function MarketTab({
                               {playerRecord ? playerRecord.name : (f['Nome do Jogador'] || 'Atleta sem nome')}
                             </h4>
                             <p className={`text-[11px] ${themeTextMuted} mt-0.5`}>
-                              <span className="text-pink-400 font-semibold">{playerRecord?.position || f['Posição'] || 'N/D'}</span> • {playerRecord?.club || f['Clube'] || 'Clube N/D'}
+                              <span className="text-pink-400 font-semibold">{playerRecord?.position || f['Posição'] || 'N/D'}</span>
+                              {playerRecord?.nationality ? ` • ${playerRecord.nationality}` : ''} • {playerRecord?.club || f['Clube'] || 'Clube N/D'}
                             </p>
                           </div>
                         </div>
@@ -260,7 +309,7 @@ export default function MarketTab({
         </div>
       )}
 
-      {/* VISTA MODO LISTA ENRIQUECIDA */}
+      {/* VISTA MODO LISTA */}
       {viewMode === 'grid' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredOpps.map((opp) => {
@@ -285,7 +334,8 @@ export default function MarketTab({
                         {playerRecord ? playerRecord.name : (f['Nome do Jogador'] || 'Atleta sem nome')}
                       </h3>
                       <p className={`text-xs ${themeTextMuted} mt-0.5`}>
-                        <span className="text-pink-400 font-semibold">{playerRecord?.position || f['Posição'] || 'N/D'}</span> • {playerRecord?.club || f['Clube'] || 'Clube N/D'}
+                        <span className="text-pink-400 font-semibold">{playerRecord?.position || f['Posição'] || 'N/D'}</span>
+                        {playerRecord?.nationality ? ` • ${playerRecord.nationality}` : ''} • {playerRecord?.club || f['Clube'] || 'Clube N/D'}
                       </p>
                     </div>
                   </div>

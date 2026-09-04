@@ -46,6 +46,7 @@ export default function MarketDecisionModal({
   marketLogs = [],
 }: MarketDecisionModalProps) {
   const [showManualOverride, setShowManualOverride] = useState(false);
+  const [isLogsOpen, setIsLogsOpen] = useState(false);
 
   useEffect(() => {
     if (selectedMarketOppToEdit && selectedMarketOppToEdit.fields) {
@@ -54,6 +55,10 @@ export default function MarketDecisionModal({
         status: prev?.status || selectedMarketOppToEdit.fields['Status Negociação'] || 'Em Avaliação',
         strengths: prev?.strengths || selectedMarketOppToEdit.fields['Pontos Fortes'] || '',
         weaknesses: prev?.weaknesses || selectedMarketOppToEdit.fields['Pontos Fracos'] || '',
+        presidentOpinion: prev?.presidentOpinion || selectedMarketOppToEdit.fields['Opinião do Presidente'] || '',
+        notesDD: prev?.notesDD || selectedMarketOppToEdit.fields['Notas Diretor Desportivo'] || '',
+        vetoReason: prev?.vetoReason || selectedMarketOppToEdit.fields['Motivo do Veto'] || '',
+        vetoDate: prev?.vetoDate || selectedMarketOppToEdit.fields['Data do Veto'] || new Date().toISOString().split('T')[0],
       }));
     }
   }, [selectedMarketOppToEdit, setDecisionFormData]);
@@ -68,10 +73,7 @@ export default function MarketDecisionModal({
   const statusCfg = STATUS_CONFIG[currentStatus] || STATUS_CONFIG['Em Avaliação'];
 
   const isScoutPhase = currentStatus === 'Em Avaliação' || currentStatus.includes('Scouting');
-  
-  // CORREÇÃO: A Direção precisa de ver/escrever as notas a partir do momento em que o Scouting Aprova!
   const isDirectionPhase = currentStatus === 'Aprovado Scouting' || currentStatus.includes('Direção') || currentStatus === 'Em Negociação' || currentStatus === 'Fechado / Contratado';
-  
   const isNegotiationPhase = currentStatus.includes('Negociação') || currentStatus.includes('Contratado');
   const isTerminal = currentStatus.includes('Vetado') || currentStatus === 'Negociação Cancelada' || currentStatus === 'Fechado / Contratado';
 
@@ -191,7 +193,7 @@ export default function MarketDecisionModal({
             </div>
           </div>
 
-          {/* PARECER DA DIREÇÃO (Visível a partir de 'Aprovado Scouting') */}
+          {/* PARECER DA DIREÇÃO (Apenas editável quando em Aprovado Scouting) */}
           {isDirectionPhase && (
             <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl space-y-3">
               <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -201,9 +203,10 @@ export default function MarketDecisionModal({
                 <label className={`block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-xs font-bold mb-1`}>Opinião da Direção / Custo-Benefício</label>
                 <textarea
                   rows={2}
+                  disabled={currentStatus !== 'Aprovado Scouting' && !showManualOverride}
                   value={decisionFormData.presidentOpinion}
                   onChange={(e) => setDecisionFormData({ ...decisionFormData, presidentOpinion: e.target.value })}
-                  className={`w-full border rounded-xl p-2.5 text-xs resize-none ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`}
+                  className={`w-full border rounded-xl p-2.5 text-xs resize-none disabled:opacity-60 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`}
                   placeholder="Decisão financeira e enquadramento no teto salarial..."
                 />
               </div>
@@ -259,36 +262,45 @@ export default function MarketDecisionModal({
             </div>
           )}
 
-          {/* HISTÓRICO & AUDIT LOG */}
-          <div className="pt-4 border-t border-slate-800 space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-pink-400">
-              <History className="w-4 h-4" /> Histórico de Alterações (Audit Log)
-            </h4>
+          {/* HISTÓRICO & AUDIT LOG (ACCORDION RECOLHÍVEL) */}
+          <div className="pt-3 border-t border-slate-800 space-y-2">
+            <button
+              type="button"
+              onClick={() => setIsLogsOpen(!isLogsOpen)}
+              className="w-full flex items-center justify-between p-2.5 bg-[#0d131f] hover:bg-slate-800/60 rounded-xl border border-slate-800 transition text-xs font-bold text-slate-300"
+            >
+              <span className="flex items-center gap-2 text-pink-400">
+                <History className="w-4 h-4" /> Histórico de Alterações ({opportunityLogs.length})
+              </span>
+              {isLogsOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+            </button>
 
-            {opportunityLogs.length > 0 ? (
-              <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                {opportunityLogs.sort((a,b) => new Date(b.createdTime).getTime() - new Date(a.createdTime).getTime()).map((log) => {
-                  const lf = log.fields || {};
-                  return (
-                    <div key={log.id} className="p-3 bg-[#0d131f] border border-slate-800 rounded-xl text-xs space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="font-bold text-slate-200">{lf.Utilizador || 'Sistema'}</span>
-                        <span className="text-[10px] text-slate-500 flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> {lf.Data_Hora || '-'}
-                        </span>
+            {isLogsOpen && (
+              <div className="space-y-2 max-h-36 overflow-y-auto pr-1 pt-1 animate-in fade-in duration-200">
+                {opportunityLogs.length > 0 ? (
+                  opportunityLogs.sort((a,b) => new Date(b.createdTime).getTime() - new Date(a.createdTime).getTime()).map((log) => {
+                    const lf = log.fields || {};
+                    return (
+                      <div key={log.id} className="p-2.5 bg-[#0d131f] border border-slate-800/80 rounded-lg text-[11px] space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className="font-bold text-slate-200">{lf.Utilizador || 'Sistema'}</span>
+                          <span className="text-[9px] text-slate-500 flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> {lf.Data_Hora || '-'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400">
+                          Mudou de <span className="text-slate-300 font-semibold">{lf.Status_Anterior || 'Início'}</span> para <span className="text-pink-400 font-bold">{lf.Status_Novo || lf.Status}</span>
+                        </p>
+                        {lf.Notas && <p className="text-[9px] text-slate-400 italic bg-slate-900/60 p-1 rounded border border-slate-800/60">{lf.Notas}</p>}
                       </div>
-                      <p className="text-[11px] text-slate-400">
-                        Mudou de <span className="text-slate-300 font-semibold">{lf.Status_Anterior || 'Início'}</span> para <span className="text-pink-400 font-bold">{lf.Status_Novo || lf.Status}</span>
-                      </p>
-                      {lf.Notas && <p className="text-[10px] text-slate-400 italic bg-slate-900/60 p-1.5 rounded border border-slate-800">{lf.Notas}</p>}
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-slate-500 italic p-3 border border-dashed rounded-xl text-center">
+                    Ainda sem histórico registado na tabela `Logs_Mercado`.
+                  </p>
+                )}
               </div>
-            ) : (
-              <p className="text-xs text-slate-500 italic p-3 border border-dashed rounded-xl text-center">
-                Ainda sem histórico registado na tabela `Logs_Mercado`.
-              </p>
             )}
           </div>
 
