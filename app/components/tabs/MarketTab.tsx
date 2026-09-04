@@ -2,8 +2,9 @@
 
 import React, { useState, useMemo } from 'react';
 import { 
-  Briefcase, Plus, Sliders, Search, Layers, Archive, FileText, Filter 
+  Briefcase, Plus, Sliders, Search, Layers, Archive, FileText 
 } from 'lucide-react';
+import CustomSelect from '../ui/CustomSelect';
 import { Player, Role } from '../../types';
 
 interface MarketTabProps {
@@ -58,19 +59,45 @@ export default function MarketTab({
     return [...ACTIVE_COLUMNS, ...ARCHIVE_COLUMNS];
   }, [pipelineScope]);
 
-  const uniquePositions = useMemo(() => {
-    const set = new Set<string>();
-    players.forEach(p => { if (p.position) set.add(p.position); });
-    marketOpportunities.forEach(opp => { if (opp.fields?.['Posição']) set.add(opp.fields['Posição']); });
-    return Array.from(set).sort();
-  }, [players, marketOpportunities]);
+  // Extrair e limpar opções dinâmicas EXCLUSIVAMENTE dos atletas em oportunidade de mercado
+  const { positionOptions, nationalityOptions } = useMemo(() => {
+    const posSet = new Set<string>();
+    const natSet = new Set<string>();
 
-  const uniqueNationalities = useMemo(() => {
-    const set = new Set<string>();
-    players.forEach(p => { if (p.nationality) set.add(p.nationality); });
-    return Array.from(set).sort();
-  }, [players]);
+    marketOpportunities.forEach(opp => {
+      const f = opp.fields || {};
+      const linkedPlayers = f.Jogador || [];
+      const playerRecord = players.find(p => linkedPlayers.includes(p.id));
 
+      // Extração e divisão de posições compostas
+      const rawPos = playerRecord ? playerRecord.position : (f['Posição'] || '');
+      if (rawPos && rawPos !== 'N/D') {
+        const parts = rawPos.split(/[,/]/).map((s: string) => s.trim()).filter(Boolean);
+        parts.forEach((p: string) => posSet.add(p));
+      }
+
+      // Extração e deduplicação de nacionalidade
+      const rawNat = playerRecord ? playerRecord.nationality : (f['Nacionalidade'] || '');
+      if (rawNat && rawNat !== 'N/D') {
+        const cleanNat = rawNat.trim();
+        if (cleanNat) natSet.add(cleanNat);
+      }
+    });
+
+    const posOpts = [
+      { value: '', label: 'Todas as Posições' },
+      ...Array.from(posSet).sort().map(pos => ({ value: pos, label: pos }))
+    ];
+
+    const natOpts = [
+      { value: '', label: 'Todas as Nacionalidades' },
+      ...Array.from(natSet).sort().map(nat => ({ value: nat, label: nat }))
+    ];
+
+    return { positionOptions: posOpts, nationalityOptions: natOpts };
+  }, [marketOpportunities, players]);
+
+  // Filtragem combinada
   const filteredOpps = useMemo(() => {
     return marketOpportunities.filter(opp => {
       const f = opp.fields || {};
@@ -79,12 +106,23 @@ export default function MarketTab({
       
       const name = playerRecord ? playerRecord.name : (f['Nome do Jogador'] || '');
       const club = playerRecord ? playerRecord.club : (f['Clube'] || '');
-      const position = playerRecord ? playerRecord.position : (f['Posição'] || '');
-      const nationality = playerRecord?.nationality || '';
+      const rawPos = playerRecord ? playerRecord.position : (f['Posição'] || '');
+      const rawNat = playerRecord ? playerRecord.nationality : (f['Nacionalidade'] || '');
 
       const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) || club.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesPosition = positionFilter ? position === positionFilter : true;
-      const matchesNationality = nationalityFilter ? nationality === nationalityFilter : true;
+
+      // Filtro de Posição (suporta posições múltiplas separadas por vírgula)
+      let matchesPosition = true;
+      if (positionFilter) {
+        const playerPositions = (rawPos || '').split(/[,/]/).map((s: string) => s.trim().toLowerCase());
+        matchesPosition = playerPositions.includes(positionFilter.toLowerCase());
+      }
+
+      // Filtro de Nacionalidade
+      let matchesNationality = true;
+      if (nationalityFilter) {
+        matchesNationality = (rawNat || '').trim().toLowerCase() === nationalityFilter.toLowerCase();
+      }
 
       return matchesSearch && matchesPosition && matchesNationality;
     });
@@ -171,10 +209,10 @@ export default function MarketTab({
           </div>
         </div>
 
-        {/* BARRA DE PESQUISA E FILTROS DE PIPELINE */}
+        {/* BARRA DE PESQUISA E FILTROS CUSTOMIZADOS */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="relative md:col-span-2">
-            <Search className="absolute left-4 top-3 text-slate-400 w-4 h-4" />
+            <Search className="absolute left-4 top-3.5 text-slate-400 w-4 h-4 z-10" />
             <input
               type="text"
               placeholder="Pesquisar por atleta ou clube em mercado..."
@@ -184,31 +222,24 @@ export default function MarketTab({
             />
           </div>
 
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-slate-400 flex-shrink-0" />
-            <select
+          <div>
+            <CustomSelect
+              options={positionOptions}
               value={positionFilter}
-              onChange={(e) => setPositionFilter(e.target.value)}
-              className={`w-full border rounded-xl py-2.5 px-3 text-xs font-semibold focus:outline-none focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-white border-slate-300'}`}
-            >
-              <option value="">Todas as Posições</option>
-              {uniquePositions.map(pos => (
-                <option key={pos} value={pos}>{pos}</option>
-              ))}
-            </select>
+              onChange={(v) => setPositionFilter(v)}
+              placeholder="Todas as Posições"
+              isDarkMode={isDarkMode}
+            />
           </div>
 
           <div>
-            <select
+            <CustomSelect
+              options={nationalityOptions}
               value={nationalityFilter}
-              onChange={(e) => setNationalityFilter(e.target.value)}
-              className={`w-full border rounded-xl py-2.5 px-3 text-xs font-semibold focus:outline-none focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-white border-slate-300'}`}
-            >
-              <option value="">Todas as Nacionalidades</option>
-              {uniqueNationalities.map(nat => (
-                <option key={nat} value={nat}>{nat}</option>
-              ))}
-            </select>
+              onChange={(v) => setNationalityFilter(v)}
+              placeholder="Todas as Nacionalidades"
+              isDarkMode={isDarkMode}
+            />
           </div>
         </div>
       </div>
