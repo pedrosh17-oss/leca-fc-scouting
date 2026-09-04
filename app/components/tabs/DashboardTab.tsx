@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Users, Shield, Trophy, LayoutDashboard, Plus, Briefcase, FileText, CheckCircle, BarChart3, Search } from 'lucide-react';
+import { Users, Shield, Trophy, LayoutDashboard, Plus, Briefcase, FileText, CheckCircle, BarChart3, Search, ArrowRight } from 'lucide-react';
 import { Player, Team, Match, Scout } from '../../types';
 
 interface DashboardTabProps {
