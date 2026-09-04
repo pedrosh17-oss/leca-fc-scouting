@@ -1,7 +1,10 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Briefcase, Plus, Sliders, ShieldCheck, ShieldAlert, CheckCircle2, XCircle, AlertTriangle, Trophy, Search, Users } from 'lucide-react';
+import { 
+  Briefcase, Plus, Sliders, ShieldCheck, ShieldAlert, CheckCircle2, 
+  XCircle, AlertTriangle, Trophy, Search, Users, Archive, Layers 
+} from 'lucide-react';
 import { Player, Role } from '../../types';
 
 interface MarketTabProps {
@@ -16,11 +19,14 @@ interface MarketTabProps {
   isDarkMode: boolean;
 }
 
-const KANBAN_COLUMNS = [
+const ACTIVE_COLUMNS = [
   { id: 'Em Avaliação', title: '📥 Em Avaliação', color: 'border-blue-500/40 text-blue-400 bg-blue-500/10' },
   { id: 'Aprovado Scouting', title: '✅ Aprovado Scouting', color: 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10' },
   { id: 'Aprovado Direção', title: '💼 Aprovado Direção', color: 'border-purple-500/40 text-purple-400 bg-purple-500/10' },
   { id: 'Em Negociação', title: '🤝 Em Negociação', color: 'border-amber-500/40 text-amber-400 bg-amber-500/10' },
+];
+
+const ARCHIVE_COLUMNS = [
   { id: 'Fechado / Contratado', title: '🏆 Contratado', color: 'border-emerald-600 text-emerald-500 bg-emerald-600/20' },
   { id: 'Negociação Cancelada', title: '⚠️ Negócio Caiu', color: 'border-orange-500/40 text-orange-400 bg-orange-500/10' },
   { id: 'Vetado Scouting', title: '❌ Vetado Scouting', color: 'border-red-500/30 text-red-400 bg-red-500/5' },
@@ -33,19 +39,24 @@ export default function MarketTab({
   setIsMarketModalOpen,
   setSelectedMarketOppToEdit,
   setDecisionFormData,
-  setSelectedPlayer,
-  setProfileTab,
   userRole = 'SCOUT',
   isDarkMode,
 }: MarketTabProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'kanban' | 'grid'>('kanban');
+  const [pipelineScope, setPipelineScope] = useState<'active' | 'archive' | 'all'>('active');
 
   const themeCard = isDarkMode ? 'bg-[#151c2c] border-slate-800' : 'bg-white border-slate-200 shadow-sm';
   const themeInnerCard = isDarkMode ? 'bg-[#0d131f] border-slate-800/80' : 'bg-slate-50 border-slate-200';
   const themeTextMuted = isDarkMode ? 'text-slate-400' : 'text-slate-500';
 
   const isManagement = userRole === 'ADMIN' || userRole === 'DIRECTOR' || userRole === 'EXECUTIVE';
+
+  const columnsToRender = useMemo(() => {
+    if (pipelineScope === 'active') return ACTIVE_COLUMNS;
+    if (pipelineScope === 'archive') return ARCHIVE_COLUMNS;
+    return [...ACTIVE_COLUMNS, ...ARCHIVE_COLUMNS];
+  }, [pipelineScope]);
 
   const filteredOpps = useMemo(() => {
     return marketOpportunities.filter(opp => {
@@ -73,28 +84,49 @@ export default function MarketTab({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
+      {/* CABEÇALHO */}
       <div className={`${themeCard} p-5 md:p-6 rounded-2xl border border-pink-500/30 shadow-xl space-y-4`}>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-700/40 pb-4">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 border-b border-slate-700/40 pb-4">
           <div>
             <h2 className="text-base md:text-lg font-bold uppercase tracking-wider flex items-center gap-2">
               <Briefcase className="w-5 h-5 text-pink-500" /> Pipeline de Oportunidades & Mercado
             </h2>
-            <p className={`text-xs ${themeTextMuted} mt-0.5`}>
-              Fluxo de aprovação: Scouting $\rightarrow$ Direção $\rightarrow$ Negociação $\rightarrow$ Assinatura
-            </p>
           </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+            {/* FILTRO ATIVOS / ARQUIVO */}
+            <div className={`flex p-1 rounded-xl border ${isDarkMode ? 'bg-[#0d131f] border-slate-800' : 'bg-slate-100 border-slate-300'}`}>
+              <button
+                onClick={() => setPipelineScope('active')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${pipelineScope === 'active' ? 'bg-pink-600 text-white shadow' : 'text-slate-400'}`}
+              >
+                <Layers className="w-3.5 h-3.5" /> Ativos
+              </button>
+              <button
+                onClick={() => setPipelineScope('archive')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${pipelineScope === 'archive' ? 'bg-pink-600 text-white shadow' : 'text-slate-400'}`}
+              >
+                <Archive className="w-3.5 h-3.5" /> Arquivo
+              </button>
+              <button
+                onClick={() => setPipelineScope('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${pipelineScope === 'all' ? 'bg-pink-600 text-white shadow' : 'text-slate-400'}`}
+              >
+                Todos
+              </button>
+            </div>
+
+            {/* SELETOR KANBAN / LISTA */}
             <div className={`flex p-1 rounded-xl border ${isDarkMode ? 'bg-[#0d131f] border-slate-800' : 'bg-slate-100 border-slate-300'}`}>
               <button
                 onClick={() => setViewMode('kanban')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${viewMode === 'kanban' ? 'bg-pink-600 text-white shadow' : 'text-slate-400'}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${viewMode === 'kanban' ? 'bg-slate-800 text-pink-400 border border-pink-500/30 shadow' : 'text-slate-400'}`}
               >
                 Kanban
               </button>
               <button
                 onClick={() => setViewMode('grid')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${viewMode === 'grid' ? 'bg-pink-600 text-white shadow' : 'text-slate-400'}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${viewMode === 'grid' ? 'bg-slate-800 text-pink-400 border border-pink-500/30 shadow' : 'text-slate-400'}`}
               >
                 Lista
               </button>
@@ -116,14 +148,15 @@ export default function MarketTab({
             placeholder="Pesquisar por atleta ou clube em mercado..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className={`w-full border rounded-xl py-2.5 pl-11 pr-4 text-xs focus:outline-none focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-white border-slate-300 text-slate-800'}`}
+            className={`w-full border rounded-xl py-2.5 pl-11 pr-4 text-xs focus:outline-none focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-white border-slate-800'}`}
           />
         </div>
       </div>
 
+      {/* VISTA KANBAN */}
       {viewMode === 'kanban' && (
-        <div className="flex gap-4 overflow-x-auto pb-6 pt-2 no-scrollbar min-h-[600px]">
-          {KANBAN_COLUMNS.map((col) => {
+        <div className="flex gap-4 overflow-x-auto pb-6 pt-2 no-scrollbar min-h-[550px]">
+          {columnsToRender.map((col) => {
             const columnOpps = filteredOpps.filter((opp) => {
               const st = opp.fields?.['Status Negociação'] || 'Em Avaliação';
               return st === col.id;
@@ -258,6 +291,7 @@ export default function MarketTab({
         </div>
       )}
 
+      {/* VISTA MODO LISTA ENRIQUECIDA */}
       {viewMode === 'grid' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredOpps.map((opp) => {
@@ -267,18 +301,46 @@ export default function MarketTab({
             const status = f['Status Negociação'] || 'Em Avaliação';
 
             return (
-              <div key={opp.id} className={`${themeInnerCard} p-5 rounded-2xl border space-y-3`}>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-bold text-base">{playerRecord ? playerRecord.name : (f['Nome do Jogador'] || 'Atleta')}</h3>
-                    <p className={`text-xs ${themeTextMuted}`}>{playerRecord?.position || f['Posição']} • {playerRecord?.club || f['Clube']}</p>
+              <div key={opp.id} className={`${themeCard} p-5 rounded-2xl border flex flex-col justify-between space-y-4 shadow-md`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    {playerRecord?.photo ? (
+                      <img src={playerRecord.photo} alt={playerRecord.name} className="w-12 h-12 rounded-full object-cover border border-slate-700" />
+                    ) : (
+                      <div className={`w-12 h-12 rounded-full ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} border flex items-center justify-center font-bold text-sm`}>
+                        {(playerRecord?.name || f['Nome do Jogador'] || 'J').charAt(0)}
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="font-bold text-base text-white">
+                        {playerRecord ? playerRecord.name : (f['Nome do Jogador'] || 'Atleta sem nome')}
+                      </h3>
+                      <p className={`text-xs ${themeTextMuted} mt-0.5`}>
+                        <span className="text-pink-400 font-semibold">{playerRecord?.position || f['Posição'] || 'N/D'}</span> • {playerRecord?.club || f['Clube'] || 'Clube N/D'}
+                      </p>
+                    </div>
                   </div>
-                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg border bg-pink-500/20 text-pink-400 border-pink-500/30">
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg border bg-pink-500/20 text-pink-400 border-pink-500/30 uppercase">
                     {status}
                   </span>
                 </div>
-                <button onClick={() => openDecisionWithStatus(opp, status)} className="w-full py-2 bg-slate-800 text-pink-400 font-bold rounded-xl text-xs flex items-center justify-center gap-1">
-                  <Sliders className="w-3.5 h-3.5" /> Gerir Decisão
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className={`${themeInnerCard} p-2.5 rounded-xl border`}>
+                    <span className={`block text-[9px] ${themeTextMuted} uppercase font-bold`}>Target</span>
+                    <span className="font-semibold text-slate-200">{f['Mercado Target'] || 'N/D'}</span>
+                  </div>
+                  <div className={`${themeInnerCard} p-2.5 rounded-xl border`}>
+                    <span className={`block text-[9px] ${themeTextMuted} uppercase font-bold`}>Viabilidade</span>
+                    <span className="font-semibold text-emerald-400">{f['Viabilidade Financeira'] || 'N/D'}</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => openDecisionWithStatus(opp, status)}
+                  className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-pink-400 border border-pink-500/30 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition"
+                >
+                  <Sliders className="w-3.5 h-3.5" /> Gerir Decisão / Histórico
                 </button>
               </div>
             );
