@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Users, Trophy, Shield, ArrowRight, Loader2, LogOut, CheckCircle2, Menu, X, 
-  LayoutDashboard, BarChart3, Briefcase, Building2, Sliders, Sun, Moon 
+  LayoutDashboard, BarChart3, Briefcase, Building2, Sliders, Sun, Moon, UserPlus
 } from 'lucide-react';
 
 import { DEPT_PASSWORD } from './constants/options';
@@ -19,6 +19,9 @@ import MarketDecisionModal from './components/modals/MarketDecisionModal';
 import PlayerProfileModal from './components/modals/PlayerProfileModal';
 import TeamProfileModal from './components/modals/TeamProfileModal';
 import ScoutProfileModal from './components/modals/ScoutProfileModal';
+import NewTeamModal from './components/modals/NewTeamModal';
+import NewMatchModal from './components/modals/NewMatchModal';
+import NewPlayerModal from './components/modals/NewPlayerModal';
 
 import DashboardTab from './components/tabs/DashboardTab';
 import MarketTab from './components/tabs/MarketTab';
@@ -44,7 +47,7 @@ export default function Home() {
 
   const { uploadingExcel, handleFileUpload } = useExcelUploader(setAlgorithmData, showToast, extractPlayerBaseName, extractContextTag);
 
-  // Estados da UI
+  // Estados de Navegação e UI
   const [activeTab, setActiveTab] = useState<'dashboard'|'players'|'teams'|'matches'|'scouts'|'admin'|'stats'|'market'>('dashboard');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
@@ -78,23 +81,47 @@ export default function Home() {
     }
   }, []);
 
-  // Estados de Formulários e Modais
+  // Estados de Formulários e Modais de Criação
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
-  const [preGameData, setPreGameData] = useState({ homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutIds: [] as string[], type: '' });
+  const [submittingPre, setSubmittingPre] = useState(false);
+  const [preGameData, setPreGameData] = useState({ 
+    homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutIds: [] as string[], type: '' 
+  });
 
-  const [reportData, setReportData] = useState({ homeTactic: '', awayTactic: '', tempo: '', intensity: '', technical: '', pressure: '', notes: '', scoutIds: [] as string[] });
+  const [reportData, setReportData] = useState({ 
+    homeTactic: '', awayTactic: '', tempo: '', intensity: '', technical: '', pressure: '', notes: '', scoutIds: [] as string[] 
+  });
   const [submittingReport, setSubmittingReport] = useState(false);
 
   const [isNewTeamOpen, setIsNewTeamOpen] = useState(false);
+  const [newTeamData, setNewTeamData] = useState({ name: '', competitionId: '' });
+  const [creatingTeam, setCreatingTeam] = useState(false);
+
+  const [isNewPlayerOpen, setIsNewPlayerOpen] = useState(false);
+  const [newPlayerData, setNewPlayerData] = useState({ name: '', clubId: '', position: '' });
+  const [creatingPlayer, setCreatingPlayer] = useState(false);
+  const [availableMatchTeams, setAvailableMatchTeams] = useState<Array<{ id: string; name: string; logo?: string | null }>>([]);
+
+  const [isAddHighlightOpen, setIsAddHighlightOpen] = useState<{ matchId: string; matchName: string } | null>(null);
+  const [newHighlightData, setNewHighlightData] = useState({ playerId: '', notes: '' });
+
+  const [editingHighlight, setEditingHighlight] = useState<{ matchId: string; matchName: string; player: any; highlightId: string | null; notes: string; } | null>(null);
+  const [savingHighlight, setSavingHighlight] = useState(false);
+
+  // Estados do Mercado
   const [adminMarkets, setAdminMarkets] = useState<string[]>([]);
   const [newMarketInput, setNewMarketInput] = useState('');
   
   const [isMarketModalOpen, setIsMarketModalOpen] = useState(false);
   const [submittingMarket, setSubmittingMarket] = useState(false);
-  const initialMarketForm: MarketFormData = { playerId: '', name: '', club: '', position: '', foot: '', birthDate: '', offerDate: new Date().toISOString().split('T')[0], marketTarget: '', scout: '', viability: '', confLiga3: '', confLiga2: '', contract: '', utilization: '', strengths: '', weaknesses: '', reason: '', similarity: '', mental: '' };
+  const initialMarketForm: MarketFormData = { 
+    playerId: '', name: '', club: '', position: '', foot: '', birthDate: '', offerDate: new Date().toISOString().split('T')[0], marketTarget: '', scout: '', viability: '', confLiga3: '', confLiga2: '', contract: '', utilization: '', strengths: '', weaknesses: '', reason: '', similarity: '', mental: '' 
+  };
   const [marketFormData, setMarketFormData] = useState<MarketFormData>(initialMarketForm);
   const [selectedMarketOppToEdit, setSelectedMarketOppToEdit] = useState<any>(null);
-  const [decisionFormData, setDecisionFormData] = useState<DecisionFormData>({ status: 'Em Avaliação', vetoReason: '', vetoDate: new Date().toISOString().split('T')[0], presidentOpinion: '', notesDD: '' });
+  const [decisionFormData, setDecisionFormData] = useState<DecisionFormData>({ 
+    status: 'Em Avaliação', vetoReason: '', vetoDate: new Date().toISOString().split('T')[0], presidentOpinion: '', notesDD: '' 
+  });
   const [updatingDecision, setUpdatingDecision] = useState(false);
 
   // Destaques e Observações Recentes
@@ -186,6 +213,94 @@ export default function Home() {
     localStorage.removeItem('leca_scout_auth');
   };
 
+  // Submissão de Jogos
+  const handlePreGameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingPre(true);
+    try {
+      const res = await fetch('/api/matches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(preGameData),
+      });
+      if (res.ok) {
+        setIsRegisterOpen(false);
+        setPreGameData({ homeTeamId: '', awayTeamId: '', gameDate: new Date().toISOString().split('T')[0], competitionId: '', scoutIds: authScoutId ? [authScoutId] : [], type: '' });
+        await loadData();
+        showToast("Jogo agendado com sucesso!");
+      } else {
+        showToast("Erro ao agendar jogo.");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Erro de ligação.");
+    } finally {
+      setSubmittingPre(false);
+    }
+  };
+
+  // Submissão de Equipas
+  const handleCreateNewTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatingTeam(true);
+    try {
+      const res = await fetch('/api/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newTeamData),
+      });
+      if (res.ok) {
+        await loadData();
+        setIsNewTeamOpen(false);
+        setNewTeamData({ name: '', competitionId: '' });
+        showToast(`Equipa "${newTeamData.name}" criada com sucesso!`);
+      } else {
+        showToast("Erro ao criar equipa.");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Erro de ligação.");
+    } finally {
+      setCreatingTeam(false);
+    }
+  };
+
+  const openNewPlayerModalForMatch = (matchName: string) => {
+    const matchTeams = teams.filter((t) => (matchName || '').toLowerCase().includes((t.name || '').toLowerCase()));
+    setAvailableMatchTeams(matchTeams.length > 0 ? matchTeams : teams);
+    setNewPlayerData({ name: '', clubId: matchTeams[0]?.id || '', position: '' });
+    setIsNewPlayerOpen(true);
+  };
+
+  // Submissão de Novo Atleta
+  const handleCreateNewPlayer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatingPlayer(true);
+    try {
+      const res = await fetch('/api/players', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPlayerData),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await loadData();
+        if (editingHighlight) setEditingHighlight({ ...editingHighlight, player: { id: data.player.id, name: data.player.name } });
+        else if (isAddHighlightOpen) setNewHighlightData({ ...newHighlightData, playerId: data.player.id });
+        setIsNewPlayerOpen(false);
+        setNewPlayerData({ name: '', clubId: '', position: '' });
+        showToast(`Atleta "${data.player.name}" criado!`);
+      } else {
+        showToast("Erro ao criar atleta.");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Erro de ligação.");
+    } finally {
+      setCreatingPlayer(false);
+    }
+  };
+
   const startEditMatchContext = (match: any) => {
     const scoutNames = match.scout ? match.scout.split(',').map((s: string) => s.trim()) : [];
     const matchedScoutIds = scouts.filter(s => scoutNames.includes(s.name)).map(s => s.id);
@@ -216,13 +331,61 @@ export default function Home() {
         await loadData();
         showToast("Dados do jogo atualizados!");
       } else {
-        showToast("Erro ao atualizar dados do jogo.");
+        showToast("Erro ao atualizar o jogo.");
       }
     } catch (err) {
       console.error(err);
       showToast("Erro de ligação.");
     } finally {
       setSubmittingReport(false);
+    }
+  };
+
+  const handleAddHighlightSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); 
+    if (!isAddHighlightOpen) return;
+    try {
+      const res = await fetch('/api/highlights', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ matchId: isAddHighlightOpen.matchId, playerId: newHighlightData.playerId, notes: newHighlightData.notes }) 
+      });
+      if (res.ok) { 
+        setIsAddHighlightOpen(null); 
+        setNewHighlightData({ playerId: '', notes: '' }); 
+        await loadData(); 
+        showToast("Nova avaliação adicionada!"); 
+      } else {
+        showToast("Erro ao adicionar avaliação.");
+      }
+    } catch (err) { 
+      console.error(err); 
+      showToast("Erro de ligação.");
+    }
+  };
+
+  const handleSaveSingleHighlight = async (e: React.FormEvent) => {
+    e.preventDefault(); 
+    if (!editingHighlight) return; 
+    setSavingHighlight(true);
+    try {
+      const res = await fetch('/api/highlights', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ matchId: editingHighlight.matchId, playerId: editingHighlight.player.id !== editingHighlight.player.name ? editingHighlight.player.id : null, highlightId: editingHighlight.highlightId, notes: editingHighlight.notes }) 
+      });
+      if (res.ok) { 
+        setEditingHighlight(null); 
+        await loadData(); 
+        showToast("Avaliação atualizada!"); 
+      } else {
+        showToast("Erro ao atualizar observação.");
+      }
+    } catch (err) { 
+      console.error(err); 
+      showToast("Erro de ligação.");
+    } finally { 
+      setSavingHighlight(false); 
     }
   };
 
@@ -444,7 +607,7 @@ export default function Home() {
         {activeTab === 'teams' && <TeamsTab filteredTeams={teams} players={players} matches={matches} setSelectedTeam={setSelectedTeam} canCreateMatches={true} setIsNewTeamOpen={setIsNewTeamOpen} isDarkMode={isDarkMode} />}
         
         {activeTab === 'stats' && <StatsTab comparePlayerKeyA={comparePlayerKeyA} setComparePlayerKeyA={setComparePlayerKeyA} comparePlayerKeyB={comparePlayerKeyB} setComparePlayerKeyB={setComparePlayerKeyB} comparePlayerKeyC={comparePlayerKeyC} setComparePlayerKeyC={setComparePlayerKeyC} algoOptions={algoOptions} algorithmData={algorithmData} extractContextTag={extractContextTag} isDarkMode={isDarkMode} />}
-        {activeTab === 'matches' && <MatchesTab matches={matches} players={players} displayScouts={scouts} canCreateMatches={true} canEditMatches={true} expandedMatchId={expandedMatchId} toggleMatch={id => setExpandedMatchId(expandedMatchId === id ? null : id)} editingMatchId={editingMatchId} startEditMatchContext={startEditMatchContext} setExpandedMatchEdit={setExpandedMatchEdit} reportData={reportData} setReportData={setReportData} handleReportSubmit={handleReportSubmit} submittingReport={submittingReport} setIsAddHighlightOpen={()=>{}} setNewHighlightData={()=>{}} setEditingHighlight={()=>{}} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} setSelectedSeasonIdx={setSelectedSeasonIdx} navigateToMatch={navigateToMatch} setPreGameData={setPreGameData} preGameData={preGameData} authScoutId={authScoutId} setIsRegisterOpen={setIsRegisterOpen} isDarkMode={isDarkMode} />}
+        {activeTab === 'matches' && <MatchesTab matches={matches} players={players} displayScouts={scouts} canCreateMatches={true} canEditMatches={true} expandedMatchId={expandedMatchId} toggleMatch={id => setExpandedMatchId(expandedMatchId === id ? null : id)} editingMatchId={editingMatchId} startEditMatchContext={startEditMatchContext} setExpandedMatchEdit={setExpandedMatchEdit} reportData={reportData} setReportData={setReportData} handleReportSubmit={handleReportSubmit} submittingReport={submittingReport} setIsAddHighlightOpen={setIsAddHighlightOpen} setNewHighlightData={setNewHighlightData} setEditingHighlight={setEditingHighlight} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} setSelectedSeasonIdx={setSelectedSeasonIdx} navigateToMatch={navigateToMatch} setPreGameData={setPreGameData} preGameData={preGameData} authScoutId={authScoutId} setIsRegisterOpen={setIsRegisterOpen} isDarkMode={isDarkMode} />}
         {activeTab === 'scouts' && <ScoutsTab displayScouts={scouts} scoutMarketAssignments={scoutMarketAssignments} setSelectedScout={setSelectedScout} getUserTitle={getUserTitle} getScoutMatches={getScoutMatches} matches={matches} isDarkMode={isDarkMode} />}
         {activeTab === 'admin' && <AdminTab isAdmin={userRole === 'ADMIN'} uniqueAlgoPlayersCount={0} uploadingExcel={uploadingExcel} handleFileUpload={handleFileUpload} handleAddMarket={()=>{}} newMarketInput={newMarketInput} setNewMarketInput={setNewMarketInput} adminMarkets={adminMarkets} handleRemoveMarket={()=>{}} scouts={scouts} isDarkMode={isDarkMode} />}
       </div>
@@ -470,6 +633,131 @@ export default function Home() {
       <TeamProfileModal selectedTeam={selectedTeam} onClose={() => setSelectedTeam(null)} players={players} matches={matches} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} navigateToMatch={navigateToMatch} isDarkMode={isDarkMode} />
 
       <ScoutProfileModal selectedScout={selectedScout} onClose={() => setSelectedScout(null)} getScoutMatches={getScoutMatches} scoutMarketAssignments={scoutMarketAssignments} getUserTitle={getUserTitle} isAdmin={userRole === 'ADMIN'} getScoutMarketOptions={getScoutMarketOptions} handleSaveScoutMarkets={handleSaveScoutMarkets} navigateToMatch={navigateToMatch} isDarkMode={isDarkMode} />
+
+      <NewTeamModal 
+        isOpen={isNewTeamOpen} 
+        onClose={() => setIsNewTeamOpen(false)} 
+        newTeamData={newTeamData} 
+        setNewTeamData={setNewTeamData} 
+        onSubmit={handleCreateNewTeam} 
+        creatingTeam={creatingTeam} 
+        competitions={competitions} 
+        isDarkMode={isDarkMode} 
+      />
+
+      <NewMatchModal 
+        isOpen={isRegisterOpen} 
+        onClose={() => setIsRegisterOpen(false)} 
+        preGameData={preGameData} 
+        setPreGameData={setPreGameData} 
+        onSubmit={handlePreGameSubmit} 
+        submittingPre={submittingPre} 
+        teams={teams} 
+        competitions={competitions} 
+        displayScouts={scouts} 
+        isDarkMode={isDarkMode} 
+      />
+
+      <NewPlayerModal 
+        isOpen={isNewPlayerOpen} 
+        onClose={() => setIsNewPlayerOpen(false)} 
+        newPlayerData={newPlayerData} 
+        setNewPlayerData={setNewPlayerData} 
+        onSubmit={handleCreateNewPlayer} 
+        creatingPlayer={creatingPlayer} 
+        teams={teams} 
+        availableMatchTeams={availableMatchTeams} 
+        isDarkMode={isDarkMode} 
+      />
+
+      {/* MODAL ADICIONAR HIGHLIGHT */}
+      {isAddHighlightOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className={`${theme.card} border w-full max-w-lg rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200`}>
+            <div className={`flex justify-between items-center border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-3`}>
+              <div>
+                <h3 className="font-bold text-base md:text-sm">Adicionar Atleta ao Jogo</h3>
+                <p className={`text-[10px] md:text-xs ${theme.textMuted} mt-0.5 truncate max-w-[250px]`}>{isAddHighlightOpen.matchName}</p>
+              </div>
+              <button onClick={() => setIsAddHighlightOpen(null)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} text-slate-400 hover:text-white rounded-full`}><X className="w-4 h-4" /></button>
+            </div>
+
+            <form onSubmit={handleAddHighlightSubmit} className="space-y-4 text-sm md:text-xs">
+              <div>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className={`${theme.textMuted} font-bold`}>Procurar na Base de Dados</label>
+                  <button type="button" onClick={() => openNewPlayerModalForMatch(isAddHighlightOpen.matchName)} className="text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/20 flex items-center gap-1 font-bold text-[10px] md:text-xs">
+                    <UserPlus className="w-3 h-3" /> Novo Atleta
+                  </button>
+                </div>
+                <CustomSelect
+                  options={players.map(p => ({ value: p.id, label: `${p.name} (${p.position})`, image: p.photo }))}
+                  value={newHighlightData.playerId} onChange={val => setNewHighlightData({ ...newHighlightData, playerId: val })}
+                  placeholder="Pesquisar atleta..." searchable={true} isDarkMode={isDarkMode}
+                />
+              </div>
+
+              <div>
+                <label className={`block ${theme.textMuted} font-bold mb-1.5`}>Avaliação</label>
+                <textarea 
+                  rows={4} required placeholder="Análise individual do atleta..."
+                  value={newHighlightData.notes} onChange={e => setNewHighlightData({ ...newHighlightData, notes: e.target.value })}
+                  className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-blue-500 font-sans resize-none shadow-inner ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'}`}
+                />
+              </div>
+
+              <div className={`flex gap-3 pt-4 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} mt-4`}>
+                <button type="button" onClick={() => setIsAddHighlightOpen(null)} className={`flex-1 px-4 py-2.5 ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} font-bold rounded-xl`}>Cancelar</button>
+                <button type="submit" className="flex-1 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl">Adicionar Destaque</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL EDITAR HIGHLIGHT INDIVIDUAL */}
+      {editingHighlight && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className={`${theme.card} border w-full max-w-lg rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200`}>
+            <div className={`flex justify-between items-start border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-4`}>
+              <div className="flex items-center gap-3 min-w-0">
+                {editingHighlight.player.photo ? (
+                  <img src={editingHighlight.player.photo} alt={editingHighlight.player.name} className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover border border-slate-700 flex-shrink-0" />
+                ) : (
+                  <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold text-sm md:text-base flex-shrink-0`}>
+                    {(editingHighlight.player.name || 'J').charAt(0)}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <h3 className="font-bold text-sm md:text-base truncate">Editar: {editingHighlight.player.name}</h3>
+                  <p className={`text-[10px] md:text-xs ${theme.textMuted} mt-0.5 truncate`}>{editingHighlight.matchName}</p>
+                </div>
+              </div>
+              <button onClick={() => setEditingHighlight(null)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-full text-slate-400 hover:text-white transition flex-shrink-0`}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSingleHighlight} className="space-y-4 text-xs md:text-sm">
+              <div>
+                <label className={`block ${theme.textMuted} font-bold mb-2`}>Avaliação Individual</label>
+                <textarea 
+                  rows={6} required placeholder="Escreve a tua avaliação técnica/tática..."
+                  value={editingHighlight.notes} onChange={e => setEditingHighlight({ ...editingHighlight, notes: e.target.value })}
+                  className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-blue-500 font-sans leading-relaxed resize-none shadow-inner ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'}`}
+                />
+              </div>
+
+              <div className={`flex justify-end gap-3 pt-2 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} mt-4`}>
+                <button type="button" onClick={() => setEditingHighlight(null)} className={`flex-1 md:flex-none px-4 py-2.5 ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} font-bold rounded-xl`}>Cancelar</button>
+                <button type="submit" disabled={savingHighlight} className="flex-1 md:flex-none px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
+                  {savingHighlight ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar Observação'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </main>
   );
