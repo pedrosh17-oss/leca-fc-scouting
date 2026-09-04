@@ -53,37 +53,18 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
-      playerId,
-      name,
-      club,
-      position,
-      foot,
-      birthDate,
-      offerDate,
-      marketTarget,
-      scout,
-      status,
-      viability,
-      confLiga3,
-      confLiga2,
-      contract,
-      utilization,
-      strengths,
-      weaknesses,
-      reason,
-      similarity,
-      mental,
-      vetoReason,
-      vetoDate,
-      presidentOpinion,
-      notesDD
+      playerId, name, club, position, foot, birthDate, offerDate, 
+      marketTarget, scout, status, viability, confLiga3, confLiga2, 
+      contract, utilization, strengths, weaknesses, reason, 
+      similarity, mental, vetoReason, vetoDate, presidentOpinion, notesDD
     } = body;
 
     let targetPlayerId = playerId;
 
     // 1. Se não tiver ID e for um atleta novo, cria-o na tabela 'Players'
     if (!targetPlayerId && name) {
-      const searchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players?filterByFormula=LOWER({Name})='${encodeURIComponent(name.toLowerCase().trim())}'`;
+      const cleanName = name.replace(/"/g, '').trim();
+      const searchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players?filterByFormula=LOWER({Name})="${encodeURIComponent(cleanName.toLowerCase())}"`;
       const searchRes = await fetch(searchUrl, { headers, cache: 'no-store' });
       
       if (searchRes.ok) {
@@ -95,17 +76,14 @@ export async function POST(request: Request) {
 
       if (!targetPlayerId) {
         const createPlayerUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players`;
-        const playerFields: Record<string, any> = {
-          Name: name,
-          Club: club || '',
-          Position: position || '',
-          Foot: foot || '',
-          Status: 'Monitored',
-        };
-
-        if (birthDate && birthDate.trim() !== '') {
-          playerFields.BirthDate = birthDate;
-        }
+        
+        // Constrói o objeto APENAS com os campos preenchidos
+        const playerFields: Record<string, any> = { Name: name };
+        if (club) playerFields.Club = club;
+        if (position) playerFields.Position = position;
+        if (foot) playerFields.Foot = foot;
+        if (birthDate && birthDate.trim() !== '') playerFields.BirthDate = birthDate;
+        playerFields.Status = 'Monitored';
 
         const createPlayerRes = await fetch(createPlayerUrl, {
           method: 'POST',
@@ -131,30 +109,33 @@ export async function POST(request: Request) {
     const createMarketUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Mercado_Oportunidades`;
     const initialStatus = status || 'Em Avaliação';
 
+    // Constrói o objeto APENAS com os campos preenchidos (Evita Erros 422 do Airtable)
     const marketFields: Record<string, any> = {
-      'Mercado Target': marketTarget || '',
-      'Scout': scout || '',
       'Status Negociação': initialStatus,
-      'Viabilidade Financeira': viability || '',
-      'Contrato': contract || '',
-      'Utilização': utilization || '',
-      'Pontos Fortes': strengths || '',
-      'Pontos Fracos': weaknesses || '',
-      'Motivo da Contratação': reason || '',
-      'Semelhança Plantel': similarity || '',
-      'Caráter e Mental': mental || '',
-      'Motivo do Veto': vetoReason || '',
-      'Opinião do Presidente': presidentOpinion || '',
-      'Notas Diretor Desportivo': notesDD || '',
     };
 
-    // Converter números de confiança apenas se preenchidos
+    if (marketTarget) marketFields['Mercado Target'] = marketTarget;
+    if (scout) marketFields['Scout'] = scout;
+    if (viability) marketFields['Viabilidade Financeira'] = viability;
+    if (contract) marketFields['Contrato'] = contract;
+    if (utilization) marketFields['Utilização'] = utilization;
+    if (strengths) marketFields['Pontos Fortes'] = strengths;
+    if (weaknesses) marketFields['Pontos Fracos'] = weaknesses;
+    if (reason) marketFields['Motivo da Contratação'] = reason;
+    if (similarity) marketFields['Semelhança Plantel'] = similarity;
+    if (mental) marketFields['Caráter e Mental'] = mental;
+    if (vetoReason) marketFields['Motivo do Veto'] = vetoReason;
+    if (presidentOpinion) marketFields['Opinião do Presidente'] = presidentOpinion;
+    if (notesDD) marketFields['Notas Diretor Desportivo'] = notesDD;
+
+    // Números devem ir como Inteiros, e só se existirem
     if (confLiga3 && !isNaN(parseInt(confLiga3))) marketFields['Confiança Liga 3'] = parseInt(confLiga3);
     if (confLiga2 && !isNaN(parseInt(confLiga2))) marketFields['Confiança Liga 2'] = parseInt(confLiga2);
 
-    // Evitar enviar datas vazias ("")
+    // Datas não podem ir com valor "" (vazio), o Airtable rejeita
     if (offerDate && offerDate.trim() !== '') marketFields['Data da Oferta'] = offerDate;
     if (vetoDate && vetoDate.trim() !== '') marketFields['Data do Veto'] = vetoDate;
+    
     if (targetPlayerId) marketFields['Jogador'] = [targetPlayerId];
 
     const marketRes = await fetch(createMarketUrl, {
@@ -216,14 +197,8 @@ export async function PATCH(request: Request) {
   try {
     const body = await request.json();
     const { 
-      recordId, 
-      status, 
-      previousStatus, 
-      user, 
-      vetoReason, 
-      vetoDate, 
-      presidentOpinion, 
-      notesDD 
+      recordId, status, previousStatus, user, vetoReason, vetoDate, 
+      presidentOpinion, notesDD, strengths, weaknesses 
     } = body;
 
     if (!recordId) {
@@ -237,6 +212,8 @@ export async function PATCH(request: Request) {
     if (vetoReason !== undefined) fields['Motivo do Veto'] = vetoReason;
     if (presidentOpinion !== undefined) fields['Opinião do Presidente'] = presidentOpinion;
     if (notesDD !== undefined) fields['Notas Diretor Desportivo'] = notesDD;
+    if (strengths !== undefined) fields['Pontos Fortes'] = strengths;
+    if (weaknesses !== undefined) fields['Pontos Fracos'] = weaknesses;
     if (vetoDate && vetoDate.trim() !== '') fields['Data do Veto'] = vetoDate;
 
     const res = await fetch(updateUrl, {
