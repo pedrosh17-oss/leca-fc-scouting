@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Users, Trophy, Shield, ArrowRight, Loader2, LogOut, CheckCircle2, Menu, X, LayoutDashboard, BarChart3, Briefcase, Building2, Sliders, Sun, Moon } from 'lucide-react';
 
 import { DEPT_PASSWORD } from './constants/options';
@@ -79,7 +79,22 @@ export default function Home() {
   const [decisionFormData, setDecisionFormData] = useState<DecisionFormData>({ status: 'Em Avaliação', vetoReason: '', vetoDate: new Date().toISOString().split('T')[0], presidentOpinion: '', notesDD: '' });
   const [updatingDecision, setUpdatingDecision] = useState(false);
 
-  // UseMemo para seletores de estatísticas
+  // Destaques e Observações Recentes
+  const getRecentHighlights = () => {
+    const list: any[] = [];
+    matches.forEach(m => {
+      if (m.highlightedPlayers) {
+        m.highlightedPlayers.forEach((p: any) => {
+          if (p.note && p.note !== 'Sem notas registadas.') {
+            list.push({ ...p, matchId: m.id, matchName: m.matchName, gameDate: m.gameDate, scout: m.scout });
+          }
+        });
+      }
+    });
+    return list.slice(0, 4);
+  };
+
+  // Seletores para o separador Stats
   const algoOptions = useMemo(() => {
     if (!algorithmData) return [];
     const optionsMap = new Map<string, { value: string; label: string; row: any }>();
@@ -102,7 +117,6 @@ export default function Home() {
     return Array.from(optionsMap.values()).sort((a, b) => a.label.localeCompare(b.label));
   }, [algorithmData]);
 
-  // Handlers
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (authPassword === DEPT_PASSWORD && authScoutId) {
@@ -184,14 +198,23 @@ export default function Home() {
         </div>
       )}
 
-      {/* HEADER E NAVEGAÇÃO COMPACTADOS */}
+      {/* HEADER PRINCIPAL */}
       <header className={`sticky top-0 z-40 ${theme.header} backdrop-blur-md border-b px-5 py-4 md:p-6 md:m-6 md:rounded-xl md:static flex justify-between items-center shadow-sm`}>
         <div className="flex items-center gap-3.5">
           <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 rounded-xl border border-slate-700/60 flex items-center justify-center p-1 shadow flex-shrink-0"><img src={lecaLogoUrl} alt="Leça FC" className="w-full h-full object-contain" /></div>
           <div><span className={`hidden md:block text-[10px] md:text-xs font-semibold tracking-wider ${theme.textMuted} uppercase mb-0.5`}>Departamento de Scouting</span><h1 className="text-xl md:text-2xl font-bold tracking-wide">LEÇA FC</h1></div>
         </div>
-        <div className="flex items-center gap-3">
-          <button onClick={() => setIsDarkMode(!isDarkMode)} className={`p-2.5 rounded-xl border transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-amber-400' : 'bg-slate-200 border-slate-300 text-slate-700'}`}>{isDarkMode ? <Sun className="w-4 h-4"/> : <Moon className="w-4 h-4"/>}</button>
+        
+        <div className="flex items-center gap-2 md:gap-3">
+          <button onClick={() => setIsDarkMode(!isDarkMode)} className={`p-2.5 rounded-xl border transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-amber-400' : 'bg-slate-200 border-slate-300 text-slate-700'}`}>
+            {isDarkMode ? <Sun className="w-4 h-4"/> : <Moon className="w-4 h-4"/>}
+          </button>
+
+          {/* BOTÃO DO MENU HAMBÚRGUER (EXCLUSIVO MOBILE) */}
+          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`md:hidden p-2.5 rounded-xl border transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-200 border-slate-300 text-slate-800'}`}>
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+
           <div className="hidden md:flex items-center gap-3 pl-3 border-l border-slate-700">
             <div className="flex flex-col items-end"><span className="text-xs font-medium">{authScoutName}</span><span className="text-[9px] text-blue-500 font-bold uppercase">{getUserTitle(authScoutName || '')}</span></div>
             <button onClick={handleLogout} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-red-400 rounded-lg"><LogOut className="w-4 h-4" /></button>
@@ -199,22 +222,66 @@ export default function Home() {
         </div>
       </header>
 
+      {/* PAINEL EXPANSÍVEL DO MENU MOBILE */}
+      {isMobileMenuOpen && (
+        <div className={`md:hidden mx-5 mb-4 p-3 rounded-2xl border ${theme.card} space-y-1 shadow-xl animate-in slide-in-from-top-2 duration-200`}>
+          <button onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition ${activeTab === 'dashboard' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800/50'}`}>
+            <LayoutDashboard className="w-4 h-4" /> Início
+          </button>
+          <button onClick={() => { setActiveTab('stats'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition ${activeTab === 'stats' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800/50'}`}>
+            <BarChart3 className="w-4 h-4" /> Stats
+          </button>
+          <button onClick={() => { setActiveTab('market'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition ${activeTab === 'market' ? 'bg-pink-600 text-white' : 'text-pink-400 hover:bg-slate-800/50'}`}>
+            <Briefcase className="w-4 h-4" /> Mercado ({marketOpportunities.length})
+          </button>
+          <button onClick={() => { setActiveTab('players'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition ${activeTab === 'players' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800/50'}`}>
+            <Users className="w-4 h-4" /> Jogadores ({players.length})
+          </button>
+          <button onClick={() => { setActiveTab('teams'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition ${activeTab === 'teams' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800/50'}`}>
+            <Building2 className="w-4 h-4" /> Equipas ({teams.length})
+          </button>
+          <button onClick={() => { setActiveTab('matches'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition ${activeTab === 'matches' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800/50'}`}>
+            <Trophy className="w-4 h-4" /> Jogos ({matches.length})
+          </button>
+          <button onClick={() => { setActiveTab('scouts'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800/50'}`}>
+            <Shield className="w-4 h-4" /> Scouts
+          </button>
+          {userRole === 'ADMIN' && (
+            <button onClick={() => { setActiveTab('admin'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition ${activeTab === 'admin' ? 'bg-purple-600 text-white' : 'text-purple-400 hover:bg-slate-800/50'}`}>
+              <Sliders className="w-4 h-4" /> Painel Admin
+            </button>
+          )}
+          <div className="pt-2 border-t border-slate-700/50 flex items-center justify-between px-2">
+            <span className="text-xs text-slate-300 font-medium">{authScoutName}</span>
+            <button onClick={handleLogout} className="text-xs text-red-400 font-bold flex items-center gap-1 hover:underline">
+              <LogOut className="w-3.5 h-3.5" /> Sair
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* BARRA DE NAVEGAÇÃO DESKTOP */}
       <div className="hidden md:flex max-w-6xl mx-auto mb-6 flex-wrap gap-3 px-6 md:px-0">
         <button onClick={() => setActiveTab('dashboard')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-blue-600 text-white' : `${theme.card} text-slate-400`}`}><LayoutDashboard className="w-4 h-4" /> Início</button>
         <button onClick={() => setActiveTab('stats')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'stats' ? 'bg-blue-600 text-white' : `${theme.card} text-slate-400`}`}><BarChart3 className="w-4 h-4" /> Stats</button>
-        <button onClick={() => setActiveTab('market')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'market' ? 'bg-pink-600 text-white' : `${theme.card} text-pink-400`}`}><Briefcase className="w-4 h-4" /> Mercado</button>
-        <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white' : `${theme.card} text-slate-400`}`}><Users className="w-4 h-4" /> Jogadores</button>
-        <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white' : `${theme.card} text-slate-400`}`}><Building2 className="w-4 h-4" /> Equipas</button>
-        <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white' : `${theme.card} text-slate-400`}`}><Trophy className="w-4 h-4" /> Jogos</button>
+        <button onClick={() => setActiveTab('market')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'market' ? 'bg-pink-600 text-white' : `${theme.card} text-pink-400`}`}><Briefcase className="w-4 h-4" /> Mercado ({marketOpportunities.length})</button>
+        <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'players' ? 'bg-blue-600 text-white' : `${theme.card} text-slate-400`}`}><Users className="w-4 h-4" /> Jogadores ({players.length})</button>
+        <button onClick={() => setActiveTab('teams')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'teams' ? 'bg-blue-600 text-white' : `${theme.card} text-slate-400`}`}><Building2 className="w-4 h-4" /> Equipas ({teams.length})</button>
+        <button onClick={() => setActiveTab('matches')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'matches' ? 'bg-blue-600 text-white' : `${theme.card} text-slate-400`}`}><Trophy className="w-4 h-4" /> Jogos ({matches.length})</button>
+        <button onClick={() => setActiveTab('scouts')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scouts' ? 'bg-blue-600 text-white' : `${theme.card} text-slate-400`}`}><Shield className="w-4 h-4" /> Scouts</button>
+        {userRole === 'ADMIN' && (
+          <button onClick={() => setActiveTab('admin')} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'admin' ? 'bg-purple-600 text-white' : `${theme.card} text-purple-400`}`}><Sliders className="w-4 h-4" /> Admin</button>
+        )}
       </div>
 
       <div className="max-w-6xl mx-auto px-4 md:px-0 mt-4 md:mt-0">
-        {activeTab === 'dashboard' && <DashboardTab players={players} matches={matches} teams={teams} displayScouts={scouts} canCreateMatches={true} authScoutId={authScoutId} preGameData={{} as any} setPreGameData={()=>{}} setIsMarketModalOpen={setIsMarketModalOpen} setIsRegisterOpen={()=>{}} setActiveTab={setActiveTab} getRecentHighlights={() => []} navigateToMatch={navigateToMatch} isDarkMode={isDarkMode} />}
+        {activeTab === 'dashboard' && <DashboardTab players={players} matches={matches} teams={teams} displayScouts={scouts} canCreateMatches={true} authScoutId={authScoutId} preGameData={{} as any} setPreGameData={()=>{}} setIsMarketModalOpen={setIsMarketModalOpen} setIsRegisterOpen={()=>{}} setActiveTab={setActiveTab} getRecentHighlights={getRecentHighlights} navigateToMatch={navigateToMatch} isDarkMode={isDarkMode} />}
         {activeTab === 'market' && <MarketTab marketOpportunities={marketOpportunities} players={players} setIsMarketModalOpen={setIsMarketModalOpen} setSelectedMarketOppToEdit={setSelectedMarketOppToEdit} setDecisionFormData={setDecisionFormData} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} isDarkMode={isDarkMode} />}
         {activeTab === 'players' && <PlayersTab search={search} setSearch={setSearch} playerPositionFilter={'All'} setPlayerPositionFilter={()=>{}} cleanPositionOptions={[]} playerStatusFilter={'All'} setPlayerStatusFilter={()=>{}} uniquePlayerStatuses={[]} birthYearFilter={'All'} setBirthYearFilter={()=>{}} uniqueBirthYears={[]} minAgeFilter={15} setMinAgeFilter={()=>{}} maxAgeFilter={40} setMaxAgeFilter={()=>{}} displayedPlayers={players.slice(0, 20)} filteredPlayers={players} visibleCount={visibleCount} setVisibleCount={setVisibleCount} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} setSelectedSeasonIdx={setSelectedSeasonIdx} isDarkMode={isDarkMode} />}
         {activeTab === 'teams' && <TeamsTab search={search} setSearch={setSearch} teamFilterComp={'All'} setTeamFilterComp={()=>{}} teamFilterStatus={'All'} setTeamFilterStatus={()=>{}} uniqueTeamComps={[]} uniqueTeamStatus={[]} filteredTeams={teams} players={players} matches={matches} setSelectedTeam={setSelectedTeam} canCreateMatches={true} setIsNewTeamOpen={setIsNewTeamOpen} isDarkMode={isDarkMode} />}
         {activeTab === 'stats' && <StatsTab comparePlayerKeyA={comparePlayerKeyA} setComparePlayerKeyA={setComparePlayerKeyA} comparePlayerKeyB={comparePlayerKeyB} setComparePlayerKeyB={setComparePlayerKeyB} comparePlayerKeyC={comparePlayerKeyC} setComparePlayerKeyC={setComparePlayerKeyC} algoOptions={algoOptions} algorithmData={algorithmData} extractContextTag={extractContextTag} isDarkMode={isDarkMode} />}
         {activeTab === 'matches' && <MatchesTab matches={matches} players={players} displayScouts={scouts} canCreateMatches={true} canEditMatches={true} expandedMatchId={expandedMatchId} toggleMatch={id => setExpandedMatchId(expandedMatchId === id ? null : id)} editingMatchId={editingMatchId} startEditMatchContext={m => setExpandedMatchEdit(editingMatchId === m.id ? null : m.id)} setExpandedMatchEdit={setExpandedMatchEdit} reportData={{} as any} setReportData={()=>{}} handleReportSubmit={async () => {}} submittingReport={false} setIsAddHighlightOpen={()=>{}} setNewHighlightData={()=>{}} setEditingHighlight={()=>{}} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} setSelectedSeasonIdx={setSelectedSeasonIdx} navigateToMatch={navigateToMatch} setPreGameData={()=>{}} preGameData={{} as any} authScoutId={authScoutId} setIsRegisterOpen={()=>{}} isDarkMode={isDarkMode} />}
+        {activeTab === 'scouts' && <ScoutsTab displayScouts={scouts} scoutMarketAssignments={{}} setSelectedScout={setSelectedScout} getUserTitle={getUserTitle} getScoutMatches={() => []} isDarkMode={isDarkMode} />}
         {activeTab === 'admin' && <AdminTab isAdmin={userRole === 'ADMIN'} uniqueAlgoPlayersCount={0} uploadingExcel={uploadingExcel} handleFileUpload={handleFileUpload} handleAddMarket={()=>{}} newMarketInput={newMarketInput} setNewMarketInput={setNewMarketInput} adminMarkets={adminMarkets} handleRemoveMarket={()=>{}} scouts={scouts} isDarkMode={isDarkMode} />}
       </div>
 
