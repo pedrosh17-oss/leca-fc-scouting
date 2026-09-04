@@ -208,17 +208,18 @@ export default function Home() {
     }
   };
 
-  const handleDecisionSubmit = async (e: React.FormEvent) => {
+  const handleDecisionSubmit = async (e: React.FormEvent, overrideStatus?: string) => {
     e.preventDefault(); 
     if (!selectedMarketOppToEdit) return;
     setUpdatingDecision(true);
+    const targetStatus = overrideStatus || decisionFormData.status;
     try {
       const res = await fetch('/api/market', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           recordId: selectedMarketOppToEdit.id,
-          status: decisionFormData.status,
+          status: targetStatus,
           previousStatus: selectedMarketOppToEdit.fields?.['Status Negociação'] || 'N/D',
           user: authScoutName,
           vetoReason: decisionFormData.vetoReason,

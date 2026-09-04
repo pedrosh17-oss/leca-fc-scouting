@@ -233,74 +233,15 @@ export default function MarketTab({
                         )}
 
                         <div className="pt-2 border-t border-slate-700/40 flex flex-col gap-1.5">
-                          {currentStatus === 'Em Avaliação' && (
-                            <div className="flex gap-1.5">
-                              <button
-                                onClick={() => openDecisionWithStatus(opp, 'Aprovado Scouting')}
-                                className="flex-1 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold rounded-lg transition flex items-center justify-center gap-1"
-                              >
-                                <ShieldCheck className="w-3 h-3" /> Aprovar Scout
-                              </button>
-                              <button
-                                onClick={() => openDecisionWithStatus(opp, 'Vetado Scouting')}
-                                className="flex-1 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-[10px] font-bold rounded-lg transition flex items-center justify-center gap-1"
-                              >
-                                <ShieldAlert className="w-3 h-3" /> Vetar
-                              </button>
-                            </div>
-                          )}
-
-                          {isManagement && currentStatus === 'Aprovado Scouting' && (
-                            <div className="flex gap-1.5">
-                              <button
-                                onClick={() => openDecisionWithStatus(opp, 'Aprovado Direção')}
-                                className="flex-1 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-[10px] font-bold rounded-lg transition flex items-center justify-center gap-1"
-                              >
-                                <CheckCircle2 className="w-3 h-3" /> Luz Verde
-                              </button>
-                              <button
-                                onClick={() => openDecisionWithStatus(opp, 'Vetado Direção')}
-                                className="flex-1 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/40 text-[10px] font-bold rounded-lg transition flex items-center justify-center gap-1"
-                              >
-                                <XCircle className="w-3 h-3" /> Veto Direção
-                              </button>
-                            </div>
-                          )}
-
-                          {isManagement && currentStatus === 'Aprovado Direção' && (
-                            <button
-                              onClick={() => openDecisionWithStatus(opp, 'Em Negociação')}
-                              className="w-full py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-bold rounded-lg transition flex items-center justify-center gap-1"
-                            >
-                              <Users className="w-3.5 h-3.5" /> Iniciar Negociação
-                            </button>
-                          )}
-
-                          {isManagement && currentStatus === 'Em Negociação' && (
-                            <div className="flex gap-1.5">
-                              <button
-                                onClick={() => openDecisionWithStatus(opp, 'Fechado / Contratado')}
-                                className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold rounded-lg transition flex items-center justify-center gap-1"
-                              >
-                                <Trophy className="w-3 h-3" /> Assinar
-                              </button>
-                              <button
-                                onClick={() => openDecisionWithStatus(opp, 'Negociação Cancelada')}
-                                className="flex-1 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/40 text-[10px] font-bold rounded-lg transition flex items-center justify-center gap-1"
-                              >
-                                <AlertTriangle className="w-3 h-3" /> Negócio Caiu
-                              </button>
-                            </div>
-                          )}
+                          <button
+                            onClick={() => openDecisionWithStatus(opp, currentStatus)}
+                            className="w-full py-2 bg-pink-600/20 hover:bg-pink-600/30 text-pink-400 border border-pink-500/30 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5"
+                          >
+                            <Sliders className="w-3.5 h-3.5" /> Analisar / Gerir Decisão
+                          </button>
 
                           <div className="flex items-center justify-between pt-1">
                             <span className={`text-[9px] ${themeTextMuted}`}>Ref: {f['Scout'] || 'Dep.'}</span>
-                            <button
-                              onClick={() => openDecisionWithStatus(opp, currentStatus)}
-                              className="text-pink-400 hover:underline font-bold text-[10px] flex items-center gap-0.5"
-                            >
-                              <Sliders className="w-2.5 h-2.5" /> Gerir Decisão
-                            </button>
                           </div>
                         </div>
                       </div>

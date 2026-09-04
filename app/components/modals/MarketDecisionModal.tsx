@@ -14,7 +14,7 @@ interface MarketDecisionModalProps {
   onClose: () => void;
   decisionFormData: DecisionFormData;
   setDecisionFormData: React.Dispatch<React.SetStateAction<DecisionFormData>> | ((data: any) => void);
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (e: React.FormEvent, overrideStatus?: string) => void;
   onDelete?: (recordId: string) => void;
   updatingDecision: boolean;
   userRole?: string;
@@ -47,7 +47,6 @@ export default function MarketDecisionModal({
 }: MarketDecisionModalProps) {
   const [showManualOverride, setShowManualOverride] = useState(false);
 
-  // Tipagem explícita de (prev: any) para satisfazer o compilador do TypeScript no Vercel
   useEffect(() => {
     if (selectedMarketOppToEdit && selectedMarketOppToEdit.fields) {
       setDecisionFormData((prev: any) => ({
@@ -81,9 +80,7 @@ export default function MarketDecisionModal({
   const handleActionSubmit = (newStatus: string, e: React.FormEvent | React.MouseEvent) => {
     e.preventDefault();
     setDecisionFormData((prev: any) => ({ ...prev, status: newStatus }));
-    setTimeout(() => {
-      onSubmit(e as React.FormEvent);
-    }, 50);
+    onSubmit(e as React.FormEvent, newStatus);
   };
 
   return (
@@ -106,7 +103,7 @@ export default function MarketDecisionModal({
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto custom-scrollbar">
+        <form onSubmit={(e) => onSubmit(e)} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto custom-scrollbar">
           
           {/* BANNER ESTÁTICO DE FASE ATUAL */}
           <div className={`${statusCfg.bg} border ${statusCfg.border} p-4 rounded-2xl flex items-center justify-between gap-3`}>
@@ -126,12 +123,12 @@ export default function MarketDecisionModal({
                 className="text-[11px] text-slate-400 hover:text-slate-200 flex items-center gap-1 bg-slate-800/80 px-2.5 py-1.5 rounded-lg border border-slate-700 transition"
               >
                 {showManualOverride ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                {showManualOverride ? 'Ocultar Seleção Manual' : 'Alterar Fase Manualmente'}
+                {showManualOverride ? 'Ocultar Seleção' : 'Alterar Fase Manualmente'}
               </button>
             )}
           </div>
 
-          {/* OVERRIDE MANUAL DE FASE (APENAS SE O ADMIN ATIVAR) */}
+          {/* OVERRIDE MANUAL DE FASE (APENAS ADMIN) */}
           {showManualOverride && (
             <div className="p-3 bg-slate-800/40 border border-slate-700/60 rounded-xl space-y-2 animate-in fade-in duration-200">
               <label className="block text-[11px] font-bold text-amber-400 uppercase">Ajuste Direto de Fase (Modo Avançado)</label>
@@ -295,7 +292,6 @@ export default function MarketDecisionModal({
           {/* PAINEL DE BOTÕES DE AÇÃO E DECISÃO NO RODAPÉ */}
           <div className="flex flex-col gap-3 pt-3 border-t border-slate-800">
             
-            {/* BOTÕES DE DECISÃO DE FASE DEDICADOS */}
             <div className="flex flex-wrap items-center gap-2">
               {currentStatus === 'Em Avaliação' && (
                 <>
@@ -411,7 +407,6 @@ export default function MarketDecisionModal({
               )}
             </div>
 
-            {/* BOTÕES SECUNDÁRIOS: ELIMINAR (ADMIN), CANCELAR E GUARDAR RASCUNHO */}
             <div className="flex items-center justify-between gap-2 pt-1">
               {isAdmin && onDelete ? (
                 <button
