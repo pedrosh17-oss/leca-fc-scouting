@@ -31,6 +31,18 @@ export default function MarketDecisionModal({
   isDarkMode,
   marketLogs = [],
 }: MarketDecisionModalProps) {
+  // 1. Os Hooks de React têm de ser chamados sempre no topo, antes de qualquer "return null"
+  useEffect(() => {
+    if (selectedMarketOppToEdit && selectedMarketOppToEdit.fields) {
+      setDecisionFormData(prev => ({
+        ...prev,
+        strengths: prev.strengths || selectedMarketOppToEdit.fields['Pontos Fortes'] || '',
+        weaknesses: prev.weaknesses || selectedMarketOppToEdit.fields['Pontos Fracos'] || '',
+      } as any));
+    }
+  }, [selectedMarketOppToEdit, setDecisionFormData]);
+
+  // 2. Verificação de segurança realizada após a declaração dos Hooks
   if (!selectedMarketOppToEdit) return null;
 
   const theme = getTheme(isDarkMode);
@@ -40,17 +52,6 @@ export default function MarketDecisionModal({
   const isScoutPhase = currentStatus === 'Em Avaliação' || currentStatus.includes('Scouting');
   const isDirectionPhase = currentStatus.includes('Direção');
   const isNegotiationPhase = currentStatus.includes('Negociação') || currentStatus.includes('Contratado');
-
-  // Ao abrir o modal, garantimos que se os dados existem no Airtable, o formulário os conhece
-  useEffect(() => {
-    if (selectedMarketOppToEdit && selectedMarketOppToEdit.fields) {
-      setDecisionFormData(prev => ({
-        ...prev,
-        strengths: prev.strengths || selectedMarketOppToEdit.fields['Pontos Fortes'] || '',
-        weaknesses: prev.weaknesses || selectedMarketOppToEdit.fields['Pontos Fracos'] || '',
-      } as any));
-    }
-  }, [selectedMarketOppToEdit]);
 
   const opportunityLogs = marketLogs.filter(log => {
     const oppIds = log.fields?.Oportunidade || [];
@@ -97,7 +98,7 @@ export default function MarketDecisionModal({
             />
           </div>
 
-          {/* PARECER TÉCNICO SCOUTING: Mostra sempre, mas desativa se não estiver na fase do Scout */}
+          {/* PARECER TÉCNICO SCOUTING */}
           <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl space-y-4">
             <h4 className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4" /> Parecer Técnico do Scouting
@@ -237,7 +238,7 @@ export default function MarketDecisionModal({
               </div>
             ) : (
               <p className="text-xs text-slate-500 italic p-3 border border-dashed rounded-xl text-center">
-                Ainda sem histórico registado.
+                Ainda sem histórico registado na tabela `Logs_Mercado`.
               </p>
             )}
           </div>
