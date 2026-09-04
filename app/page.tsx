@@ -284,7 +284,43 @@ export default function Home() {
       </div>
 
       <MarketModal isOpen={isMarketModalOpen} onClose={() => setIsMarketModalOpen(false)} marketFormData={marketFormData} setMarketFormData={setMarketFormData} onSubmit={handleMarketSubmit} submittingMarket={submittingMarket} players={players} teams={teams} displayScouts={scouts} onSelectExistingPlayer={()=>{}} isDarkMode={isDarkMode} />
+      
       <PlayerProfileModal selectedPlayer={selectedPlayer} onClose={() => setSelectedPlayer(null)} profileTab={profileTab} setProfileTab={setProfileTab} selectedSeasonIdx={selectedSeasonIdx} setSelectedSeasonIdx={setSelectedSeasonIdx} setSelectedPillarDetail={setSelectedPillarDetail} algorithmData={algorithmData} marketOpportunities={marketOpportunities} canSeeMarket={true} setMarketFormData={setMarketFormData} setIsMarketModalOpen={setIsMarketModalOpen} setSelectedMarketOppToEdit={setSelectedMarketOppToEdit} setDecisionFormData={setDecisionFormData} navigateToMatch={navigateToMatch} getPlayerTimeline={() => []} getPlayerAlgoEntries={getPlayerAlgoEntries} extractPlayerBaseName={extractPlayerBaseName} renderFormattedMarkdown={renderFormattedMarkdown} isDarkMode={isDarkMode} />
+
+      {/* MODAL DE DETALHE DA EQUIPA */}
+      {selectedTeam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
+          <div className={`${getTheme(isDarkMode).card} w-full max-w-lg p-6 rounded-2xl border shadow-2xl space-y-4`}>
+            <div className="flex justify-between items-center border-b pb-3 border-slate-700">
+              <h3 className="text-lg font-bold">{selectedTeam.name}</h3>
+              <button onClick={() => setSelectedTeam(null)} className="p-1 rounded-lg hover:bg-slate-800 text-slate-400">✕</button>
+            </div>
+            <div className="space-y-2 text-xs">
+              <p><strong>Competição:</strong> {selectedTeam.competition || 'N/D'}</p>
+              <p><strong>País:</strong> {selectedTeam.country || 'Portugal'}</p>
+              <p><strong>Atletas no Sistema:</strong> {players.filter(p => (p.club || '').toLowerCase() === (selectedTeam.name || '').toLowerCase()).length}</p>
+            </div>
+            <button onClick={() => setSelectedTeam(null)} className="w-full py-2.5 bg-blue-600 text-white font-bold rounded-xl text-xs">Fechar</button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE DETALHE DO SCOUT */}
+      {selectedScout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
+          <div className={`${getTheme(isDarkMode).card} w-full max-w-lg p-6 rounded-2xl border shadow-2xl space-y-4`}>
+            <div className="flex justify-between items-center border-b pb-3 border-slate-700">
+              <h3 className="text-lg font-bold">{selectedScout.name}</h3>
+              <button onClick={() => setSelectedScout(null)} className="p-1 rounded-lg hover:bg-slate-800 text-slate-400">✕</button>
+            </div>
+            <div className="space-y-2 text-xs">
+              <p><strong>Função:</strong> {getUserTitle(selectedScout.name)}</p>
+              <p><strong>Jogos Observados:</strong> {matches.filter(m => (m.scout || '').toLowerCase().includes((selectedScout.name || '').toLowerCase())).length}</p>
+            </div>
+            <button onClick={() => setSelectedScout(null)} className="w-full py-2.5 bg-blue-600 text-white font-bold rounded-xl text-xs">Fechar</button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
