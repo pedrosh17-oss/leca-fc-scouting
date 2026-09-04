@@ -30,14 +30,16 @@ export async function GET(request: Request) {
 
     let logs: any[] = [];
     if (includeLogs || opportunityId) {
-      let logUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado`;
-      if (opportunityId) {
-        logUrl += `?filterByFormula=SEARCH('${opportunityId}', ARRAYJOIN({Oportunidade}))`;
-      }
+      const logUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado`;
       const logRes = await fetch(logUrl, { headers, cache: 'no-store' });
       if (logRes.ok) {
         const logData = await logRes.json();
-        logs = logData.records || [];
+        const allLogs = logData.records || [];
+        if (opportunityId) {
+          logs = allLogs.filter((l: any) => l.fields?.Oportunidade?.includes(opportunityId));
+        } else {
+          logs = allLogs;
+        }
       }
     }
 
@@ -277,17 +279,16 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Record ID é obrigatório' }, { status: 400 });
     }
 
-    // 1. Procurar e apagar todos os logs associados na tabela Logs_Mercado usando SEARCH e ARRAYJOIN
+    // 1. Procurar e apagar todos os logs associados na tabela Logs_Mercado filtrando em JS
     try {
-      const logSearchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado?filterByFormula=SEARCH('${recordId}', ARRAYJOIN({Oportunidade}))`;
-      const logSearchRes = await fetch(logSearchUrl, { headers, cache: 'no-store' });
-      
-      if (logSearchRes.ok) {
-        const logData = await logSearchRes.json();
-        const logRecords = logData.records || [];
+      const logUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado`;
+      const logRes = await fetch(logUrl, { headers, cache: 'no-store' });
+      if (logRes.ok) {
+        const logData = await logRes.json();
+        const allLogs = logData.records || [];
+        const matchingLogs = allLogs.filter((l: any) => l.fields?.Oportunidade?.includes(recordId));
         
-        // Apaga log por log
-        for (const logRec of logRecords) {
+        for (const logRec of matchingLogs) {
           await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado/${logRec.id}`, {
             method: 'DELETE',
             headers

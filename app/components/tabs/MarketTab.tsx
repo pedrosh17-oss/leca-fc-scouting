@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Briefcase, Plus, Sliders, ShieldCheck, ShieldAlert, CheckCircle2, 
-  XCircle, AlertTriangle, Trophy, Search, Users, Archive, Layers 
+  XCircle, AlertTriangle, Trophy, Search, Users, Archive, Layers, FileText 
 } from 'lucide-react';
 import { Player, Role } from '../../types';
 
@@ -39,6 +39,8 @@ export default function MarketTab({
   setIsMarketModalOpen,
   setSelectedMarketOppToEdit,
   setDecisionFormData,
+  setSelectedPlayer,
+  setProfileTab,
   userRole = 'SCOUT',
   isDarkMode,
 }: MarketTabProps) {
@@ -79,7 +81,19 @@ export default function MarketTab({
       vetoDate: f['Data do Veto'] || new Date().toISOString().split('T')[0],
       presidentOpinion: f['Opinião do Presidente'] || '',
       notesDD: f['Notas Diretor Desportivo'] || '',
+      strengths: f['Pontos Fortes'] || '',
+      weaknesses: f['Pontos Fracos'] || '',
     });
+  };
+
+  const handleOpenPlayerProfile = (opp: any) => {
+    const f = opp.fields || {};
+    const linkedPlayers = f.Jogador || [];
+    const playerRecord = players.find(p => linkedPlayers.includes(p.id));
+    if (playerRecord) {
+      setProfileTab('market');
+      setSelectedPlayer(playerRecord);
+    }
   };
 
   return (
@@ -94,7 +108,6 @@ export default function MarketTab({
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-            {/* FILTRO ATIVOS / ARQUIVO */}
             <div className={`flex p-1 rounded-xl border ${isDarkMode ? 'bg-[#0d131f] border-slate-800' : 'bg-slate-100 border-slate-300'}`}>
               <button
                 onClick={() => setPipelineScope('active')}
@@ -116,7 +129,6 @@ export default function MarketTab({
               </button>
             </div>
 
-            {/* SELETOR KANBAN / LISTA */}
             <div className={`flex p-1 rounded-xl border ${isDarkMode ? 'bg-[#0d131f] border-slate-800' : 'bg-slate-100 border-slate-300'}`}>
               <button
                 onClick={() => setViewMode('kanban')}
@@ -183,8 +195,8 @@ export default function MarketTab({
                     return (
                       <div key={opp.id} className={`${themeCard} border rounded-xl p-4 space-y-3 shadow-md hover:border-pink-500/50 transition relative group`}>
                         <div className="flex justify-between items-start gap-2">
-                          <div>
-                            <h4 className="font-bold text-sm leading-snug">
+                          <div className="cursor-pointer group/title" onClick={() => handleOpenPlayerProfile(opp)}>
+                            <h4 className="font-bold text-sm leading-snug group-hover/title:text-pink-400 transition flex items-center gap-1.5">
                               {playerRecord ? playerRecord.name : (f['Nome do Jogador'] || 'Atleta sem nome')}
                             </h4>
                             <p className={`text-[11px] ${themeTextMuted} mt-0.5`}>
@@ -203,6 +215,22 @@ export default function MarketTab({
                             <span className="font-semibold text-emerald-400 truncate block">{f['Viabilidade Financeira'] || 'N/D'}</span>
                           </div>
                         </div>
+
+                        {f['Contrato'] && (
+                          <div className={`${themeInnerCard} p-2 rounded-lg border text-[10px]`}>
+                            <span className={`block ${themeTextMuted} uppercase font-bold`}>Contrato</span>
+                            <span className="font-semibold text-slate-300 truncate block">{f['Contrato']}</span>
+                          </div>
+                        )}
+
+                        {f['Motivo da Contratação'] && (
+                          <div className={`${themeInnerCard} p-2 rounded-lg border text-[10px]`}>
+                            <span className={`block ${themeTextMuted} uppercase font-bold flex items-center gap-1`}>
+                              <FileText className="w-3 h-3 text-pink-400" /> Contexto Oferta
+                            </span>
+                            <p className="text-slate-300 text-[10px] line-clamp-2 mt-0.5 italic">{f['Motivo da Contratação']}</p>
+                          </div>
+                        )}
 
                         <div className="pt-2 border-t border-slate-700/40 flex flex-col gap-1.5">
                           {currentStatus === 'Em Avaliação' && (
@@ -271,7 +299,7 @@ export default function MarketTab({
                               onClick={() => openDecisionWithStatus(opp, currentStatus)}
                               className="text-pink-400 hover:underline font-bold text-[10px] flex items-center gap-0.5"
                             >
-                              <Sliders className="w-2.5 h-2.5" /> Detalhes
+                              <Sliders className="w-2.5 h-2.5" /> Gerir Decisão
                             </button>
                           </div>
                         </div>
@@ -303,7 +331,7 @@ export default function MarketTab({
             return (
               <div key={opp.id} className={`${themeCard} p-5 rounded-2xl border flex flex-col justify-between space-y-4 shadow-md`}>
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleOpenPlayerProfile(opp)}>
                     {playerRecord?.photo ? (
                       <img src={playerRecord.photo} alt={playerRecord.name} className="w-12 h-12 rounded-full object-cover border border-slate-700" />
                     ) : (
@@ -312,7 +340,7 @@ export default function MarketTab({
                       </div>
                     )}
                     <div>
-                      <h3 className="font-bold text-base text-white">
+                      <h3 className="font-bold text-base text-white hover:text-pink-400 transition">
                         {playerRecord ? playerRecord.name : (f['Nome do Jogador'] || 'Atleta sem nome')}
                       </h3>
                       <p className={`text-xs ${themeTextMuted} mt-0.5`}>
