@@ -68,7 +68,10 @@ export default function MarketDecisionModal({
   const statusCfg = STATUS_CONFIG[currentStatus] || STATUS_CONFIG['Em Avaliação'];
 
   const isScoutPhase = currentStatus === 'Em Avaliação' || currentStatus.includes('Scouting');
-  const isDirectionPhase = currentStatus.includes('Direção') || currentStatus === 'Em Negociação' || currentStatus === 'Fechado / Contratado';
+  
+  // CORREÇÃO: A Direção precisa de ver/escrever as notas a partir do momento em que o Scouting Aprova!
+  const isDirectionPhase = currentStatus === 'Aprovado Scouting' || currentStatus.includes('Direção') || currentStatus === 'Em Negociação' || currentStatus === 'Fechado / Contratado';
+  
   const isNegotiationPhase = currentStatus.includes('Negociação') || currentStatus.includes('Contratado');
   const isTerminal = currentStatus.includes('Vetado') || currentStatus === 'Negociação Cancelada' || currentStatus === 'Fechado / Contratado';
 
@@ -188,7 +191,7 @@ export default function MarketDecisionModal({
             </div>
           </div>
 
-          {/* PARECER DA DIREÇÃO */}
+          {/* PARECER DA DIREÇÃO (Visível a partir de 'Aprovado Scouting') */}
           {isDirectionPhase && (
             <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl space-y-3">
               <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -289,9 +292,8 @@ export default function MarketDecisionModal({
             )}
           </div>
 
-          {/* PAINEL DE BOTÕES DE AÇÃO E DECISÃO NO RODAPÉ */}
+          {/* RODAPÉ E BOTÕES DE AÇÃO */}
           <div className="flex flex-col gap-3 pt-3 border-t border-slate-800">
-            
             <div className="flex flex-wrap items-center gap-2">
               {currentStatus === 'Em Avaliação' && (
                 <>
