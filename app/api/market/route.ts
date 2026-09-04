@@ -8,7 +8,6 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
-// GET: Procurar oportunidades de mercado e histórico de logs
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -24,7 +23,7 @@ export async function GET(request: Request) {
     const res = await fetch(url, { headers, cache: 'no-store' });
     if (!res.ok) {
       const err = await res.json();
-      return NextResponse.json({ error: err }, { status: res.status });
+      return NextResponse.json({ error: err?.error?.message || err }, { status: res.status });
     }
 
     const data = await res.json();
@@ -48,7 +47,6 @@ export async function GET(request: Request) {
   }
 }
 
-// POST: Criar nova Oportunidade de Mercado e registar Log inicial
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -61,28 +59,32 @@ export async function POST(request: Request) {
 
     let targetPlayerId = playerId;
 
-    // 1. Se não tiver ID e for um atleta novo, cria-o na tabela 'Players'
+    // 1. Se não tiver ID e for um atleta novo, procura ou cria em 'Players'
     if (!targetPlayerId && name) {
-      const cleanName = name.replace(/"/g, '').trim();
-      const searchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players?filterByFormula=LOWER({Name})="${encodeURIComponent(cleanName.toLowerCase())}"`;
-      const searchRes = await fetch(searchUrl, { headers, cache: 'no-store' });
+      const cleanName = name.trim();
+      const searchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players?filterByFormula=LOWER({Name})='${encodeURIComponent(cleanName.toLowerCase())}'`;
       
-      if (searchRes.ok) {
-        const searchData = await searchRes.json();
-        if (searchData.records && searchData.records.length > 0) {
-          targetPlayerId = searchData.records[0].id;
+      try {
+        const searchRes = await fetch(searchUrl, { headers, cache: 'no-store' });
+        if (searchRes.ok) {
+          const searchData = await searchRes.json();
+          if (searchData.records && searchData.records.length > 0) {
+            targetPlayerId = searchData.records[0].id;
+          }
         }
+      } catch (sErr) {
+        console.warn("Pesquisa de jogador falhou, avançando para criação:", sErr);
       }
 
+      // Se continuar sem existir na BD, cria o jogador na tabela 'Players'
       if (!targetPlayerId) {
         const createPlayerUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players`;
         
-        // Constrói o objeto APENAS com os campos preenchidos
-        const playerFields: Record<string, any> = { Name: name };
-        if (club) playerFields.Club = club;
-        if (position) playerFields.Position = position;
-        if (foot) playerFields.Foot = foot;
-        if (birthDate && birthDate.trim() !== '') playerFields.BirthDate = birthDate;
+        const playerFields: Record<string, any> = { Name: cleanName };
+        if (club && club.trim()) playerFields.Club = club;
+        if (position && position.trim()) playerFields.Position = position;
+        if (foot && foot.trim()) playerFields.Foot = foot;
+        if (birthDate && birthDate.trim()) playerFields.BirthDate = birthDate;
         playerFields.Status = 'Monitored';
 
         const createPlayerRes = await fetch(createPlayerUrl, {
@@ -95,21 +97,21 @@ export async function POST(request: Request) {
         });
 
         if (!createPlayerRes.ok) {
-            const errP = await createPlayerRes.json();
-            console.error("Erro ao criar Player:", errP);
-            return NextResponse.json({ error: errP }, { status: createPlayerRes.status });
+          const errP = await createPlayerRes.json();
+          const detail = errP?.error?.message || JSON.stringify(errP);
+          console.error("Erro ao criar Player no Airtable:", detail);
+          return NextResponse.json({ error: `Falha ao criar Jogador (${detail})` }, { status: 400 });
         }
 
         const newPlayerData = await createPlayerRes.json();
-        targetPlayerId = newPlayerData.records[0].id;
+        targetPlayerId = newPlayerData.records[0]?.id;
       }
     }
 
-    // 2. Criar a oportunidade em 'Mercado_Oportunidades'
+    // 2. Criar o registo na tabela 'Mercado_Oportunidades'
     const createMarketUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Mercado_Oportunidades`;
     const initialStatus = status || 'Em Avaliação';
 
-    // Constrói o objeto APENAS com os campos preenchidos (Evita Erros 422 do Airtable)
     const marketFields: Record<string, any> = {
       'Status Negociação': initialStatus,
     };
@@ -128,14 +130,11 @@ export async function POST(request: Request) {
     if (presidentOpinion) marketFields['Opinião do Presidente'] = presidentOpinion;
     if (notesDD) marketFields['Notas Diretor Desportivo'] = notesDD;
 
-    // Números devem ir como Inteiros, e só se existirem
     if (confLiga3 && !isNaN(parseInt(confLiga3))) marketFields['Confiança Liga 3'] = parseInt(confLiga3);
     if (confLiga2 && !isNaN(parseInt(confLiga2))) marketFields['Confiança Liga 2'] = parseInt(confLiga2);
 
-    // Datas não podem ir com valor "" (vazio), o Airtable rejeita
     if (offerDate && offerDate.trim() !== '') marketFields['Data da Oferta'] = offerDate;
     if (vetoDate && vetoDate.trim() !== '') marketFields['Data do Veto'] = vetoDate;
-    
     if (targetPlayerId) marketFields['Jogador'] = [targetPlayerId];
 
     const marketRes = await fetch(createMarketUrl, {
@@ -149,14 +148,15 @@ export async function POST(request: Request) {
 
     if (!marketRes.ok) {
       const err = await marketRes.json();
-      console.error("Erro ao criar Oportunidade de Mercado:", err);
-      return NextResponse.json({ error: err }, { status: marketRes.status });
+      const detail = err?.error?.message || JSON.stringify(err);
+      console.error("Erro ao criar Oportunidade no Airtable:", detail);
+      return NextResponse.json({ error: `Falha ao criar Oportunidade (${detail})` }, { status: 400 });
     }
 
     const newMarket = await marketRes.json();
-    const createdRecordId = newMarket.records[0].id;
+    const createdRecordId = newMarket.records[0]?.id;
 
-    // 3. Registar o Log inicial na tabela 'Logs_Mercado'
+    // 3. Registar Log inicial na tabela 'Logs_Mercado'
     try {
       const nowFormatted = new Date().toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' });
       const logUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado`;
@@ -182,7 +182,7 @@ export async function POST(request: Request) {
         }),
       });
     } catch (logErr) {
-      console.error("Erro ao criar Log de registo:", logErr);
+      console.error("Erro ao criar Log:", logErr);
     }
 
     return NextResponse.json({ success: true, record: newMarket.records[0] });
@@ -192,7 +192,6 @@ export async function POST(request: Request) {
   }
 }
 
-// PATCH: Atualizar Estado, Vetos e Registar Auditoria
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
@@ -224,7 +223,7 @@ export async function PATCH(request: Request) {
 
     if (!res.ok) {
       const err = await res.json();
-      return NextResponse.json({ error: err }, { status: res.status });
+      return NextResponse.json({ error: err?.error?.message || err }, { status: res.status });
     }
 
     const updated = await res.json();
@@ -255,7 +254,7 @@ export async function PATCH(request: Request) {
         }),
       });
     } catch (logErr) {
-      console.error("Erro ao gravar Log de auditoria:", logErr);
+      console.error("Erro ao gravar Log:", logErr);
     }
 
     return NextResponse.json({ success: true, record: updated });
@@ -264,7 +263,6 @@ export async function PATCH(request: Request) {
   }
 }
 
-// DELETE: Apagar permanentemente a oportunidade no Airtable
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -279,7 +277,7 @@ export async function DELETE(request: Request) {
 
     if (!res.ok) {
       const err = await res.json();
-      return NextResponse.json({ error: err }, { status: res.status });
+      return NextResponse.json({ error: err?.error?.message || err }, { status: res.status });
     }
 
     const data = await res.json();
