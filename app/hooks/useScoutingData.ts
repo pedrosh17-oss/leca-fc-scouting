@@ -29,6 +29,7 @@ export function useScoutingData() {
   const [competitions, setCompetitions] = useState<any[]>([]);
   const [scouts, setScouts] = useState<Scout[]>([]);
   const [marketOpportunities, setMarketOpportunities] = useState<MarketOpportunity[]>([]);
+  const [marketLogs, setMarketLogs] = useState<any[]>([]);
   const [algorithmData, setAlgorithmData] = useState<Record<string, { tag: string; row: any }[]>>({});
   const [loading, setLoading] = useState(true);
 
@@ -44,7 +45,7 @@ export function useScoutingData() {
         fetch('/api/teams').catch(() => ({ json: () => ({ teams: [] }) })),
         fetch('/api/matches').catch(() => ({ json: () => ({ matches: [], competitions: [] }) })),
         fetch('/api/scouts').catch(() => ({ json: () => ({ scouts: [] }) })),
-        fetch('/api/market').catch(() => ({ json: () => ({ opportunities: [] }) })),
+        fetch('/api/market?includeLogs=true').catch(() => ({ json: () => ({ opportunities: [], logs: [] }) })),
       ]);
       
       const dataP = await resP.json(); 
@@ -58,6 +59,7 @@ export function useScoutingData() {
       if (dataM.matches) setMatches(dataM.matches);
       if (dataM.competitions) setCompetitions(dataM.competitions);
       if (dataMkt.opportunities) setMarketOpportunities(dataMkt.opportunities);
+      if (dataMkt.logs) setMarketLogs(dataMkt.logs);
 
       try {
         const { data } = supabase.storage.from('Scouting').getPublicUrl('algo-data.json.gz');
@@ -108,6 +110,7 @@ export function useScoutingData() {
     competitions, setCompetitions,
     scouts, setScouts,
     marketOpportunities, setMarketOpportunities,
+    marketLogs, setMarketLogs,
     algorithmData, setAlgorithmData,
     loading,
     isAuthenticated, setIsAuthenticated,

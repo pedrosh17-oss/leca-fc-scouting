@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { X, Sliders, AlertTriangle, Trash2, ShieldCheck, Building2, Briefcase, History, Clock } from 'lucide-react';
 import CustomSelect from '../ui/CustomSelect';
 import { DecisionFormData } from '../../types';
@@ -16,6 +16,7 @@ interface MarketDecisionModalProps {
   updatingDecision: boolean;
   userRole?: string;
   isDarkMode: boolean;
+  marketLogs: any[]; // NOVA PROP INJETADA
 }
 
 export default function MarketDecisionModal({
@@ -28,23 +29,8 @@ export default function MarketDecisionModal({
   updatingDecision,
   userRole = 'SCOUT',
   isDarkMode,
+  marketLogs = [],
 }: MarketDecisionModalProps) {
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loadingLogs, setLoadingLogs] = useState(false);
-
-  useEffect(() => {
-    if (selectedMarketOppToEdit?.id) {
-      setLoadingLogs(true);
-      fetch(`/api/market?opportunityId=${selectedMarketOppToEdit.id}&includeLogs=true`)
-        .then((res) => res.json())
-        .then((data) => {
-          setLogs(data.logs || []);
-        })
-        .catch((err) => console.error("Erro ao carregar logs:", err))
-        .finally(() => setLoadingLogs(false));
-    }
-  }, [selectedMarketOppToEdit]);
-
   if (!selectedMarketOppToEdit) return null;
 
   const theme = getTheme(isDarkMode);
@@ -54,6 +40,12 @@ export default function MarketDecisionModal({
   const isScoutPhase = currentStatus === 'Em Avaliação' || currentStatus.includes('Scouting');
   const isDirectionPhase = currentStatus.includes('Direção');
   const isNegotiationPhase = currentStatus.includes('Negociação') || currentStatus.includes('Contratado');
+
+  // Filtrar os logs globais apenas para a oportunidade selecionada
+  const opportunityLogs = marketLogs.filter(log => {
+    const oppIds = log.fields?.Oportunidade || [];
+    return oppIds.includes(selectedMarketOppToEdit.id);
+  });
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -95,14 +87,38 @@ export default function MarketDecisionModal({
             />
           </div>
 
-          {/* PARECER TÉCNICO SCOUTING */}
+          {/* PARECER TÉCNICO SCOUTING (AGORA COM PONTOS FORTES E FRACOS) */}
           {isScoutPhase && (
-            <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl space-y-3">
+            <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl space-y-4">
               <h4 className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4" /> Parecer Técnico do Scouting
               </h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className={`block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-xs font-bold mb-1`}>Pontos Fortes</label>
+                  <textarea
+                    rows={2}
+                    value={(decisionFormData as any).strengths || selectedMarketOppToEdit.fields?.['Pontos Fortes'] || ''}
+                    onChange={(e) => setDecisionFormData({ ...decisionFormData, strengths: e.target.value } as any)}
+                    className={`w-full border rounded-xl p-2.5 text-xs resize-none ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-emerald-400' : 'bg-white border-slate-300'}`}
+                    placeholder="Capacidades destacadas..."
+                  />
+                </div>
+                <div>
+                  <label className={`block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-xs font-bold mb-1`}>Pontos Fracos</label>
+                  <textarea
+                    rows={2}
+                    value={(decisionFormData as any).weaknesses || selectedMarketOppToEdit.fields?.['Pontos Fracos'] || ''}
+                    onChange={(e) => setDecisionFormData({ ...decisionFormData, weaknesses: e.target.value } as any)}
+                    className={`w-full border rounded-xl p-2.5 text-xs resize-none ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-red-400' : 'bg-white border-slate-300'}`}
+                    placeholder="Debilidades e riscos..."
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className={`block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-xs font-bold mb-1`}>Notas & Justificação do Observador</label>
+                <label className={`block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-xs font-bold mb-1`}>Notas Globais / Justificação do Observador</label>
                 <textarea
                   rows={2}
                   value={decisionFormData.notesDD}
@@ -182,17 +198,15 @@ export default function MarketDecisionModal({
             </div>
           )}
 
-          {/* HISTÓRICO & AUDIT LOG (TIMELINE) */}
+          {/* HISTÓRICO & AUDIT LOG (TIMELINE) DA PROP */}
           <div className="pt-4 border-t border-slate-800 space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-pink-400">
               <History className="w-4 h-4" /> Histórico de Alterações (Audit Log)
             </h4>
 
-            {loadingLogs ? (
-              <p className="text-xs text-slate-500 italic">A carregar registos...</p>
-            ) : logs.length > 0 ? (
+            {opportunityLogs.length > 0 ? (
               <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                {logs.map((log) => {
+                {opportunityLogs.sort((a,b) => new Date(b.createdTime).getTime() - new Date(a.createdTime).getTime()).map((log) => {
                   const lf = log.fields || {};
                   return (
                     <div key={log.id} className="p-3 bg-[#0d131f] border border-slate-800 rounded-xl text-xs space-y-1">

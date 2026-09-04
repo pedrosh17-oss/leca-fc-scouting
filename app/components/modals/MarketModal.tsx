@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Briefcase, X, UserCheck, Globe, Loader2, UserPlus, Lock } from 'lucide-react';
+import { Briefcase, X, UserCheck, Globe, Loader2, UserPlus, Lock, RefreshCcw } from 'lucide-react';
 import CustomSelect from '../ui/CustomSelect';
 import { MarketFormData, Player, Team, Scout } from '../../types';
 import { POSITIONS_OPTIONS, MARKET_TARGET_OPTIONS } from '../../constants/options';
@@ -68,6 +68,19 @@ export default function MarketModal({
     }));
   };
 
+  const handleClearSelection = () => {
+    setIsCreatingNewPlayer(false);
+    setMarketFormData(prev => ({
+      ...prev,
+      playerId: '',
+      name: '',
+      club: '',
+      position: '',
+      foot: '',
+      birthDate: ''
+    }));
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div className={`${themeCard} border border-pink-500/30 w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[90vh]`}>
@@ -94,23 +107,36 @@ export default function MarketModal({
                 <UserCheck className="w-4 h-4"/> Dados do Atleta
               </h3>
               
-              {!isCreatingNewPlayer ? (
-                <button
-                  type="button"
-                  onClick={handleEnableNewPlayerMode}
-                  className="text-xs text-pink-400 bg-pink-500/10 hover:bg-pink-500/20 px-3 py-1.5 rounded-xl border border-pink-500/30 font-bold flex items-center gap-1.5 transition"
-                >
-                  <UserPlus className="w-3.5 h-3.5" /> + Criar Atleta Novo
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsCreatingNewPlayer(false)}
-                  className="text-xs text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-xl border border-amber-500/20 font-bold"
-                >
-                  Procurar Existente na BD
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {!isCreatingNewPlayer ? (
+                  <>
+                    {marketFormData.playerId && (
+                      <button
+                        type="button"
+                        onClick={handleClearSelection}
+                        className="text-[10px] text-slate-400 bg-slate-800 hover:bg-slate-700 px-2 py-1.5 rounded-lg border border-slate-700 font-bold flex items-center gap-1 transition"
+                      >
+                        <RefreshCcw className="w-3 h-3" /> Limpar
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleEnableNewPlayerMode}
+                      className="text-xs text-pink-400 bg-pink-500/10 hover:bg-pink-500/20 px-3 py-1.5 rounded-xl border border-pink-500/30 font-bold flex items-center gap-1.5 transition"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" /> + Criar Atleta Novo
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleClearSelection}
+                    className="text-xs text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-xl border border-amber-500/20 font-bold"
+                  >
+                    Procurar Existente na BD
+                  </button>
+                )}
+              </div>
             </div>
 
             {!isCreatingNewPlayer && (
@@ -237,8 +263,8 @@ export default function MarketModal({
                 />
               </div>
               <div>
-                <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Scout / Observador *</label>
-                <CustomSelect options={displayScouts.map((s) => ({value: s.name, label: s.name}))} value={marketFormData.scout} onChange={v => setMarketFormData({...marketFormData, scout: v})} placeholder="Quem referenciou?" isDarkMode={isDarkMode} />
+                <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Oferecido a: *</label>
+                <CustomSelect options={displayScouts.map((s) => ({value: s.name, label: s.name}))} value={marketFormData.scout} onChange={v => setMarketFormData({...marketFormData, scout: v})} placeholder="Quem recebeu a indicação?" isDarkMode={isDarkMode} />
               </div>
               <div>
                 <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Situação Contratual</label>
