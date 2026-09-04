@@ -1,8 +1,11 @@
 'use client';
 
-import React, { useEffect } from 'react';
-import { X, Sliders, AlertTriangle, Trash2, ShieldCheck, Building2, Briefcase, History, Clock } from 'lucide-react';
-import CustomSelect from '../ui/CustomSelect';
+import React, { useEffect, useState } from 'react';
+import { 
+  X, Sliders, AlertTriangle, Trash2, ShieldCheck, Building2, 
+  Briefcase, History, Clock, CheckCircle2, XCircle, RotateCcw, 
+  Trophy, Users, Save, ShieldAlert, ChevronDown, ChevronUp
+} from 'lucide-react';
 import { DecisionFormData } from '../../types';
 import { getTheme } from '../../constants/theme';
 
@@ -19,6 +22,17 @@ interface MarketDecisionModalProps {
   marketLogs: any[];
 }
 
+const STATUS_CONFIG: Record<string, { title: string; color: string; bg: string; border: string }> = {
+  'Em Avaliação': { title: '📥 Em Avaliação (Entrada do Scouting)', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30' },
+  'Aprovado Scouting': { title: '✅ Aprovado pelo Scouting', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
+  'Vetado Scouting': { title: '❌ Vetado pelo Scouting', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30' },
+  'Aprovado Direção': { title: '💼 Aprovado pela Direção (Luz Verde)', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30' },
+  'Vetado Direção': { title: '⛔ Vetado pela Direção', color: 'text-red-500', bg: 'bg-red-600/10', border: 'border-red-600/30' },
+  'Em Negociação': { title: '🤝 Em Negociação', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30' },
+  'Negociação Cancelada': { title: '⚠️ Negociação Cancelada / Caiu', color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/30' },
+  'Fechado / Contratado': { title: '🏆 Fechado / Contratado', color: 'text-emerald-400', bg: 'bg-emerald-600/20', border: 'border-emerald-500/40' },
+};
+
 export default function MarketDecisionModal({
   selectedMarketOppToEdit,
   onClose,
@@ -31,11 +45,14 @@ export default function MarketDecisionModal({
   isDarkMode,
   marketLogs = [],
 }: MarketDecisionModalProps) {
+  const [showManualOverride, setShowManualOverride] = useState(false);
+
   // Tipagem explícita de (prev: any) para satisfazer o compilador do TypeScript no Vercel
   useEffect(() => {
     if (selectedMarketOppToEdit && selectedMarketOppToEdit.fields) {
       setDecisionFormData((prev: any) => ({
         ...prev,
+        status: prev?.status || selectedMarketOppToEdit.fields['Status Negociação'] || 'Em Avaliação',
         strengths: prev?.strengths || selectedMarketOppToEdit.fields['Pontos Fortes'] || '',
         weaknesses: prev?.weaknesses || selectedMarketOppToEdit.fields['Pontos Fracos'] || '',
       }));
@@ -46,16 +63,28 @@ export default function MarketDecisionModal({
 
   const theme = getTheme(isDarkMode);
   const isAdmin = userRole === 'ADMIN';
+  const isManagement = isAdmin || userRole === 'DIRECTOR' || userRole === 'EXECUTIVE';
 
-  const currentStatus = decisionFormData.status;
+  const currentStatus = decisionFormData.status || selectedMarketOppToEdit.fields?.['Status Negociação'] || 'Em Avaliação';
+  const statusCfg = STATUS_CONFIG[currentStatus] || STATUS_CONFIG['Em Avaliação'];
+
   const isScoutPhase = currentStatus === 'Em Avaliação' || currentStatus.includes('Scouting');
-  const isDirectionPhase = currentStatus.includes('Direção');
+  const isDirectionPhase = currentStatus.includes('Direção') || currentStatus === 'Em Negociação' || currentStatus === 'Fechado / Contratado';
   const isNegotiationPhase = currentStatus.includes('Negociação') || currentStatus.includes('Contratado');
+  const isTerminal = currentStatus.includes('Vetado') || currentStatus === 'Negociação Cancelada' || currentStatus === 'Fechado / Contratado';
 
   const opportunityLogs = marketLogs.filter(log => {
     const oppIds = log.fields?.Oportunidade || [];
     return oppIds.includes(selectedMarketOppToEdit.id);
   });
+
+  const handleActionSubmit = (newStatus: string, e: React.FormEvent | React.MouseEvent) => {
+    e.preventDefault();
+    setDecisionFormData((prev: any) => ({ ...prev, status: newStatus }));
+    setTimeout(() => {
+      onSubmit(e as React.FormEvent);
+    }, 50);
+  };
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -78,24 +107,45 @@ export default function MarketDecisionModal({
         </div>
 
         <form onSubmit={onSubmit} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto custom-scrollbar">
-          <div>
-            <label className={`block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-xs font-bold mb-1.5 uppercase`}>Fase Atual do Processo *</label>
-            <CustomSelect
-              options={[
-                { value: 'Em Avaliação', label: '📥 Em Avaliação (Entrada do Scouting)' },
-                { value: 'Aprovado Scouting', label: '✅ Aprovado pelo Scouting' },
-                { value: 'Vetado Scouting', label: '❌ Vetado pelo Scouting' },
-                { value: 'Aprovado Direção', label: '💼 Aprovado pela Direção (Luz Verde)' },
-                { value: 'Vetado Direção', label: '⛔ Vetado pela Direção' },
-                { value: 'Em Negociação', label: '🤝 Em Negociação' },
-                { value: 'Negociação Cancelada', label: '⚠️ Negociação Cancelada / Caiu' },
-                { value: 'Fechado / Contratado', label: '🏆 Fechado / Contratado' },
-              ]}
-              value={decisionFormData.status}
-              onChange={(v) => setDecisionFormData({ ...decisionFormData, status: v })}
-              isDarkMode={isDarkMode}
-            />
+          
+          {/* BANNER ESTÁTICO DE FASE ATUAL */}
+          <div className={`${statusCfg.bg} border ${statusCfg.border} p-4 rounded-2xl flex items-center justify-between gap-3`}>
+            <div>
+              <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block mb-0.5">
+                Fase Atual do Processo
+              </span>
+              <h3 className={`text-sm font-bold ${statusCfg.color} flex items-center gap-2`}>
+                {statusCfg.title}
+              </h3>
+            </div>
+
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowManualOverride(!showManualOverride)}
+                className="text-[11px] text-slate-400 hover:text-slate-200 flex items-center gap-1 bg-slate-800/80 px-2.5 py-1.5 rounded-lg border border-slate-700 transition"
+              >
+                {showManualOverride ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                {showManualOverride ? 'Ocultar Seleção Manual' : 'Alterar Fase Manualmente'}
+              </button>
+            )}
           </div>
+
+          {/* OVERRIDE MANUAL DE FASE (APENAS SE O ADMIN ATIVAR) */}
+          {showManualOverride && (
+            <div className="p-3 bg-slate-800/40 border border-slate-700/60 rounded-xl space-y-2 animate-in fade-in duration-200">
+              <label className="block text-[11px] font-bold text-amber-400 uppercase">Ajuste Direto de Fase (Modo Avançado)</label>
+              <select
+                value={currentStatus}
+                onChange={(e) => setDecisionFormData({ ...decisionFormData, status: e.target.value })}
+                className={`w-full border rounded-xl p-2.5 text-xs font-bold ${isDarkMode ? 'bg-[#0d131f] border-slate-700 text-white' : 'bg-white border-slate-300'}`}
+              >
+                {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                  <option key={key} value={key}>{cfg.title}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* PARECER TÉCNICO SCOUTING */}
           <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl space-y-4">
@@ -108,7 +158,7 @@ export default function MarketDecisionModal({
                 <label className={`block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-xs font-bold mb-1`}>Pontos Fortes</label>
                 <textarea
                   rows={2}
-                  disabled={!isScoutPhase}
+                  disabled={currentStatus !== 'Em Avaliação'}
                   value={(decisionFormData as any).strengths || ''}
                   onChange={(e) => setDecisionFormData({ ...decisionFormData, strengths: e.target.value } as any)}
                   className={`w-full border rounded-xl p-2.5 text-xs resize-none disabled:opacity-60 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-emerald-400' : 'bg-white border-slate-300'}`}
@@ -119,7 +169,7 @@ export default function MarketDecisionModal({
                 <label className={`block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-xs font-bold mb-1`}>Pontos Fracos</label>
                 <textarea
                   rows={2}
-                  disabled={!isScoutPhase}
+                  disabled={currentStatus !== 'Em Avaliação'}
                   value={(decisionFormData as any).weaknesses || ''}
                   onChange={(e) => setDecisionFormData({ ...decisionFormData, weaknesses: e.target.value } as any)}
                   className={`w-full border rounded-xl p-2.5 text-xs resize-none disabled:opacity-60 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-red-400' : 'bg-white border-slate-300'}`}
@@ -132,7 +182,7 @@ export default function MarketDecisionModal({
               <label className={`block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-xs font-bold mb-1`}>Notas Globais / Justificação do Observador</label>
               <textarea
                 rows={2}
-                disabled={!isScoutPhase}
+                disabled={currentStatus !== 'Em Avaliação'}
                 value={isScoutPhase ? decisionFormData.notesDD : (selectedMarketOppToEdit.fields?.['Notas Diretor Desportivo'] || '')}
                 onChange={(e) => isScoutPhase && setDecisionFormData({ ...decisionFormData, notesDD: e.target.value })}
                 className={`w-full border rounded-xl p-2.5 text-xs resize-none disabled:opacity-60 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`}
@@ -242,23 +292,157 @@ export default function MarketDecisionModal({
             )}
           </div>
 
-          <div className="flex gap-3 pt-3 border-t border-slate-800">
-            {isAdmin && onDelete && (
-              <button
-                type="button"
-                onClick={() => onDelete(selectedMarketOppToEdit.id)}
-                className="px-3.5 py-3 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition"
-                title="Eliminar permanentemente do Airtable"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
-            <button type="button" onClick={onClose} className="flex-1 py-3 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-700 transition">
-              Cancelar
-            </button>
-            <button type="submit" disabled={updatingDecision} className="flex-1 py-3 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-pink-900/20 transition">
-              Guardar Alterações
-            </button>
+          {/* PAINEL DE BOTÕES DE AÇÃO E DECISÃO NO RODAPÉ */}
+          <div className="flex flex-col gap-3 pt-3 border-t border-slate-800">
+            
+            {/* BOTÕES DE DECISÃO DE FASE DEDICADOS */}
+            <div className="flex flex-wrap items-center gap-2">
+              {currentStatus === 'Em Avaliação' && (
+                <>
+                  <button
+                    type="button"
+                    disabled={updatingDecision}
+                    onClick={(e) => handleActionSubmit('Aprovado Scouting', e)}
+                    className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition shadow-md shadow-emerald-900/20"
+                  >
+                    <ShieldCheck className="w-4 h-4" /> Aprovar Scout
+                  </button>
+                  <button
+                    type="button"
+                    disabled={updatingDecision}
+                    onClick={(e) => handleActionSubmit('Vetado Scouting', e)}
+                    className="flex-1 py-2.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition"
+                  >
+                    <ShieldAlert className="w-4 h-4" /> Vetar Scout
+                  </button>
+                </>
+              )}
+
+              {currentStatus === 'Aprovado Scouting' && (
+                <>
+                  {isManagement && (
+                    <>
+                      <button
+                        type="button"
+                        disabled={updatingDecision}
+                        onClick={(e) => handleActionSubmit('Aprovado Direção', e)}
+                        className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition shadow-md shadow-purple-900/20"
+                      >
+                        <CheckCircle2 className="w-4 h-4" /> Luz Verde Direção
+                      </button>
+                      <button
+                        type="button"
+                        disabled={updatingDecision}
+                        onClick={(e) => handleActionSubmit('Vetado Direção', e)}
+                        className="flex-1 py-2.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition"
+                      >
+                        <XCircle className="w-4 h-4" /> Veto Direção
+                      </button>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    disabled={updatingDecision}
+                    onClick={(e) => handleActionSubmit('Em Avaliação', e)}
+                    className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" /> Devolver a Avaliação
+                  </button>
+                </>
+              )}
+
+              {currentStatus === 'Aprovado Direção' && (
+                <>
+                  {isManagement && (
+                    <button
+                      type="button"
+                      disabled={updatingDecision}
+                      onClick={(e) => handleActionSubmit('Em Negociação', e)}
+                      className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition shadow-md shadow-amber-900/20"
+                    >
+                      <Users className="w-4 h-4" /> Iniciar Negociação
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={updatingDecision}
+                    onClick={(e) => handleActionSubmit('Aprovado Scouting', e)}
+                    className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" /> Devolver ao Scout
+                  </button>
+                </>
+              )}
+
+              {currentStatus === 'Em Negociação' && (
+                <>
+                  {isManagement && (
+                    <>
+                      <button
+                        type="button"
+                        disabled={updatingDecision}
+                        onClick={(e) => handleActionSubmit('Fechado / Contratado', e)}
+                        className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition shadow-md shadow-emerald-900/20"
+                      >
+                        <Trophy className="w-4 h-4" /> Assinar / Contratado
+                      </button>
+                      <button
+                        type="button"
+                        disabled={updatingDecision}
+                        onClick={(e) => handleActionSubmit('Negociação Cancelada', e)}
+                        className="flex-1 py-2.5 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 border border-orange-500/30 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition"
+                      >
+                        <AlertTriangle className="w-4 h-4" /> Negócio Caiu
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+
+              {isTerminal && (
+                <button
+                  type="button"
+                  disabled={updatingDecision}
+                  onClick={(e) => handleActionSubmit('Em Avaliação', e)}
+                  className="flex-1 py-2.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition"
+                >
+                  <RotateCcw className="w-4 h-4" /> Reabrir Processo (Em Avaliação)
+                </button>
+              )}
+            </div>
+
+            {/* BOTÕES SECUNDÁRIOS: ELIMINAR (ADMIN), CANCELAR E GUARDAR RASCUNHO */}
+            <div className="flex items-center justify-between gap-2 pt-1">
+              {isAdmin && onDelete ? (
+                <button
+                  type="button"
+                  onClick={() => onDelete(selectedMarketOppToEdit.id)}
+                  className="p-2.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 font-bold rounded-xl text-xs transition"
+                  title="Eliminar permanentemente do Airtable"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              ) : <div />}
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-700 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingDecision}
+                  className="px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-pink-900/20 transition"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {updatingDecision ? 'A Guardar...' : 'Guardar Rascunho / Notas'}
+                </button>
+              </div>
+            </div>
+
           </div>
         </form>
       </div>
