@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { X, Sliders, AlertTriangle, Trash2, ShieldCheck, Building2, Briefcase } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Sliders, AlertTriangle, Trash2, ShieldCheck, Building2, Briefcase, History, Clock } from 'lucide-react';
 import CustomSelect from '../ui/CustomSelect';
 import { DecisionFormData } from '../../types';
 import { getTheme } from '../../constants/theme';
@@ -29,6 +29,22 @@ export default function MarketDecisionModal({
   userRole = 'SCOUT',
   isDarkMode,
 }: MarketDecisionModalProps) {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+
+  useEffect(() => {
+    if (selectedMarketOppToEdit?.id) {
+      setLoadingLogs(true);
+      fetch(`/api/market?opportunityId=${selectedMarketOppToEdit.id}&includeLogs=true`)
+        .then((res) => res.json())
+        .then((data) => {
+          setLogs(data.logs || []);
+        })
+        .catch((err) => console.error("Erro ao carregar logs:", err))
+        .finally(() => setLoadingLogs(false));
+    }
+  }, [selectedMarketOppToEdit]);
+
   if (!selectedMarketOppToEdit) return null;
 
   const theme = getTheme(isDarkMode);
@@ -41,7 +57,7 @@ export default function MarketDecisionModal({
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className={`${theme.card} border border-pink-500/30 w-full max-w-xl rounded-2xl shadow-2xl flex flex-col overflow-hidden`}>
+      <div className={`${theme.card} border border-pink-500/30 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col overflow-hidden`}>
         <div className={`flex justify-between items-center p-5 border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
           <div className="flex items-center gap-3">
             <div className="p-2 bg-pink-600/20 border border-pink-500/30 text-pink-500 rounded-xl">
@@ -59,7 +75,7 @@ export default function MarketDecisionModal({
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+        <form onSubmit={onSubmit} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto custom-scrollbar">
           <div>
             <label className={`block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-xs font-bold mb-1.5 uppercase`}>Fase Atual do Processo *</label>
             <CustomSelect
@@ -79,7 +95,7 @@ export default function MarketDecisionModal({
             />
           </div>
 
-          {/* CAMPOS ESPECÍFICOS DA FASE DO SCOUTING */}
+          {/* PARECER TÉCNICO SCOUTING */}
           {isScoutPhase && (
             <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl space-y-3">
               <h4 className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -98,11 +114,11 @@ export default function MarketDecisionModal({
             </div>
           )}
 
-          {/* CAMPOS ESPECÍFICOS DA FASE DA DIREÇÃO */}
+          {/* PARECER DA DIREÇÃO */}
           {isDirectionPhase && (
             <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl space-y-3">
               <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Building2 className="w-4 h-4" /> Parecer da Presidência / Direção Desportiva
+                <Building2 className="w-4 h-4" /> Parecer da Presidência / Direção
               </h4>
               <div>
                 <label className={`block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-xs font-bold mb-1`}>Opinião da Direção / Custo-Benefício</label>
@@ -114,39 +130,29 @@ export default function MarketDecisionModal({
                   placeholder="Decisão financeira e enquadramento no teto salarial..."
                 />
               </div>
-              <div>
-                <label className={`block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-xs font-bold mb-1`}>Notas do Diretor Desportivo</label>
-                <textarea
-                  rows={2}
-                  value={decisionFormData.notesDD}
-                  onChange={(e) => setDecisionFormData({ ...decisionFormData, notesDD: e.target.value })}
-                  className={`w-full border rounded-xl p-2.5 text-xs resize-none ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`}
-                  placeholder="Condições para avançar com proposta..."
-                />
-              </div>
             </div>
           )}
 
-          {/* CAMPOS ESPECÍFICOS DE NEGOCIAÇÃO / FECHO */}
+          {/* TERMOS DE NEGOCIAÇÃO */}
           {isNegotiationPhase && (
             <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-3">
               <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Briefcase className="w-4 h-4" /> Gestão da Negociação
+                <Briefcase className="w-4 h-4" /> Termos de Negociação
               </h4>
               <div>
-                <label className={`block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-xs font-bold mb-1`}>Notas de Negociação / Termos da Proposta</label>
+                <label className={`block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-xs font-bold mb-1`}>Notas de Proposta / Agente</label>
                 <textarea
                   rows={2}
                   value={decisionFormData.notesDD}
                   onChange={(e) => setDecisionFormData({ ...decisionFormData, notesDD: e.target.value })}
                   className={`w-full border rounded-xl p-2.5 text-xs resize-none ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`}
-                  placeholder="Valores, comissões de agente, duração de contrato..."
+                  placeholder="Valores salariais, duração do contrato, prémio de assinatura..."
                 />
               </div>
             </div>
           )}
 
-          {/* DETALHES DE VETO OU NEGÓCIO QUE CAIU */}
+          {/* MOTIVO DO VETO OU CANCELAMENTO */}
           {(currentStatus.includes('Vetado') || currentStatus === 'Negociação Cancelada') && (
             <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl space-y-3">
               <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -175,6 +181,41 @@ export default function MarketDecisionModal({
               </div>
             </div>
           )}
+
+          {/* HISTÓRICO & AUDIT LOG (TIMELINE) */}
+          <div className="pt-4 border-t border-slate-800 space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-pink-400">
+              <History className="w-4 h-4" /> Histórico de Alterações (Audit Log)
+            </h4>
+
+            {loadingLogs ? (
+              <p className="text-xs text-slate-500 italic">A carregar registos...</p>
+            ) : logs.length > 0 ? (
+              <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                {logs.map((log) => {
+                  const lf = log.fields || {};
+                  return (
+                    <div key={log.id} className="p-3 bg-[#0d131f] border border-slate-800 rounded-xl text-xs space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-slate-200">{lf.Utilizador || 'Sistema'}</span>
+                        <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> {lf.Data_Hora || '-'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Mudou de <span className="text-slate-300 font-semibold">{lf.Status_Anterior || 'Início'}</span> para <span className="text-pink-400 font-bold">{lf.Status_Novo || lf.Status}</span>
+                      </p>
+                      {lf.Notas && <p className="text-[10px] text-slate-400 italic bg-slate-900/60 p-1.5 rounded border border-slate-800">{lf.Notas}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 italic p-3 border border-dashed rounded-xl text-center">
+                Ainda sem histórico registado na tabela `Logs_Mercado`.
+              </p>
+            )}
+          </div>
 
           <div className="flex gap-3 pt-3 border-t border-slate-800">
             {isAdmin && onDelete && (

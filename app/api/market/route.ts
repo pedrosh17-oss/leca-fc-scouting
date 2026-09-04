@@ -81,6 +81,7 @@ export async function POST(request: Request) {
 
     let targetPlayerId = playerId;
 
+    // 1. Se não tiver ID e for um atleta novo, cria-o na tabela 'Players'
     if (!targetPlayerId && name) {
       const searchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players?filterByFormula=LOWER({Name})='${encodeURIComponent(name.toLowerCase().trim())}'`;
       const searchRes = await fetch(searchUrl, { headers, cache: 'no-store' });
@@ -94,22 +95,23 @@ export async function POST(request: Request) {
 
       if (!targetPlayerId) {
         const createPlayerUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players`;
+        const playerFields: Record<string, any> = {
+          Name: name,
+          Club: club || '',
+          Position: position || '',
+          Foot: foot || '',
+          Status: 'Monitored',
+        };
+
+        if (birthDate && birthDate.trim() !== '') {
+          playerFields.BirthDate = birthDate;
+        }
+
         const createPlayerRes = await fetch(createPlayerUrl, {
           method: 'POST',
           headers,
           body: JSON.stringify({
-            records: [
-              {
-                fields: {
-                  Name: name,
-                  Club: club || '',
-                  Position: position || '',
-                  Foot: foot || '',
-                  BirthDate: birthDate || '',
-                  Status: 'Monitored',
-                },
-              },
-            ],
+            records: [{ fields: playerFields }],
             typecast: true
           }),
         });
@@ -125,6 +127,7 @@ export async function POST(request: Request) {
       }
     }
 
+    // 2. Criar a oportunidade em 'Mercado_Oportunidades'
     const createMarketUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Mercado_Oportunidades`;
     const initialStatus = status || 'Em Avaliação';
 
@@ -133,8 +136,6 @@ export async function POST(request: Request) {
       'Scout': scout || '',
       'Status Negociação': initialStatus,
       'Viabilidade Financeira': viability || '',
-      'Confiança Liga 3': confLiga3 || '',
-      'Confiança Liga 2': confLiga2 || '',
       'Contrato': contract || '',
       'Utilização': utilization || '',
       'Pontos Fortes': strengths || '',
@@ -147,8 +148,13 @@ export async function POST(request: Request) {
       'Notas Diretor Desportivo': notesDD || '',
     };
 
-    if (offerDate) marketFields['Data da Oferta'] = offerDate;
-    if (vetoDate) marketFields['Data do Veto'] = vetoDate;
+    // Converter números de confiança apenas se preenchidos
+    if (confLiga3 && !isNaN(parseInt(confLiga3))) marketFields['Confiança Liga 3'] = parseInt(confLiga3);
+    if (confLiga2 && !isNaN(parseInt(confLiga2))) marketFields['Confiança Liga 2'] = parseInt(confLiga2);
+
+    // Evitar enviar datas vazias ("")
+    if (offerDate && offerDate.trim() !== '') marketFields['Data da Oferta'] = offerDate;
+    if (vetoDate && vetoDate.trim() !== '') marketFields['Data do Veto'] = vetoDate;
     if (targetPlayerId) marketFields['Jogador'] = [targetPlayerId];
 
     const marketRes = await fetch(createMarketUrl, {
@@ -169,6 +175,7 @@ export async function POST(request: Request) {
     const newMarket = await marketRes.json();
     const createdRecordId = newMarket.records[0].id;
 
+    // 3. Registar o Log inicial na tabela 'Logs_Mercado'
     try {
       const nowFormatted = new Date().toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' });
       const logUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado`;
@@ -186,7 +193,7 @@ export async function POST(request: Request) {
                 'Status_Anterior': 'Criado',
                 'Status_Novo': initialStatus,
                 'Data_Hora': nowFormatted,
-                'Notas': reason || 'Oportunidade de mercado submetida no sistema.',
+                'Notas': reason || 'Oportunidade registada no sistema.',
               },
             },
           ],
@@ -204,7 +211,7 @@ export async function POST(request: Request) {
   }
 }
 
-// PATCH: Atualizar Estado, Vetos e Registar Auditoria na tabela 'Logs_Mercado'
+// PATCH: Atualizar Estado, Vetos e Registar Auditoria
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
@@ -228,9 +235,9 @@ export async function PATCH(request: Request) {
 
     if (status !== undefined) fields['Status Negociação'] = status;
     if (vetoReason !== undefined) fields['Motivo do Veto'] = vetoReason;
-    if (vetoDate !== undefined) fields['Data do Veto'] = vetoDate;
     if (presidentOpinion !== undefined) fields['Opinião do Presidente'] = presidentOpinion;
     if (notesDD !== undefined) fields['Notas Diretor Desportivo'] = notesDD;
+    if (vetoDate && vetoDate.trim() !== '') fields['Data do Veto'] = vetoDate;
 
     const res = await fetch(updateUrl, {
       method: 'PATCH',
@@ -280,7 +287,7 @@ export async function PATCH(request: Request) {
   }
 }
 
-// DELETE: Apagar permanentemente a oportunidade no Airtable (Apenas Admin)
+// DELETE: Apagar permanentemente a oportunidade no Airtable
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -291,10 +298,7 @@ export async function DELETE(request: Request) {
     }
 
     const deleteUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Mercado_Oportunidades/${recordId}`;
-    const res = await fetch(deleteUrl, {
-      method: 'DELETE',
-      headers,
-    });
+    const res = await fetch(deleteUrl, { method: 'DELETE', headers });
 
     if (!res.ok) {
       const err = await res.json();
