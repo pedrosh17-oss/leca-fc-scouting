@@ -34,7 +34,7 @@ export default function Home() {
   const theme = getTheme(isDarkMode);
   
   const {
-    players, teams, matches, competitions, scouts, marketOpportunities, algorithmData, setAlgorithmData, loading,
+    players, teams, matches, competitions, scouts, marketOpportunities, marketLogs, algorithmData, setAlgorithmData, loading,
     isAuthenticated, setIsAuthenticated, authScoutId, setAuthScoutId, authScoutName, setAuthScoutName,
     userRole, setUserRole, loadData
   } = useScoutingData();
@@ -399,7 +399,7 @@ export default function Home() {
         updatingDecision={updatingDecision} 
         userRole={userRole}
         isDarkMode={isDarkMode} 
-        marketLogs={marketLogs} 
+        marketLogs={marketLogs}
       />
       
       <PlayerProfileModal selectedPlayer={selectedPlayer} onClose={() => setSelectedPlayer(null)} profileTab={profileTab} setProfileTab={setProfileTab} selectedSeasonIdx={selectedSeasonIdx} setSelectedSeasonIdx={setSelectedSeasonIdx} setSelectedPillarDetail={setSelectedPillarDetail} algorithmData={algorithmData} marketOpportunities={marketOpportunities} canSeeMarket={true} setMarketFormData={setMarketFormData} setIsMarketModalOpen={setIsMarketModalOpen} setSelectedMarketOppToEdit={setSelectedMarketOppToEdit} setDecisionFormData={setDecisionFormData} navigateToMatch={navigateToMatch} getPlayerTimeline={() => []} getPlayerAlgoEntries={getPlayerAlgoEntries} extractPlayerBaseName={extractPlayerBaseName} renderFormattedMarkdown={renderFormattedMarkdown} isDarkMode={isDarkMode} />
