@@ -59,7 +59,7 @@ export async function POST(request: Request) {
 
     let targetPlayerId = playerId;
 
-    // PASSO 1: Procurar ou criar o jogador na tabela 'Players' usando a nomenclatura exata
+    // PASSO 1: Criar atleta em 'Players' usando os nomes de campos e opções exatas do CSV
     if (!targetPlayerId && name) {
       const cleanName = name.trim();
       const searchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players?filterByFormula=LOWER({Player Name})='${encodeURIComponent(cleanName.toLowerCase())}'`;
@@ -76,16 +76,22 @@ export async function POST(request: Request) {
         console.warn("Pesquisa de jogador falhou:", sErr);
       }
 
-      // Se não existir, cria o registo na tabela 'Players' com os nomes das colunas extraídos do CSV
       if (!targetPlayerId) {
         const createPlayerUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players`;
         
         const playerFields: Record<string, any> = { 'Player Name': cleanName };
         if (club && club.trim()) playerFields['Current Team'] = club;
         if (position && position.trim()) playerFields['Position'] = position;
-        if (foot && foot.trim()) playerFields['Foot'] = foot;
+        
+        // Mapeamento do Pé conforme opções da BD ('D', 'E', 'Ambi')
+        if (foot && foot.trim()) {
+          if (foot === 'Direito') playerFields['Foot'] = 'D';
+          else if (foot === 'Esquerdo') playerFields['Foot'] = 'E';
+          else if (foot === 'Ambos') playerFields['Foot'] = 'Ambi';
+          else playerFields['Foot'] = foot;
+        }
+
         if (birthDate && birthDate.trim()) playerFields['Date of Birth'] = birthDate;
-        playerFields['Status'] = 'Monitored';
 
         const createPlayerRes = await fetch(createPlayerUrl, {
           method: 'POST',
@@ -160,7 +166,7 @@ export async function POST(request: Request) {
     const newMarket = await marketRes.json();
     const createdRecordId = newMarket.records[0]?.id;
 
-    // PASSO 3: Registar Log inicial em 'Logs_Mercado'
+    // PASSO 3: Registar Log em 'Logs_Mercado'
     try {
       const nowFormatted = new Date().toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' });
       const logUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado`;
