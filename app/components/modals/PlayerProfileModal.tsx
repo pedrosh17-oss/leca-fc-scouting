@@ -163,9 +163,16 @@ export default function PlayerProfileModal({
             <button onClick={() => setProfileTab('timeline')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'timeline' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
               <FileText className="w-4 h-4" /> Observações & Timeline
             </button>
-            <button onClick={() => setProfileTab('algo')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'algo' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
-              <BarChart3 className="w-4 h-4" /> Ratings
-            </button>
+            <button 
+  onClick={() => setProfileTab('algo')} 
+  className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${
+    profileTab === 'algo' 
+      ? isDarkMode ? 'border-indigo-400 text-indigo-400' : 'border-indigo-700 text-indigo-800' 
+      : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+  }`}
+>
+  <BarChart3 className="w-4 h-4" /> Ratings
+</button>
             <button onClick={() => setProfileTab('reports')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'reports' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
               <BrainCircuit className="w-4 h-4" /> Relatórios & Análise
             </button>
