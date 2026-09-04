@@ -68,7 +68,7 @@ export default function PlayersTab({
     let totalCount = 0;
     filteredPlayers.forEach(p => {
       const pAny = p as any;
-      const comp = pAny.competition || p.league;
+      const comp = pAny.competition || pAny.league;
       if (!comp || comp === 'N/D') return;
       counts[comp] = (counts[comp] || 0) + 1;
       totalCount++;
@@ -180,7 +180,6 @@ export default function PlayersTab({
           </div>
         </div>
 
-        {/* SELETOR DE INTERVALO DE IDADES */}
         <div className={`${themeCard} p-3 rounded-xl border flex items-center gap-4 text-xs font-medium`}>
           <span className={`font-bold uppercase tracking-wider ${themeTextMuted}`}>Intervalo Idade:</span>
           <div className="flex items-center gap-2">
