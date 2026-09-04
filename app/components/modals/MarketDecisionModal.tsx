@@ -10,7 +10,7 @@ interface MarketDecisionModalProps {
   selectedMarketOppToEdit: any;
   onClose: () => void;
   decisionFormData: DecisionFormData;
-  setDecisionFormData: (data: DecisionFormData) => void;
+  setDecisionFormData: React.Dispatch<React.SetStateAction<DecisionFormData>> | ((data: any) => void);
   onSubmit: (e: React.FormEvent) => void;
   onDelete?: (recordId: string) => void;
   updatingDecision: boolean;
@@ -31,18 +31,17 @@ export default function MarketDecisionModal({
   isDarkMode,
   marketLogs = [],
 }: MarketDecisionModalProps) {
-  // 1. Os Hooks de React têm de ser chamados sempre no topo, antes de qualquer "return null"
+  // Tipagem explícita de (prev: any) para satisfazer o compilador do TypeScript no Vercel
   useEffect(() => {
     if (selectedMarketOppToEdit && selectedMarketOppToEdit.fields) {
-      setDecisionFormData(prev => ({
+      setDecisionFormData((prev: any) => ({
         ...prev,
-        strengths: prev.strengths || selectedMarketOppToEdit.fields['Pontos Fortes'] || '',
-        weaknesses: prev.weaknesses || selectedMarketOppToEdit.fields['Pontos Fracos'] || '',
-      } as any));
+        strengths: prev?.strengths || selectedMarketOppToEdit.fields['Pontos Fortes'] || '',
+        weaknesses: prev?.weaknesses || selectedMarketOppToEdit.fields['Pontos Fracos'] || '',
+      }));
     }
   }, [selectedMarketOppToEdit, setDecisionFormData]);
 
-  // 2. Verificação de segurança realizada após a declaração dos Hooks
   if (!selectedMarketOppToEdit) return null;
 
   const theme = getTheme(isDarkMode);
