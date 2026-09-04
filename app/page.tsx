@@ -181,18 +181,31 @@ export default function Home() {
   };
 
   const handleMarketSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); setSubmittingMarket(true);
+    e.preventDefault(); 
+    setSubmittingMarket(true);
     try {
-      const res = await fetch('/api/market', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...marketFormData, scout: marketFormData.scout || authScoutName }) });
-      if (res.ok) { 
+      const res = await fetch('/api/market', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ ...marketFormData, scout: marketFormData.scout || authScoutName }) 
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) { 
         setIsMarketModalOpen(false); 
         setMarketFormData(initialMarketForm); 
         await loadData(); 
-        showToast("Oportunidade registada!"); 
+        showToast("Oportunidade registada com sucesso!"); 
       } else {
-        showToast("Erro ao gravar. Verifica se preencheste os campos.");
+        const errorMsg = typeof data.error === 'string' ? data.error : data.error?.message || 'Erro ao comunicar com Airtable.';
+        showToast(errorMsg);
       }
-    } catch (err) { console.error(err); showToast("Erro de ligação."); } finally { setSubmittingMarket(false); }
+    } catch (err: any) { 
+      console.error(err); 
+      showToast("Erro de ligação ao servidor."); 
+    } finally { 
+      setSubmittingMarket(false); 
+    }
   };
 
   const handleDecisionSubmit = async (e: React.FormEvent) => {

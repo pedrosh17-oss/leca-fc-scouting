@@ -59,61 +59,50 @@ export async function POST(request: Request) {
 
     let targetPlayerId = playerId;
 
-    // 1. Se não tiver ID e for um atleta novo, procura ou cria em 'Players'
+    // PASSO 1: Criar o jogador na tabela 'Players' se for novo
     if (!targetPlayerId && name) {
       const cleanName = name.trim();
-      const searchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players?filterByFormula=LOWER({Name})='${encodeURIComponent(cleanName.toLowerCase())}'`;
       
-      try {
-        const searchRes = await fetch(searchUrl, { headers, cache: 'no-store' });
-        if (searchRes.ok) {
-          const searchData = await searchRes.json();
-          if (searchData.records && searchData.records.length > 0) {
-            targetPlayerId = searchData.records[0].id;
-          }
-        }
-      } catch (sErr) {
-        console.warn("Pesquisa de jogador falhou, avançando para criação:", sErr);
+      const createPlayerUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players`;
+      const playerFields: Record<string, any> = { Name: cleanName };
+      
+      if (club && club.trim()) playerFields.Club = club;
+      if (position && position.trim()) playerFields.Position = position;
+      if (foot && foot.trim()) playerFields.Foot = foot;
+      if (birthDate && birthDate.trim()) playerFields.BirthDate = birthDate;
+      playerFields.Status = 'Monitored';
+
+      const createPlayerRes = await fetch(createPlayerUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          records: [{ fields: playerFields }],
+          typecast: true
+        }),
+      });
+
+      if (!createPlayerRes.ok) {
+        const errP = await createPlayerRes.json();
+        const msg = errP?.error?.message || JSON.stringify(errP);
+        console.error("Erro ao criar Player na tabela Players:", msg);
+        return NextResponse.json({ error: `Erro na tabela 'Players': ${msg}` }, { status: 400 });
       }
 
-      // Se continuar sem existir na BD, cria o jogador na tabela 'Players'
-      if (!targetPlayerId) {
-        const createPlayerUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players`;
-        
-        const playerFields: Record<string, any> = { Name: cleanName };
-        if (club && club.trim()) playerFields.Club = club;
-        if (position && position.trim()) playerFields.Position = position;
-        if (foot && foot.trim()) playerFields.Foot = foot;
-        if (birthDate && birthDate.trim()) playerFields.BirthDate = birthDate;
-        playerFields.Status = 'Monitored';
-
-        const createPlayerRes = await fetch(createPlayerUrl, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            records: [{ fields: playerFields }],
-            typecast: true
-          }),
-        });
-
-        if (!createPlayerRes.ok) {
-          const errP = await createPlayerRes.json();
-          const detail = errP?.error?.message || JSON.stringify(errP);
-          console.error("Erro ao criar Player no Airtable:", detail);
-          return NextResponse.json({ error: `Falha ao criar Jogador (${detail})` }, { status: 400 });
-        }
-
-        const newPlayerData = await createPlayerRes.json();
-        targetPlayerId = newPlayerData.records[0]?.id;
-      }
+      const newPlayerData = await createPlayerRes.json();
+      targetPlayerId = newPlayerData.records[0]?.id;
     }
 
-    // 2. Criar o registo na tabela 'Mercado_Oportunidades'
+    if (!targetPlayerId) {
+      return NextResponse.json({ error: "Não foi possível obter ou criar o ID do Jogador." }, { status: 400 });
+    }
+
+    // PASSO 2: Criar o registo na tabela 'Mercado_Oportunidades'
     const createMarketUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Mercado_Oportunidades`;
     const initialStatus = status || 'Em Avaliação';
 
     const marketFields: Record<string, any> = {
       'Status Negociação': initialStatus,
+      'Jogador': [targetPlayerId]
     };
 
     if (marketTarget) marketFields['Mercado Target'] = marketTarget;
@@ -135,7 +124,6 @@ export async function POST(request: Request) {
 
     if (offerDate && offerDate.trim() !== '') marketFields['Data da Oferta'] = offerDate;
     if (vetoDate && vetoDate.trim() !== '') marketFields['Data do Veto'] = vetoDate;
-    if (targetPlayerId) marketFields['Jogador'] = [targetPlayerId];
 
     const marketRes = await fetch(createMarketUrl, {
       method: 'POST',
@@ -147,16 +135,16 @@ export async function POST(request: Request) {
     });
 
     if (!marketRes.ok) {
-      const err = await marketRes.json();
-      const detail = err?.error?.message || JSON.stringify(err);
-      console.error("Erro ao criar Oportunidade no Airtable:", detail);
-      return NextResponse.json({ error: `Falha ao criar Oportunidade (${detail})` }, { status: 400 });
+      const errM = await marketRes.json();
+      const msg = errM?.error?.message || JSON.stringify(errM);
+      console.error("Erro ao criar em Mercado_Oportunidades:", msg);
+      return NextResponse.json({ error: `Erro na tabela 'Mercado_Oportunidades': ${msg}` }, { status: 400 });
     }
 
     const newMarket = await marketRes.json();
     const createdRecordId = newMarket.records[0]?.id;
 
-    // 3. Registar Log inicial na tabela 'Logs_Mercado'
+    // PASSO 3: Criar o Log inicial na tabela 'Logs_Mercado'
     try {
       const nowFormatted = new Date().toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' });
       const logUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado`;
