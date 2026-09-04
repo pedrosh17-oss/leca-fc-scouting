@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Search, ChevronDown, ChevronUp, PieChart, ShieldAlert, Award } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, PieChart, ShieldAlert, Award, Filter } from 'lucide-react';
 import CustomSelect from '../ui/CustomSelect';
 import { Player, Team } from '../../types';
 
@@ -45,14 +45,6 @@ const TACTICAL_ORDER: Record<string, number> = {
   'forward': 10, 'striker': 10, 'st': 10, 'fw': 10, 'avançado': 10
 };
 
-const ALL_OBSERVATION_STATUSES = [
-  'No Activity',
-  'On Radar',
-  'Monitoring',
-  'Assess Individually',
-  'Observed'
-];
-
 export default function PlayersTab({
   search, setSearch,
   filteredPlayers, teams = [],
@@ -68,7 +60,40 @@ export default function PlayersTab({
   const themeInnerCard = isDarkMode ? 'bg-[#0d131f] border-slate-800/80' : 'bg-slate-50 border-slate-200';
   const themeTextMuted = isDarkMode ? 'text-slate-400' : 'text-slate-500';
 
-  // Opções de Posição Isoladas e Únicas
+  // 1. Extração Limpa de Estados (Limpa emojis que possam vir do Airtable)
+  const uniqueObservationStatuses = useMemo(() => {
+    const statusSet = new Set<string>();
+    filteredPlayers.forEach(p => {
+      if (!p.status || p.status === 'N/D') return;
+      // Remove emojis iniciais se existirem (ex: "🟡 Monitoring" -> "Monitoring")
+      const cleanStatus = p.status.replace(/^[\u2700-\u27BF\u1F000-\u1F6FF\u1F900-\u1F9FF\u2600-\u26FF]\s*/g, '').trim();
+      statusSet.add(cleanStatus);
+    });
+    return [{ value: 'All', label: 'Todos os Estados' }, ...Array.from(statusSet).sort().map(s => ({ value: s, label: s }))];
+  }, [filteredPlayers]);
+
+  // 2. Extração Real de Anos de Nascimento
+  const uniqueYears = useMemo(() => {
+    const yearSet = new Set<number>();
+    filteredPlayers.forEach(p => {
+      if (p.birthYear) {
+        yearSet.add(Number(p.birthYear));
+      } else {
+        const pAny = p as any;
+        const birthRaw = p.birthDate || pAny.birth_date || pAny.dataNascimento;
+        if (birthRaw && typeof birthRaw === 'string') {
+          const yearMatch = birthRaw.match(/\b(19|20)\d{2}\b/);
+          if (yearMatch) yearSet.add(Number(yearMatch[0]));
+        } else if (p.age && p.age !== 'N/D' && typeof p.age !== 'object') {
+          yearSet.add(2026 - Number(p.age));
+        }
+      }
+    });
+    const sortedYears = Array.from(yearSet).sort((a, b) => b - a);
+    return [{ value: 'All', label: 'Ano Nascimento' }, ...sortedYears.map(y => ({ value: String(y), label: String(y) }))];
+  }, [filteredPlayers]);
+
+  // 3. Posições Únicas e Isoladas
   const cleanUniquePositions = useMemo(() => {
     const posSet = new Set<string>();
     filteredPlayers.forEach(p => {
@@ -81,153 +106,113 @@ export default function PlayersTab({
       const rankB = TACTICAL_ORDER[b.toLowerCase()] || 99;
       return rankA - rankB;
     });
-
     return [{ value: 'All', label: 'Todas as Posições' }, ...sortedPositions.map(p => ({ value: p, label: p }))];
   }, [filteredPlayers]);
 
-  // Opções de Estado de Observação (Incluindo Assess Individually)
-  const uniqueObservationStatuses = useMemo(() => {
-    const statusSet = new Set<string>(ALL_OBSERVATION_STATUSES);
-    filteredPlayers.forEach(p => {
-      if (p.status) statusSet.add(p.status);
-    });
-    return [{ value: 'All', label: 'Todos os Estados' }, ...Array.from(statusSet).map(s => ({ value: s, label: s }))];
-  }, [filteredPlayers]);
-
-  const uniqueYears = useMemo(() => {
-    const years = Array.from(new Set(filteredPlayers.map(p => p.birthYear ? String(p.birthYear) : '').filter(Boolean))).sort((a, b) => Number(b) - Number(a));
-    return [{ value: 'All', label: 'Ano Nascimento' }, ...years.map(y => ({ value: y, label: y }))];
-  }, [filteredPlayers]);
-
-  // Contagem por Posição
-  const positionStats = useMemo(() => {
-    const counts: Record<string, number> = {};
-    let totalCount = 0;
-    filteredPlayers.forEach(p => {
-      if (!p.position || p.position === 'N/D') return;
-      const positions = p.position.split(/[,/;\\]+/).map(s => s.trim()).filter(Boolean);
-      positions.forEach(pos => {
-        counts[pos] = (counts[pos] || 0) + 1;
-        totalCount++;
-      });
-    });
-    const total = totalCount || 1;
-    return Object.entries(counts)
-      .map(([pos, count]) => ({
-        pos,
-        count,
-        pct: Math.round((count / total) * 100),
-        rank: TACTICAL_ORDER[pos.toLowerCase()] || 99
-      }))
-      .sort((a, b) => a.rank - b.rank);
-  }, [filteredPlayers]);
-
-  // Contagem por Campeonato
-  const leagueStats = useMemo(() => {
-    const teamMap = new Map<string, string>();
-    teams.forEach(t => {
-      if (t.name && t.competition && t.competition !== 'N/D') {
-        teamMap.set(t.name.trim().toLowerCase(), t.competition);
-      }
-    });
-
-    const counts: Record<string, number> = {};
-    let totalCount = 0;
-    filteredPlayers.forEach(p => {
-      const pAny = p as any;
-      const directComp = pAny.competition || pAny.league;
-      const comp = (directComp && directComp !== 'N/D')
-        ? directComp
-        : (p.club ? teamMap.get(p.club.trim().toLowerCase()) || 'Outros Campeonatos' : 'Sem Clube');
-
-      counts[comp] = (counts[comp] || 0) + 1;
-      totalCount++;
-    });
-    const total = totalCount || 1;
-    return Object.entries(counts)
-      .map(([comp, count]) => ({ comp, count, pct: Math.round((count / total) * 100) }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 8);
-  }, [filteredPlayers, teams]);
-
-  // Filtragem e Ordenação Alfabética A-Z
+  // 4. Filtragem
   const processedPlayers = useMemo(() => {
     let list = filteredPlayers.filter(p => {
       const matchSearch = (p.name || '').toLowerCase().includes(search.toLowerCase()) || (p.club || '').toLowerCase().includes(search.toLowerCase());
       
-      // Validação de Posição Individual
       const pPositions = (p.position || '').toLowerCase();
       const matchPos = localPosFilter === 'All' || pPositions.includes(localPosFilter.toLowerCase());
       
-      const matchStatus = localStatusFilter === 'All' || p.status === localStatusFilter;
-      const playerYear = p.birthYear || (p.age && typeof p.age !== 'object' && p.age !== 'N/D' ? String(2026 - Number(p.age)) : '');
-      const matchYear = localYearFilter === 'All' || playerYear === localYearFilter;
+      const cleanPStatus = (p.status || '').replace(/^[\u2700-\u27BF\u1F000-\u1F6FF\u1F900-\u1F9FF\u2600-\u26FF]\s*/g, '').trim();
+      const matchStatus = localStatusFilter === 'All' || cleanPStatus === localStatusFilter;
+      
+      let extractedYear = '';
+      if (p.birthYear) extractedYear = String(p.birthYear);
+      else {
+        const pAny = p as any;
+        const birthRaw = p.birthDate || pAny.birth_date || pAny.dataNascimento;
+        if (birthRaw && typeof birthRaw === 'string') {
+          const yearMatch = birthRaw.match(/\b(19|20)\d{2}\b/);
+          if (yearMatch) extractedYear = yearMatch[0];
+        } else if (p.age && p.age !== 'N/D' && typeof p.age !== 'object') {
+          extractedYear = String(2026 - Number(p.age));
+        }
+      }
+      const matchYear = localYearFilter === 'All' || extractedYear === localYearFilter;
       
       const pAge = typeof p.age === 'number' ? p.age : Number(p.age);
       const matchAge = isNaN(pAge) || (pAge >= minAgeFilter && pAge <= maxAgeFilter);
 
       return matchSearch && matchPos && matchStatus && matchYear && matchAge;
     });
-
     return list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [filteredPlayers, search, localPosFilter, localStatusFilter, localYearFilter, minAgeFilter, maxAgeFilter]);
 
   const listToRender = processedPlayers.slice(0, visibleCount);
 
-  // Auxiliar para formatar idade de forma segura
+  // Auxiliares de Estatísticas
+  const positionStats = useMemo(() => {
+    const counts: Record<string, number> = {};
+    let totalCount = 0;
+    filteredPlayers.forEach(p => {
+      if (!p.position || p.position === 'N/D') return;
+      const positions = p.position.split(/[,/;\\]+/).map(s => s.trim()).filter(Boolean);
+      positions.forEach(pos => { counts[pos] = (counts[pos] || 0) + 1; totalCount++; });
+    });
+    const total = totalCount || 1;
+    return Object.entries(counts).map(([pos, count]) => ({ pos, count, pct: Math.round((count / total) * 100), rank: TACTICAL_ORDER[pos.toLowerCase()] || 99 })).sort((a, b) => a.rank - b.rank);
+  }, [filteredPlayers]);
+
+  const leagueStats = useMemo(() => {
+    const teamMap = new Map<string, string>();
+    teams.forEach(t => { if (t.name && t.competition && t.competition !== 'N/D') teamMap.set(t.name.trim().toLowerCase(), t.competition); });
+    const counts: Record<string, number> = {};
+    let totalCount = 0;
+    filteredPlayers.forEach(p => {
+      const pAny = p as any;
+      const directComp = pAny.competition || pAny.league;
+      const comp = (directComp && directComp !== 'N/D') ? directComp : (p.club ? teamMap.get(p.club.trim().toLowerCase()) || 'Outros Campeonatos' : 'Sem Clube');
+      counts[comp] = (counts[comp] || 0) + 1;
+      totalCount++;
+    });
+    const total = totalCount || 1;
+    return Object.entries(counts).map(([comp, count]) => ({ comp, count, pct: Math.round((count / total) * 100) })).sort((a, b) => b.count - a.count).slice(0, 8);
+  }, [filteredPlayers, teams]);
+
   const formatAge = (age: any) => {
     if (!age || age === 'N/D' || typeof age === 'object') return '--';
     return `${age} anos`;
   };
 
+  const minPercent = ((minAgeFilter - 15) / (40 - 15)) * 100;
+  const maxPercent = ((maxAgeFilter - 15) / (40 - 15)) * 100;
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* SEÇÃO DE DISTRIBUIÇÃO */}
       <div className={`${themeCard} p-5 md:p-6 rounded-2xl border border-blue-500/20 shadow-lg space-y-4`}>
         <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowStatsBanner(!showStatsBanner)}>
           <div className="flex items-center gap-2.5">
             <PieChart className="w-5 h-5 text-blue-500" />
             <h3 className="text-sm md:text-base font-bold uppercase tracking-wider">Distribuição</h3>
-            <span className="text-xs bg-blue-500/10 text-blue-500 font-bold px-2.5 py-0.5 rounded-full border border-blue-500/20">
-              {processedPlayers.length} Atletas
-            </span>
+            <span className="text-xs bg-blue-500/10 text-blue-500 font-bold px-2.5 py-0.5 rounded-full border border-blue-500/20">{processedPlayers.length} Atletas</span>
           </div>
-          <button className={`p-1.5 rounded-lg ${isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'}`}>
-            {showStatsBanner ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
+          <button className={`p-1.5 rounded-lg ${isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'}`}>{showStatsBanner ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}</button>
         </div>
 
         {showStatsBanner && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-3 border-t border-slate-700/40">
             <div className="space-y-2.5">
-              <span className={`text-[11px] font-bold ${themeTextMuted} uppercase tracking-wider flex items-center gap-1.5`}>
-                <Award className="w-3.5 h-3.5 text-emerald-500" /> Por Posição (Guarda-Redes → Avançado)
-              </span>
+              <span className={`text-[11px] font-bold ${themeTextMuted} uppercase tracking-wider flex items-center gap-1.5`}><Award className="w-3.5 h-3.5 text-emerald-500" /> Por Posição</span>
               <div className="grid grid-cols-2 gap-2">
                 {positionStats.map((item, idx) => (
                   <div key={idx} className={`${themeInnerCard} p-2.5 rounded-xl border flex items-center justify-between`}>
                     <span className="text-xs font-bold truncate pr-2">{item.pos}</span>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className="text-xs font-black text-emerald-500">{item.count}</span>
-                      <span className={`text-[10px] ${themeTextMuted} font-semibold`}>({item.pct}%)</span>
-                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0"><span className="text-xs font-black text-emerald-500">{item.count}</span><span className={`text-[10px] ${themeTextMuted} font-semibold`}>({item.pct}%)</span></div>
                   </div>
                 ))}
               </div>
             </div>
-
             <div className="space-y-2.5">
-              <span className={`text-[11px] font-bold ${themeTextMuted} uppercase tracking-wider flex items-center gap-1.5`}>
-                <ShieldAlert className="w-3.5 h-3.5 text-blue-500" /> Por Campeonato
-              </span>
+              <span className={`text-[11px] font-bold ${themeTextMuted} uppercase tracking-wider flex items-center gap-1.5`}><ShieldAlert className="w-3.5 h-3.5 text-blue-500" /> Por Campeonato</span>
               <div className="grid grid-cols-2 gap-2">
                 {leagueStats.map((item, idx) => (
                   <div key={idx} className={`${themeInnerCard} p-2.5 rounded-xl border flex items-center justify-between`}>
                     <span className="text-xs font-bold truncate pr-2" title={item.comp}>{item.comp}</span>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className="text-xs font-black text-blue-500">{item.count}</span>
-                      <span className={`text-[10px] ${themeTextMuted} font-semibold`}>({item.pct}%)</span>
-                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0"><span className="text-xs font-black text-blue-500">{item.count}</span><span className={`text-[10px] ${themeTextMuted} font-semibold`}>({item.pct}%)</span></div>
                   </div>
                 ))}
               </div>
@@ -236,103 +221,58 @@ export default function PlayersTab({
         )}
       </div>
 
-      {/* FILTROS E CONTROLO DE IDADE */}
       <div className="flex flex-col gap-3">
         <div className="flex flex-col md:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-3.5 text-slate-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Pesquisar atleta (A-Z) ou clube..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className={`w-full border rounded-xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-blue-500 ${isDarkMode ? 'bg-[#151c2c] border-slate-800 text-slate-200' : 'bg-white border-slate-300 text-slate-800'}`}
-            />
+            <input type="text" placeholder="Pesquisar atleta (A-Z) ou clube..." value={search} onChange={(e) => setSearch(e.target.value)} className={`w-full border rounded-xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-blue-500 ${isDarkMode ? 'bg-[#151c2c] border-slate-800 text-slate-200' : 'bg-white border-slate-300 text-slate-800'}`} />
           </div>
           <div className="flex flex-wrap sm:flex-nowrap gap-2">
-            <CustomSelect options={cleanUniquePositions} value={localPosFilter} onChange={setLocalPosFilter} className="w-full sm:w-48" isDarkMode={isDarkMode} />
-            <CustomSelect options={uniqueObservationStatuses} value={localStatusFilter} onChange={setLocalStatusFilter} className="w-full sm:w-52" isDarkMode={isDarkMode} />
+            <CustomSelect options={cleanUniquePositions} value={localPosFilter} onChange={setLocalPosFilter} className="w-full sm:w-44" isDarkMode={isDarkMode} />
+            <CustomSelect options={uniqueObservationStatuses} value={localStatusFilter} onChange={setLocalStatusFilter} className="w-full sm:w-44" isDarkMode={isDarkMode} />
             <CustomSelect options={uniqueYears} value={localYearFilter} onChange={setLocalYearFilter} className="w-full sm:w-36" isDarkMode={isDarkMode} />
           </div>
         </div>
 
-        {/* BARRA COMPACTA DE IDADE DE FÁCIL UTILIZAÇÃO */}
-        <div className={`${themeCard} px-4 py-3 rounded-xl border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-medium`}>
+        {/* BARRA ÚNICA ESTÁVEL DE IDADES */}
+        <div className={`${themeCard} px-4 py-3 rounded-xl border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-medium`}>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span className={`font-bold uppercase tracking-wider text-[11px] ${themeTextMuted}`}>Intervalo de Idade:</span>
-            <span className="text-blue-500 bg-blue-500/10 px-2.5 py-0.5 rounded border border-blue-500/20 font-bold font-mono">
-              {minAgeFilter} - {maxAgeFilter} anos
-            </span>
+            <Filter className="w-4 h-4 text-blue-500" />
+            <span className={`font-bold uppercase tracking-wider text-[11px] ${themeTextMuted}`}>Faixa Etária:</span>
+            <span className="text-blue-500 font-bold font-mono ml-1">{minAgeFilter} - {maxAgeFilter} anos</span>
           </div>
 
-          <div className="flex items-center gap-4 w-full sm:w-auto">
-            <div className="flex items-center gap-2 flex-1 sm:flex-initial">
-              <span className={themeTextMuted}>Min:</span>
-              <input
-                type="range"
-                min="15"
-                max="40"
-                value={minAgeFilter}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  if (val < maxAgeFilter) setMinAgeFilter(val);
-                }}
-                className="w-full sm:w-28 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
-              <span className="font-bold font-mono w-5 text-right">{minAgeFilter}</span>
+          <div className="flex items-center gap-3 w-full sm:w-1/2 mt-2 sm:mt-0 relative group pt-2 pb-2">
+            <span className={`${themeTextMuted} font-bold`}>15</span>
+            
+            <div className="relative w-full h-1.5 bg-slate-700/60 rounded-full flex items-center">
+              <div className="absolute h-full bg-blue-500 rounded-full pointer-events-none" style={{ left: `${minPercent}%`, width: `${maxPercent - minPercent}%` }} />
+              <input type="range" min="15" max="40" value={minAgeFilter} onChange={(e) => setMinAgeFilter(Math.min(Number(e.target.value), maxAgeFilter - 1))} className="absolute w-full h-2 appearance-none bg-transparent outline-none pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-400 [&::-webkit-slider-thumb]:appearance-none cursor-pointer" />
+              <input type="range" min="15" max="40" value={maxAgeFilter} onChange={(e) => setMaxAgeFilter(Math.max(Number(e.target.value), minAgeFilter + 1))} className="absolute w-full h-2 appearance-none bg-transparent outline-none pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-400 [&::-webkit-slider-thumb]:appearance-none cursor-pointer" />
             </div>
 
-            <div className="flex items-center gap-2 flex-1 sm:flex-initial">
-              <span className={themeTextMuted}>Max:</span>
-              <input
-                type="range"
-                min="15"
-                max="40"
-                value={maxAgeFilter}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  if (val > minAgeFilter) setMaxAgeFilter(val);
-                }}
-                className="w-full sm:w-28 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
-              <span className="font-bold font-mono w-5 text-right">{maxAgeFilter}</span>
-            </div>
+            <span className={`${themeTextMuted} font-bold`}>40</span>
           </div>
         </div>
       </div>
 
-      {/* CARTÕES DOS JOGADORES */}
+      <div className={`flex justify-between items-center text-xs md:text-sm ${themeTextMuted} pt-2`}>
+        <span>A mostrar {listToRender.length} de {processedPlayers.length} atletas.</span>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {listToRender.map((player) => (
-          <div
-            key={player.id}
-            onClick={() => { setSelectedPlayer(player); setProfileTab('timeline'); setSelectedSeasonIdx(0); }}
-            className={`${themeCard} border rounded-2xl p-4 hover:border-blue-500/50 transition cursor-pointer flex items-center justify-between gap-3 shadow-sm group`}
-          >
+          <div key={player.id} onClick={() => { setSelectedPlayer(player); setProfileTab('timeline'); setSelectedSeasonIdx(0); }} className={`${themeCard} border rounded-2xl p-4 hover:border-blue-500/50 transition cursor-pointer flex items-center justify-between gap-3 shadow-sm group`}>
             <div className="flex items-center gap-3.5 min-w-0">
-              {player.photo ? (
-                <img src={player.photo} alt={player.name} className="w-12 h-12 rounded-full object-cover border border-slate-700 flex-shrink-0 group-hover:border-blue-500 transition" />
-              ) : (
-                <div className={`w-12 h-12 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold text-base flex-shrink-0 group-hover:border-blue-500 transition`}>
-                  {(player.name || 'J').charAt(0)}
-                </div>
-              )}
+              {player.photo ? <img src={player.photo} alt={player.name} className="w-12 h-12 rounded-full object-cover border border-slate-700 flex-shrink-0 group-hover:border-blue-500 transition" /> : <div className={`w-12 h-12 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold text-base flex-shrink-0 group-hover:border-blue-500 transition`}>{(player.name || 'J').charAt(0)}</div>}
               <div className="min-w-0">
                 <h4 className="font-bold text-sm md:text-base truncate group-hover:text-blue-500 transition">{player.name}</h4>
-                <p className={`text-xs ${themeTextMuted} truncate mt-0.5`}>
-                  <span className="text-blue-500 font-semibold">{player.position || 'Atleta'}</span>
-                  {player.club && <span> • {player.club}</span>}
-                </p>
+                <p className={`text-xs ${themeTextMuted} truncate mt-0.5`}><span className="text-blue-500 font-semibold">{player.position || 'Atleta'}</span>{player.club && <span> • {player.club}</span>}</p>
               </div>
             </div>
-
             <div className="flex flex-col items-end gap-1 flex-shrink-0">
-              <span className="text-xs font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                {formatAge(player.age)}
-              </span>
-              <span className={`text-[10px] ${themeTextMuted} font-semibold`}>
-                {player.status || 'Ativo'}
-              </span>
+              <span className="text-xs font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">{formatAge(player.age)}</span>
+              <span className={`text-[10px] ${themeTextMuted} font-semibold`}>{player.status || 'Ativo'}</span>
             </div>
           </div>
         ))}
@@ -340,12 +280,7 @@ export default function PlayersTab({
 
       {processedPlayers.length > visibleCount && (
         <div className="flex justify-center pt-4">
-          <button
-            onClick={() => setVisibleCount(prev => prev + 20)}
-            className="px-6 py-3 bg-blue-600/20 border border-blue-500/30 text-blue-500 hover:bg-blue-600/30 font-bold rounded-xl text-xs transition"
-          >
-            Carregar Mais Jogadores ({processedPlayers.length - visibleCount} restantes)
-          </button>
+          <button onClick={() => setVisibleCount(prev => prev + 20)} className="px-6 py-3 bg-blue-600/20 border border-blue-500/30 text-blue-500 hover:bg-blue-600/30 font-bold rounded-xl text-xs transition">Carregar Mais Jogadores ({processedPlayers.length - visibleCount} restantes)</button>
         </div>
       )}
     </div>
