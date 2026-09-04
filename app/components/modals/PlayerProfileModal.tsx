@@ -61,10 +61,19 @@ export default function PlayerProfileModal({
   const isGK = (selectedPlayer.position || '').toLowerCase().includes('goalkeeper') || (selectedPlayer.position || '').toLowerCase().includes('gk');
   const rawEntry = getPlayerAlgoEntries(selectedPlayer, algorithmData);
   
+  // Ordenação inteligente: dá prioridade ao 'Atual' e empurra épocas antigas (ex: 25_26) para o fim
   const sortedEntry = [...rawEntry].sort((a, b) => {
-    if (a.tag === 'Atual') return -1;
-    if (b.tag === 'Atual') return 1;
-    return b.tag.localeCompare(a.tag);
+    const tagA = a.tag || '';
+    const tagB = b.tag || '';
+    if (tagA === 'Atual') return -1;
+    if (tagB === 'Atual') return 1;
+
+    const isOldA = tagA.includes('25_26') || tagA.includes('25/26');
+    const isOldB = tagB.includes('25_26') || tagB.includes('25/26');
+    if (isOldA && !isOldB) return 1;
+    if (!isOldA && isOldB) return -1;
+
+    return tagA.localeCompare(tagB);
   });
 
   const activeItem = sortedEntry[selectedSeasonIdx] || sortedEntry[0];
@@ -156,14 +165,14 @@ export default function PlayerProfileModal({
             <button onClick={() => setProfileTab('timeline')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'timeline' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
               <FileText className="w-4 h-4" /> Observações & Timeline
             </button>
-            <button onClick={() => setProfileTab('algo')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'algo' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
+            <button onClick={() => setProfileTab('algo')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'algo' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
               <BarChart3 className="w-4 h-4" /> Ratings
             </button>
             <button onClick={() => setProfileTab('reports')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'reports' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
               <BrainCircuit className="w-4 h-4" /> Relatórios & Análise
             </button>
             {canSeeMarket && (
-              <button onClick={() => setProfileTab('market')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'market' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
+              <button onClick={() => setProfileTab('market')} className={`pb-3 flex items-center gap-2 border-b-2 transition whitespace-nowrap ${profileTab === 'market' ? 'border-pink-500 text-pink-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
                 <Briefcase className="w-4 h-4" /> Mercado & Decisão
               </button>
             )}
@@ -209,15 +218,15 @@ export default function PlayerProfileModal({
             </div>
           )}
 
-          {/* VISTA 2: RATINGS */}
+          {/* VISTA 2: RATINGS (COM CORES CIANO E SEM FASE DA CARREIRA) */}
           {profileTab === 'algo' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               {sortedEntry.length > 0 && playerAlgo ? (
                 <>
-                  <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${themeCard} p-3.5 rounded-2xl border border-purple-500/30`}>
+                  <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${themeCard} p-3.5 rounded-2xl border border-cyan-500/30`}>
                     <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
-                      <span className="text-xs font-bold text-purple-500 uppercase tracking-wider flex items-center gap-1.5 flex-shrink-0">
-                        <Calendar className="w-4 h-4 text-purple-500" /> Contexto:
+                      <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5 flex-shrink-0">
+                        <Calendar className="w-4 h-4 text-cyan-400" /> Contexto:
                       </span>
                       <div className="flex gap-2">
                         {sortedEntry.map((item, idx) => (
@@ -226,8 +235,8 @@ export default function PlayerProfileModal({
                             onClick={() => setSelectedSeasonIdx(idx)}
                             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 ${
                               selectedSeasonIdx === idx
-                                ? 'bg-purple-600 text-white shadow-md'
-                                : `${themeInnerCard} border text-slate-400`
+                                ? 'bg-cyan-600 text-white shadow-md'
+                                : `${themeInnerCard} border text-slate-400 hover:text-slate-200`
                             }`}
                           >
                             {item.tag}
@@ -236,7 +245,7 @@ export default function PlayerProfileModal({
                       </div>
                     </div>
                     <div title="Registo exato mapeado no ficheiro Excel" className="text-[10px] text-slate-500 bg-slate-800/40 px-2.5 py-1 rounded-lg border border-slate-700/50 font-mono opacity-60 hover:opacity-100 transition cursor-help flex items-center gap-1.5 self-start sm:self-auto flex-shrink-0">
-                      <Info className="w-3 h-3 text-purple-400" />
+                      <Info className="w-3 h-3 text-cyan-400" />
                       <span className="truncate max-w-[200px] md:max-w-[280px]">{playerAlgo.Player_ID || playerAlgo.Player || 'Sem ID'}</span>
                     </div>
                   </div>
@@ -270,18 +279,20 @@ export default function PlayerProfileModal({
 
                     return (
                       <div className="space-y-6">
-                        <div className={`${themeCard} p-6 rounded-2xl border border-purple-500/30 relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4`}>
+                        <div className={`${themeCard} p-6 rounded-2xl border border-cyan-500/30 relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4`}>
                           <div className="space-y-1 text-center md:text-left">
-                            <span className="text-[10px] uppercase font-bold tracking-widest text-purple-500 flex items-center gap-1 justify-center md:justify-start">
+                            <span className="text-[10px] uppercase font-bold tracking-widest text-cyan-400 flex items-center gap-1 justify-center md:justify-start">
                               <Cpu className="w-3.5 h-3.5" /> Perfil Principal {activeItem?.tag ? `(${activeItem.tag})` : ''}
                             </span>
                             <h3 className="text-2xl font-black">{playerAlgo.Top_Profile_1_Name || playerAlgo.Melhor_Perfil || 'N/D'}</h3>
-                            <p className={`text-xs ${themeTextMuted}`}>Fase da Carreira: <span className="text-emerald-500 font-bold">{playerAlgo.Fase_Carreira || 'N/D'}</span> • Tier: <span className="text-purple-400 font-bold">{playerAlgo.Scout_Tier || 'N/D'}</span></p>
+                            <p className={`text-xs ${themeTextMuted}`}>
+                              Tier: <span className="text-cyan-400 font-bold">{playerAlgo.Scout_Tier || 'N/D'}</span>
+                            </p>
                           </div>
                           
-                          <div className="bg-purple-900/20 px-6 py-3.5 rounded-xl border border-purple-500/30 text-center min-w-[120px] flex flex-col items-center">
-                            <span className="block text-[10px] text-purple-400 uppercase font-bold">Nota</span>
-                            <span className="text-3xl font-black text-purple-400">{notaVal !== null ? notaVal.toFixed(1) : '0'}</span>
+                          <div className="bg-cyan-950/30 px-6 py-3.5 rounded-xl border border-cyan-500/30 text-center min-w-[120px] flex flex-col items-center">
+                            <span className="block text-[10px] text-cyan-400 uppercase font-bold">Nota</span>
+                            <span className="text-3xl font-black text-cyan-400">{notaVal !== null ? notaVal.toFixed(1) : '0'}</span>
                             {notaDelta !== null && (
                               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded mt-1.5 ${notaDelta >= 0 ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
                                 {notaDelta >= 0 ? `+${notaDelta.toFixed(1)}` : notaDelta.toFixed(1)}
@@ -310,9 +321,9 @@ export default function PlayerProfileModal({
                                 <button 
                                   key={idx} 
                                   onClick={() => setSelectedPillarDetail(pilar.title)}
-                                  className={`${themeInnerCard} p-3.5 rounded-xl border hover:border-blue-500/50 transition text-left group flex flex-col justify-between`}
+                                  className={`${themeInnerCard} p-3.5 rounded-xl border hover:border-cyan-500/50 transition text-left group flex flex-col justify-between`}
                                 >
-                                  <span className={`block text-[10px] ${themeTextMuted} font-bold mb-1 group-hover:text-blue-500 transition`}>{pilar.title}</span>
+                                  <span className={`block text-[10px] ${themeTextMuted} font-bold mb-1 group-hover:text-cyan-400 transition`}>{pilar.title}</span>
                                   <div className="flex items-center justify-between mt-1">
                                     <span className="text-lg font-bold">{val ? numVal.toFixed(1) : '--'}</span>
                                     {delta !== null && (
