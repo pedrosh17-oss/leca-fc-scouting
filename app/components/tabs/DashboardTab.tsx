@@ -29,14 +29,11 @@ export default function DashboardTab({
   const themeCard = isDarkMode ? 'bg-[#151c2c] border-slate-800' : 'bg-white border-slate-200 shadow-sm';
   const themeTextMuted = isDarkMode ? 'text-slate-400' : 'text-slate-500';
 
-  // 1. Cálculos de Controlo de Observação por Equipa (Flexível para vs, vs., x, -)
   const teamCoverage = React.useMemo(() => {
     const counts: Record<string, number> = {};
     matches.forEach(m => {
       if (!m.matchName) return;
-      // Remove datas/conteúdo entre parênteses (ex: "FC Tirsense vs FC Vinhais (01/09/2026)" -> "FC Tirsense vs FC Vinhais")
       const cleanName = m.matchName.replace(/\s*\([^)]*\)/g, '').trim();
-      // Separa por 'vs', 'vs.', 'x' ou '-'
       const parts = cleanName.split(/\s*(?:vs\.?|x|-)\s*/i);
       if (parts.length >= 2) {
         const home = parts[0].trim();
@@ -53,16 +50,13 @@ export default function DashboardTab({
 
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300">
-      {/* KPIS GLOBAIS */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <div className={`${themeCard} p-4 md:p-6 rounded-2xl border cursor-pointer hover:border-blue-500/50 transition relative overflow-hidden`} onClick={() => setActiveTab('players')}>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
           <span className={`text-[10px] md:text-xs font-bold ${themeTextMuted} uppercase tracking-wider block mb-1 md:mb-2`}>Base de Atletas</span>
           <span className="text-2xl md:text-4xl font-black">{players.length}</span>
           <p className="text-[10px] md:text-xs text-emerald-500 font-bold mt-2 flex items-center gap-1"><CheckCircle className="w-3 h-3"/> Atleta(s) Ativos</p>
         </div>
         <div className={`${themeCard} p-4 md:p-6 rounded-2xl border cursor-pointer hover:border-blue-500/50 transition relative overflow-hidden`} onClick={() => setActiveTab('matches')}>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
           <span className={`text-[10px] md:text-xs font-bold ${themeTextMuted} uppercase tracking-wider block mb-1 md:mb-2`}>Jogos Vistos</span>
           <span className="text-2xl md:text-4xl font-black text-blue-500">{matches.length}</span>
           <p className={`text-[10px] md:text-xs ${themeTextMuted} font-medium mt-2`}>Mapeados na Época</p>
@@ -81,7 +75,6 @@ export default function DashboardTab({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          {/* ATALHOS RÁPIDOS */}
           <div className={`${themeCard} p-5 md:p-6 rounded-2xl border`}>
             <h3 className="font-bold text-base md:text-lg mb-1">Atalhos do Departamento</h3>
             <p className={`text-xs md:text-sm ${themeTextMuted} mb-4`}>Ações rápidas para acompanhamento das partidas e prospeção</p>
@@ -100,7 +93,6 @@ export default function DashboardTab({
             </div>
           </div>
 
-          {/* ÚLTIMAS OBSERVAÇÕES */}
           <div>
             <div className="flex justify-between items-center mb-4">
               <h3 className={`text-xs md:text-sm font-bold ${themeTextMuted} uppercase tracking-wider flex items-center gap-2`}>
@@ -151,7 +143,6 @@ export default function DashboardTab({
         </div>
 
         <div className="space-y-6">
-          {/* COBERTURA DE OBSERVAÇÃO */}
           <div className={`${themeCard} p-5 md:p-6 rounded-2xl border`}>
             <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-700/40">
               <BarChart3 className="w-5 h-5 text-emerald-500" />
@@ -161,22 +152,12 @@ export default function DashboardTab({
             
             {teamCoverage.length > 0 ? (
               <div className="space-y-3">
-                {teamCoverage.map((team, idx) => {
-                  const maxCount = teamCoverage[0].count;
-                  const pct = Math.round((team.count / maxCount) * 100);
-                  
-                  return (
-                    <div key={idx} className="space-y-1.5">
-                      <div className="flex justify-between text-xs font-bold">
-                        <span className="truncate pr-2">{team.name}</span>
-                        <span className="text-emerald-500">{team.count} {team.count === 1 ? 'jogo' : 'jogos'}</span>
-                      </div>
-                      <div className={`h-1.5 w-full ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-full overflow-hidden`}>
-                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pct}%` }}></div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {teamCoverage.map((team, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-xs font-bold py-1 border-b border-slate-800/50 last:border-0">
+                    <span className="truncate pr-2">{team.name}</span>
+                    <span className="text-emerald-500 font-mono flex-shrink-0">{team.count} {team.count === 1 ? 'jogo' : 'jogos'}</span>
+                  </div>
+                ))}
               </div>
             ) : (
               <p className={`text-xs ${themeTextMuted} text-center py-4`}>Ainda não há jogos registados.</p>

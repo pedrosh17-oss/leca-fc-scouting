@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, ChevronDown, ChevronUp, UserCheck, PieChart, ShieldAlert, Award } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, PieChart, ShieldAlert, Award } from 'lucide-react';
 import CustomSelect from '../ui/CustomSelect';
 import { Player } from '../../types';
 
@@ -33,47 +33,53 @@ interface PlayersTabProps {
 
 export default function PlayersTab({
   search, setSearch,
-  displayedPlayers, filteredPlayers,
+  filteredPlayers,
+  minAgeFilter, setMinAgeFilter, maxAgeFilter, setMaxAgeFilter,
   visibleCount, setVisibleCount, setSelectedPlayer, setProfileTab, setSelectedSeasonIdx, isDarkMode
 }: PlayersTabProps) {
   const [localPosFilter, setLocalPosFilter] = useState('All');
   const [localStatusFilter, setLocalStatusFilter] = useState('All');
   const [localYearFilter, setLocalYearFilter] = useState('All');
-  const [showStatsBanner, setShowStatsBanner] = useState(true);
+  const [showStatsBanner, setShowStatsBanner] = useState(false);
 
   const themeCard = isDarkMode ? 'bg-[#151c2c] border-slate-800' : 'bg-white border-slate-200 shadow-sm';
   const themeInnerCard = isDarkMode ? 'bg-[#0d131f] border-slate-800/80' : 'bg-slate-50 border-slate-200';
   const themeTextMuted = isDarkMode ? 'text-slate-400' : 'text-slate-500';
 
-  // 1. Cálculos de Distribuição por Posição (%)
   const positionStats = useMemo(() => {
     const counts: Record<string, number> = {};
+    let totalCount = 0;
     filteredPlayers.forEach(p => {
-      const pos = p.position && p.position !== 'N/D' ? p.position : 'Outras';
-      counts[pos] = (counts[pos] || 0) + 1;
+      if (!p.position || p.position === 'N/D') return;
+      const positions = p.position.split(/[,/;\\]+/).map(s => s.trim()).filter(Boolean);
+      positions.forEach(pos => {
+        counts[pos] = (counts[pos] || 0) + 1;
+        totalCount++;
+      });
     });
-    const total = filteredPlayers.length || 1;
+    const total = totalCount || 1;
     return Object.entries(counts)
       .map(([pos, count]) => ({ pos, count, pct: Math.round((count / total) * 100) }))
       .sort((a, b) => b.count - a.count);
   }, [filteredPlayers]);
 
-  // 2. Cálculos de Distribuição por Campeonato / Liga (%)
   const leagueStats = useMemo(() => {
     const counts: Record<string, number> = {};
+    let totalCount = 0;
     filteredPlayers.forEach(p => {
       const pAny = p as any;
-      const comp = pAny.competition && pAny.competition !== 'N/D' ? pAny.competition : (p.club || 'Sem Liga');
+      const comp = pAny.competition || p.league;
+      if (!comp || comp === 'N/D') return;
       counts[comp] = (counts[comp] || 0) + 1;
+      totalCount++;
     });
-    const total = filteredPlayers.length || 1;
+    const total = totalCount || 1;
     return Object.entries(counts)
       .map(([comp, count]) => ({ comp, count, pct: Math.round((count / total) * 100) }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 6);
   }, [filteredPlayers]);
 
-  // 3. Aplicar Filtros Locais e Ordenação Alfabética por Defeito
   const processedPlayers = useMemo(() => {
     let list = filteredPlayers.filter(p => {
       const matchSearch = (p.name || '').toLowerCase().includes(search.toLowerCase()) || (p.club || '').toLowerCase().includes(search.toLowerCase());
@@ -81,24 +87,23 @@ export default function PlayersTab({
       const matchStatus = localStatusFilter === 'All' || p.status === localStatusFilter;
       const playerYear = p.birthYear || (p.age && p.age !== 'N/D' ? String(2026 - Number(p.age)) : '');
       const matchYear = localYearFilter === 'All' || playerYear === localYearFilter;
-      return matchSearch && matchPos && matchStatus && matchYear;
+      const pAge = Number(p.age);
+      const matchAge = isNaN(pAge) || (pAge >= minAgeFilter && pAge <= maxAgeFilter);
+
+      return matchSearch && matchPos && matchStatus && matchYear && matchAge;
     });
 
-    // Ordenação Alfabética A-Z
     return list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [filteredPlayers, search, localPosFilter, localStatusFilter, localYearFilter]);
+  }, [filteredPlayers, search, localPosFilter, localStatusFilter, localYearFilter, minAgeFilter, maxAgeFilter]);
 
   const listToRender = processedPlayers.slice(0, visibleCount);
 
-  // Opções para os Filtros
   const uniquePositions = [{ value: 'All', label: 'Todas as Posições' }, ...Array.from(new Set(filteredPlayers.map(p => p.position).filter(Boolean))).sort().map(p => ({ value: p!, label: p! }))];
   const uniqueStatuses = [{ value: 'All', label: 'Todos os Estatutos' }, ...Array.from(new Set(filteredPlayers.map(p => p.status).filter(Boolean))).sort().map(s => ({ value: s!, label: s! }))];
   const uniqueYears = [{ value: 'All', label: 'Ano Nascimento' }, ...Array.from(new Set(filteredPlayers.map(p => p.birthYear ? String(p.birthYear) : '').filter(Boolean))).sort((a, b) => Number(b) - Number(a)).map(y => ({ value: y, label: y }))];
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      
-      {/* BANNER DE DISTRIBUIÇÃO E COBERTURA DA BASE DE DADOS */}
       <div className={`${themeCard} p-5 md:p-6 rounded-2xl border border-blue-500/20 shadow-lg space-y-4`}>
         <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowStatsBanner(!showStatsBanner)}>
           <div className="flex items-center gap-2.5">
@@ -115,13 +120,12 @@ export default function PlayersTab({
 
         {showStatsBanner && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-3 border-t border-slate-700/40">
-            {/* Contagem / % Por Posição */}
             <div className="space-y-2.5">
               <span className={`text-[11px] font-bold ${themeTextMuted} uppercase tracking-wider flex items-center gap-1.5`}>
                 <Award className="w-3.5 h-3.5 text-emerald-500" /> Distribuição por Posição
               </span>
               <div className="grid grid-cols-2 gap-2">
-                {positionStats.slice(0, 6).map((item, idx) => (
+                {positionStats.map((item, idx) => (
                   <div key={idx} className={`${themeInnerCard} p-2.5 rounded-xl border flex items-center justify-between`}>
                     <span className="text-xs font-bold truncate pr-2">{item.pos}</span>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -133,47 +137,63 @@ export default function PlayersTab({
               </div>
             </div>
 
-            {/* Contagem / % Por Liga / Campeonato */}
             <div className="space-y-2.5">
               <span className={`text-[11px] font-bold ${themeTextMuted} uppercase tracking-wider flex items-center gap-1.5`}>
-                <ShieldAlert className="w-3.5 h-3.5 text-blue-500" /> Distribuição por Campeonato / Origem
+                <ShieldAlert className="w-3.5 h-3.5 text-blue-500" /> Distribuição por Campeonato
               </span>
               <div className="grid grid-cols-2 gap-2">
-                {leagueStats.map((item, idx) => (
-                  <div key={idx} className={`${themeInnerCard} p-2.5 rounded-xl border flex items-center justify-between`}>
-                    <span className="text-xs font-bold truncate pr-2" title={item.comp}>{item.comp}</span>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className="text-xs font-black text-blue-500">{item.count}</span>
-                      <span className={`text-[10px] ${themeTextMuted} font-semibold`}>({item.pct}%)</span>
+                {leagueStats.length > 0 ? (
+                  leagueStats.map((item, idx) => (
+                    <div key={idx} className={`${themeInnerCard} p-2.5 rounded-xl border flex items-center justify-between`}>
+                      <span className="text-xs font-bold truncate pr-2" title={item.comp}>{item.comp}</span>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className="text-xs font-black text-blue-500">{item.count}</span>
+                        <span className={`text-[10px] ${themeTextMuted} font-semibold`}>({item.pct}%)</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <span className={`text-xs ${themeTextMuted} italic col-span-2`}>Sem informação de ligas registada.</span>
+                )}
               </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* BARRA DE PESQUISA E FILTROS */}
-      <div className="flex flex-col md:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-4 top-3.5 text-slate-400 w-5 h-5" />
-          <input
-            type="text"
-            placeholder="Pesquisar atleta (A-Z) ou clube..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className={`w-full border rounded-xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-blue-500 ${isDarkMode ? 'bg-[#151c2c] border-slate-800 text-slate-200' : 'bg-white border-slate-300 text-slate-800'}`}
-          />
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-3.5 text-slate-400 w-5 h-5" />
+            <input
+              type="text"
+              placeholder="Pesquisar atleta (A-Z) ou clube..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className={`w-full border rounded-xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-blue-500 ${isDarkMode ? 'bg-[#151c2c] border-slate-800 text-slate-200' : 'bg-white border-slate-300 text-slate-800'}`}
+            />
+          </div>
+          <div className="flex flex-wrap sm:flex-nowrap gap-2">
+            <CustomSelect options={uniquePositions} value={localPosFilter} onChange={setLocalPosFilter} className="w-full sm:w-44" isDarkMode={isDarkMode} />
+            <CustomSelect options={uniqueStatuses} value={localStatusFilter} onChange={setLocalStatusFilter} className="w-full sm:w-44" isDarkMode={isDarkMode} />
+            <CustomSelect options={uniqueYears} value={localYearFilter} onChange={setLocalYearFilter} className="w-full sm:w-36" isDarkMode={isDarkMode} />
+          </div>
         </div>
-        <div className="flex flex-wrap sm:flex-nowrap gap-2">
-          <CustomSelect options={uniquePositions} value={localPosFilter} onChange={setLocalPosFilter} className="w-full sm:w-44" isDarkMode={isDarkMode} />
-          <CustomSelect options={uniqueStatuses} value={localStatusFilter} onChange={setLocalStatusFilter} className="w-full sm:w-44" isDarkMode={isDarkMode} />
-          <CustomSelect options={uniqueYears} value={localYearFilter} onChange={setLocalYearFilter} className="w-full sm:w-36" isDarkMode={isDarkMode} />
+
+        {/* SELETOR DE INTERVALO DE IDADES */}
+        <div className={`${themeCard} p-3 rounded-xl border flex items-center gap-4 text-xs font-medium`}>
+          <span className={`font-bold uppercase tracking-wider ${themeTextMuted}`}>Intervalo Idade:</span>
+          <div className="flex items-center gap-2">
+            <span>Min: {minAgeFilter} anos</span>
+            <input type="range" min="15" max="40" value={minAgeFilter} onChange={(e) => setMinAgeFilter(Number(e.target.value))} className="accent-blue-500 cursor-pointer" />
+          </div>
+          <div className="flex items-center gap-2">
+            <span>Max: {maxAgeFilter} anos</span>
+            <input type="range" min="15" max="40" value={maxAgeFilter} onChange={(e) => setMaxAgeFilter(Number(e.target.value))} className="accent-blue-500 cursor-pointer" />
+          </div>
         </div>
       </div>
 
-      {/* GRELHA DE JOGADORES (ORDEM ALFABÉTICA) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {listToRender.map((player) => (
           <div
@@ -210,7 +230,6 @@ export default function PlayersTab({
         ))}
       </div>
 
-      {/* BOTÃO CARREGAR MAIS */}
       {processedPlayers.length > visibleCount && (
         <div className="flex justify-center pt-4">
           <button

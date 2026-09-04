@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Search, Building2, Plus } from 'lucide-react';
 import CustomSelect from '../ui/CustomSelect';
 import { Team, Player, Match } from '../../types';
@@ -31,6 +31,17 @@ export default function TeamsTab({
   const themeCard = isDarkMode ? 'bg-[#151c2c] border-slate-800' : 'bg-white border-slate-200 shadow-sm';
   const themeTextMuted = isDarkMode ? 'text-slate-400' : 'text-slate-500';
 
+  const displayedTeams = useMemo(() => {
+    return filteredTeams.filter(team => {
+      const matchSearch = (team.name || '').toLowerCase().includes(search.toLowerCase()) ||
+                          (team.competition || '').toLowerCase().includes(search.toLowerCase()) ||
+                          (team.country || '').toLowerCase().includes(search.toLowerCase());
+      const matchComp = teamFilterComp === 'All' || team.competition === teamFilterComp;
+      const matchStatus = teamFilterStatus === 'All' || team.status === teamFilterStatus;
+      return matchSearch && matchComp && matchStatus;
+    });
+  }, [filteredTeams, search, teamFilterComp, teamFilterStatus]);
+
   return (
     <div className="animate-in fade-in duration-300">
       <div className="flex flex-col md:flex-row gap-3 md:gap-4 mb-6">
@@ -60,7 +71,7 @@ export default function TeamsTab({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-        {filteredTeams.map((team) => {
+        {displayedTeams.map((team) => {
           const teamPlayers = players.filter(p => (p.club || '').toLowerCase() === (team.name || '').toLowerCase());
           const teamMatchesCount = matches.filter(m => (m.matchName || '').toLowerCase().includes((team.name || '').toLowerCase())).length;
 

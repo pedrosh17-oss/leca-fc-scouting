@@ -10,20 +10,34 @@ interface ScoutsTabProps {
   setSelectedScout: (s: Scout) => void;
   getUserTitle: (name: string) => string;
   getScoutMatches: (name: string) => Match[];
+  matches?: Match[];
   isDarkMode: boolean;
 }
 
 export default function ScoutsTab({
-  displayScouts, scoutMarketAssignments, setSelectedScout, getUserTitle, getScoutMatches, isDarkMode
+  displayScouts, scoutMarketAssignments, setSelectedScout, getUserTitle, getScoutMatches, matches = [], isDarkMode
 }: ScoutsTabProps) {
   const themeCard = isDarkMode ? 'bg-[#151c2c] border-slate-800' : 'bg-white border-slate-200 shadow-sm';
   const themeInnerCard = isDarkMode ? 'bg-[#0d131f] border-slate-800/80' : 'bg-slate-50 border-slate-200';
   const themeTextMuted = isDarkMode ? 'text-slate-400' : 'text-slate-500';
 
+  const scoutsOnly = displayScouts.filter(s => {
+    const title = getUserTitle(s.name).toLowerCase();
+    return title.includes('scout');
+  });
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in duration-300">
-      {displayScouts.map((scout) => {
+      {scoutsOnly.map((scout) => {
         const assigned = scoutMarketAssignments[scout.id] || [];
+        const scoutNameLower = (scout.name || '').trim().toLowerCase();
+        
+        const countFromMatches = matches.filter(m => {
+          const matchScout = (m.scout || '').trim().toLowerCase();
+          return matchScout.includes(scoutNameLower) || (m.scoutIds && m.scoutIds.includes(scout.id));
+        }).length;
+
+        const totalMatches = countFromMatches || getScoutMatches(scout.name).length;
 
         return (
           <div 
@@ -64,7 +78,7 @@ export default function ScoutsTab({
 
             <div className={`flex justify-between items-center text-center pt-3 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
               <div className={`flex-1 border-r ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
-                <span className="block text-lg font-bold text-emerald-500">{getScoutMatches(scout.name).length}</span>
+                <span className="block text-lg font-bold text-emerald-500">{totalMatches}</span>
                 <span className={`block text-[8px] md:text-[9px] ${themeTextMuted} uppercase font-bold mt-0.5`}>Jogos Vistos</span>
               </div>
               <div className={`flex-1 text-[10px] ${themeTextMuted} space-y-0.5 flex flex-col justify-center`}>
