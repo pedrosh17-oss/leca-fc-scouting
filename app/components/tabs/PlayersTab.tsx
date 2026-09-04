@@ -62,7 +62,8 @@ export default function PlayersTab({
   const leagueStats = useMemo(() => {
     const counts: Record<string, number> = {};
     filteredPlayers.forEach(p => {
-      const comp = p.competition && p.competition !== 'N/D' ? p.competition : (p.club || 'Sem Liga');
+      const pAny = p as any;
+      const comp = pAny.competition && pAny.competition !== 'N/D' ? pAny.competition : (p.club || 'Sem Liga');
       counts[comp] = (counts[comp] || 0) + 1;
     });
     const total = filteredPlayers.length || 1;
