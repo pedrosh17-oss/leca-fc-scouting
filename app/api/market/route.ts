@@ -8,11 +8,13 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
-// GET: Procurar oportunidades de mercado (todas ou de um jogador específico)
+// GET: Procurar oportunidades de mercado e histórico de logs
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const playerId = searchParams.get('playerId');
+    const opportunityId = searchParams.get('opportunityId');
+    const includeLogs = searchParams.get('includeLogs') === 'true';
 
     let url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Mercado_Oportunidades`;
     if (playerId) {
@@ -26,13 +28,28 @@ export async function GET(request: Request) {
     }
 
     const data = await res.json();
-    return NextResponse.json({ opportunities: data.records || [] });
+
+    // Se forem solicitados os logs da tabela Logs_Mercado
+    let logs: any[] = [];
+    if (includeLogs || opportunityId) {
+      let logUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado`;
+      if (opportunityId) {
+        logUrl += `?filterByFormula=SEARCH('${opportunityId}', ARRAYJOIN({Oportunidade}))`;
+      }
+      const logRes = await fetch(logUrl, { headers, cache: 'no-store' });
+      if (logRes.ok) {
+        const logData = await logRes.json();
+        logs = logData.records || [];
+      }
+    }
+
+    return NextResponse.json({ opportunities: data.records || [], logs });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// POST: Criar nova Oportunidade de Mercado
+// POST: Criar nova Oportunidade de Mercado e registar Log inicial
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -96,7 +113,7 @@ export async function POST(request: Request) {
                 },
               },
             ],
-            typecast: true // Força o Airtable a aceitar os dados
+            typecast: true
           }),
         });
 
@@ -113,10 +130,12 @@ export async function POST(request: Request) {
 
     // 2. Criar o registo na tabela 'Mercado_Oportunidades'
     const createMarketUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Mercado_Oportunidades`;
+    const initialStatus = status || 'Em Avaliação';
+
     const marketFields: Record<string, any> = {
       'Mercado Target': marketTarget || '',
       'Scout': scout || '',
-      'Status Negociação': status || 'Em Avaliação',
+      'Status Negociação': initialStatus,
       'Viabilidade Financeira': viability || '',
       'Confiança Liga 3': confLiga3 || '',
       'Confiança Liga 2': confLiga2 || '',
@@ -132,24 +151,16 @@ export async function POST(request: Request) {
       'Notas Diretor Desportivo': notesDD || '',
     };
 
-    if (offerDate) {
-      marketFields['Data da Oferta'] = offerDate;
-    }
-
-    if (vetoDate) {
-      marketFields['Data do Veto'] = vetoDate;
-    }
-
-    if (targetPlayerId) {
-      marketFields['Jogador'] = [targetPlayerId];
-    }
+    if (offerDate) marketFields['Data da Oferta'] = offerDate;
+    if (vetoDate) marketFields['Data do Veto'] = vetoDate;
+    if (targetPlayerId) marketFields['Jogador'] = [targetPlayerId];
 
     const marketRes = await fetch(createMarketUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify({
         records: [{ fields: marketFields }],
-        typecast: true // Força o Airtable a formatar tudo o que faltar
+        typecast: true
       }),
     });
 
@@ -160,6 +171,37 @@ export async function POST(request: Request) {
     }
 
     const newMarket = await marketRes.json();
+    const createdRecordId = newMarket.records[0].id;
+
+    // 3. Registar o Log inicial na tabela 'Logs_Mercado'
+    try {
+      const nowFormatted = new Date().toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' });
+      const logUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado`;
+
+      await fetch(logUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          records: [
+            {
+              fields: {
+                'Name': `LOG - ${name || 'Atleta'}`,
+                'Oportunidade': [createdRecordId],
+                'Utilizador': scout || 'Sistema',
+                'Status_Anterior': 'Criado',
+                'Status_Novo': initialStatus,
+                'Data_Hora': nowFormatted,
+                'Notas': reason || 'Oportunidade de mercado submetida no sistema.',
+              },
+            },
+          ],
+          typecast: true
+        }),
+      });
+    } catch (logErr) {
+      console.error("Erro ao criar Log de registo:", logErr);
+    }
+
     return NextResponse.json({ success: true, record: newMarket.records[0] });
 
   } catch (error: any) {
@@ -167,16 +209,26 @@ export async function POST(request: Request) {
   }
 }
 
-// PATCH: Atualizar Estado, Vetos e Notas de uma Oportunidade existente
+// PATCH: Atualizar Estado, Vetos e Registar Auditoria na tabela 'Logs_Mercado'
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { recordId, status, vetoReason, vetoDate, presidentOpinion, notesDD } = body;
+    const { 
+      recordId, 
+      status, 
+      previousStatus, 
+      user, 
+      vetoReason, 
+      vetoDate, 
+      presidentOpinion, 
+      notesDD 
+    } = body;
 
     if (!recordId) {
       return NextResponse.json({ error: 'Record ID é obrigatório' }, { status: 400 });
     }
 
+    // 1. Atualizar a Oportunidade na tabela 'Mercado_Oportunidades'
     const updateUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Mercado_Oportunidades/${recordId}`;
     const fields: Record<string, any> = {};
 
@@ -198,6 +250,37 @@ export async function PATCH(request: Request) {
     }
 
     const updated = await res.json();
+
+    // 2. Gravar entrada de Auditoria na tabela 'Logs_Mercado'
+    try {
+      const nowFormatted = new Date().toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' });
+      const logUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado`;
+      const logNotes = vetoReason || notesDD || presidentOpinion || 'Alteração de estado efetuada no pipeline.';
+
+      await fetch(logUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          records: [
+            {
+              fields: {
+                'Name': `LOG - ${status || 'Atualização'}`,
+                'Oportunidade': [recordId],
+                'Utilizador': user || 'Utilizador',
+                'Status_Anterior': previousStatus || 'N/D',
+                'Status_Novo': status || 'N/D',
+                'Data_Hora': nowFormatted,
+                'Notas': logNotes,
+              },
+            },
+          ],
+          typecast: true
+        }),
+      });
+    } catch (logErr) {
+      console.error("Erro ao gravar Log de auditoria:", logErr);
+    }
+
     return NextResponse.json({ success: true, record: updated });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
