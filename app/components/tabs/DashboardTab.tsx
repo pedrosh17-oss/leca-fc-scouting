@@ -28,24 +28,27 @@ export default function DashboardTab({
   const recentHighlights = getRecentHighlights();
   const themeCard = isDarkMode ? 'bg-[#151c2c] border-slate-800' : 'bg-white border-slate-200 shadow-sm';
   const themeTextMuted = isDarkMode ? 'text-slate-400' : 'text-slate-500';
-  const themeInnerCard = isDarkMode ? 'bg-[#0d131f] border-slate-800/80' : 'bg-slate-50 border-slate-200';
 
-  // 1. Cálculos de Controlo de Observação (Jogos Vistos por Equipa)
+  // 1. Cálculos de Controlo de Observação por Equipa (Flexível para vs, vs., x, -)
   const teamCoverage = React.useMemo(() => {
     const counts: Record<string, number> = {};
     matches.forEach(m => {
-      const p = m.matchName.split(' x ');
-      if (p.length === 2) {
-        const home = p[0].trim();
-        const away = p[1].trim();
-        counts[home] = (counts[home] || 0) + 1;
-        counts[away] = (counts[away] || 0) + 1;
+      if (!m.matchName) return;
+      // Remove datas/conteúdo entre parênteses (ex: "FC Tirsense vs FC Vinhais (01/09/2026)" -> "FC Tirsense vs FC Vinhais")
+      const cleanName = m.matchName.replace(/\s*\([^)]*\)/g, '').trim();
+      // Separa por 'vs', 'vs.', 'x' ou '-'
+      const parts = cleanName.split(/\s*(?:vs\.?|x|-)\s*/i);
+      if (parts.length >= 2) {
+        const home = parts[0].trim();
+        const away = parts[1].trim();
+        if (home) counts[home] = (counts[home] || 0) + 1;
+        if (away) counts[away] = (counts[away] || 0) + 1;
       }
     });
     return Object.entries(counts)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 5); // Mostra o Top 5 equipas mais vistas
+      .slice(0, 5);
   }, [matches]);
 
   return (
@@ -110,25 +113,33 @@ export default function DashboardTab({
             
             {recentHighlights.length > 0 ? (
               <div className="space-y-3">
-                {recentHighlights.map((hl, idx) => (
-                  <div key={idx} onClick={() => navigateToMatch(hl.matchId)} className={`${themeCard} border rounded-2xl p-4 md:p-5 hover:border-blue-500/50 transition cursor-pointer flex items-start gap-4 shadow-sm group`}>
-                    <div className={`p-2.5 rounded-xl ${isDarkMode ? 'bg-slate-800' : 'bg-slate-100'} border ${isDarkMode ? 'border-slate-700' : 'border-slate-200'} flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-500 transition-colors`}>
-                      <Trophy className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 sm:gap-2 mb-1.5">
-                        <h4 className="font-bold text-sm md:text-base leading-tight group-hover:text-blue-500 transition line-clamp-1">{hl.name}</h4>
-                        <span className={`text-[10px] md:text-xs font-medium px-2 py-0.5 rounded-lg border ${isDarkMode ? 'bg-slate-800/80 border-slate-700/80 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'} whitespace-nowrap`}>
-                          Scout: {hl.scout}
-                        </span>
+                {recentHighlights.map((hl, idx) => {
+                  const fullP = players.find(p => (p.name || '').trim().toLowerCase() === (hl.name || '').trim().toLowerCase()) || hl;
+                  
+                  return (
+                    <div key={idx} onClick={() => navigateToMatch(hl.matchId)} className={`${themeCard} border rounded-2xl p-4 md:p-5 hover:border-blue-500/50 transition cursor-pointer flex items-start gap-4 shadow-sm group`}>
+                      {fullP.photo ? (
+                        <img src={fullP.photo} alt={hl.name} className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover border border-slate-700 flex-shrink-0 group-hover:border-blue-500 transition" />
+                      ) : (
+                        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold text-sm md:text-base flex-shrink-0 group-hover:border-blue-500 transition`}>
+                          {(hl.name || 'J').charAt(0)}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 sm:gap-2 mb-1.5">
+                          <h4 className="font-bold text-sm md:text-base leading-tight group-hover:text-blue-500 transition line-clamp-1">{hl.name}</h4>
+                          <span className={`text-[10px] md:text-xs font-medium px-2 py-0.5 rounded-lg border ${isDarkMode ? 'bg-slate-800/80 border-slate-700/80 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'} whitespace-nowrap`}>
+                            Scout: {hl.scout}
+                          </span>
+                        </div>
+                        <p className={`text-[11px] md:text-xs ${themeTextMuted} truncate flex items-center gap-1.5 mb-2`}>
+                          Em <span className="font-semibold text-slate-300">{hl.matchName}</span> ({hl.gameDate})
+                        </p>
+                        <p className={`text-xs md:text-sm line-clamp-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'} leading-relaxed font-sans`}>{hl.note}</p>
                       </div>
-                      <p className={`text-[11px] md:text-xs ${themeTextMuted} truncate flex items-center gap-1.5 mb-2`}>
-                        Em <span className="font-semibold text-slate-300">{hl.matchName}</span> ({hl.gameDate})
-                      </p>
-                      <p className={`text-xs md:text-sm line-clamp-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'} leading-relaxed font-sans`}>{hl.note}</p>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className={`${themeCard} border border-dashed rounded-2xl p-8 text-center`}>
