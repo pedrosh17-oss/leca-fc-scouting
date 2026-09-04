@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     if (includeLogs || opportunityId) {
       let logUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado`;
       if (opportunityId) {
-        logUrl += `?filterByFormula=SEARCH('${opportunityId}', ARRAYJOIN({Oportunidade}))`;
+        logUrl += `?filterByFormula=FIND('${opportunityId}', {Oportunidade})`;
       }
       const logRes = await fetch(logUrl, { headers, cache: 'no-store' });
       if (logRes.ok) {
@@ -103,7 +103,6 @@ export async function POST(request: Request) {
         if (!createPlayerRes.ok) {
           const errP = await createPlayerRes.json();
           const msg = errP?.error?.message || JSON.stringify(errP);
-          console.error("Erro ao criar Player na tabela Players:", msg);
           return NextResponse.json({ error: `Erro na tabela 'Players': ${msg}` }, { status: 400 });
         }
 
@@ -156,7 +155,6 @@ export async function POST(request: Request) {
     if (!marketRes.ok) {
       const errM = await marketRes.json();
       const msg = errM?.error?.message || JSON.stringify(errM);
-      console.error("Erro ao criar em Mercado_Oportunidades:", msg);
       return NextResponse.json({ error: `Erro na tabela 'Mercado_Oportunidades': ${msg}` }, { status: 400 });
     }
 
@@ -269,7 +267,6 @@ export async function PATCH(request: Request) {
   }
 }
 
-// DELETE: Apagar permanentemente a oportunidade E todos os seus logs associados
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -281,7 +278,7 @@ export async function DELETE(request: Request) {
 
     // 1. Procurar e apagar todos os logs associados na tabela Logs_Mercado
     try {
-      const logSearchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado?filterByFormula=SEARCH('${recordId}', ARRAYJOIN({Oportunidade}))`;
+      const logSearchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado?filterByFormula=FIND('${recordId}', {Oportunidade})`;
       const logSearchRes = await fetch(logSearchUrl, { headers, cache: 'no-store' });
       if (logSearchRes.ok) {
         const logData = await logSearchRes.json();

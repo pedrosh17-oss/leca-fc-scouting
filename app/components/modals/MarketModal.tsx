@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Briefcase, X, UserCheck, Globe, Loader2, UserPlus, Lock, RefreshCcw } from 'lucide-react';
+import { Briefcase, X, UserCheck, Globe, Loader2, UserPlus, RefreshCcw } from 'lucide-react';
 import CustomSelect from '../ui/CustomSelect';
 import { MarketFormData, Player, Team, Scout } from '../../types';
 import { POSITIONS_OPTIONS, MARKET_TARGET_OPTIONS } from '../../constants/options';
@@ -43,13 +43,18 @@ export default function MarketModal({
     setIsCreatingNewPlayer(false);
     const p = players.find(player => player.id === playerId);
     if (p) {
+      let mappedFoot = p.foot || '';
+      if (mappedFoot === 'D') mappedFoot = 'Direito';
+      else if (mappedFoot === 'E') mappedFoot = 'Esquerdo';
+      else if (mappedFoot === 'Ambi') mappedFoot = 'Ambos';
+
       setMarketFormData(prev => ({
         ...prev,
         playerId: p.id,
         name: p.name,
         club: p.club || '',
         position: p.position || '',
-        foot: p.foot || '',
+        foot: mappedFoot,
         birthDate: p.birthDate || ''
       }));
     }
@@ -100,7 +105,7 @@ export default function MarketModal({
         </div>
 
         <form onSubmit={onSubmit} className="p-6 space-y-6 overflow-y-auto custom-scrollbar">
-          {/* BLOCO 1: SELEÇÃO OU CRIAÇÃO DO ATLETA */}
+          {/* BLOCO 1: DADOS DO ATLETA */}
           <div className={`${themeInnerCard} p-5 rounded-2xl border space-y-4`}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
               <h3 className="text-xs font-bold text-pink-500 uppercase tracking-wider flex items-center gap-2">
@@ -161,10 +166,7 @@ export default function MarketModal({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
               <div>
-                <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5 flex items-center justify-between`}>
-                  <span>Nome Completo *</span>
-                  {!isCreatingNewPlayer && marketFormData.playerId && <Lock className="w-3 h-3 text-slate-500" />}
-                </label>
+                <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Nome Completo *</label>
                 <input 
                   type="text" required 
                   disabled={!isCreatingNewPlayer && !!marketFormData.playerId}
@@ -246,12 +248,12 @@ export default function MarketModal({
             </div>
           </div>
 
-          {/* BLOCO 2: CONTEXTO DE NEGÓCIO E OFERTA */}
+          {/* BLOCO 2: CONTEXTO DO NEGÓCIO */}
           <div className={`${themeInnerCard} p-5 rounded-2xl border space-y-4`}>
             <h3 className="text-xs font-bold text-pink-500 uppercase tracking-wider flex items-center gap-2 mb-2">
               <Globe className="w-4 h-4"/> Contexto do Negócio
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Mercado Target *</label>
                 <CustomSelect 
@@ -264,17 +266,57 @@ export default function MarketModal({
               </div>
               <div>
                 <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Oferecido a: *</label>
-                <CustomSelect options={displayScouts.map((s) => ({value: s.name, label: s.name}))} value={marketFormData.scout} onChange={v => setMarketFormData({...marketFormData, scout: v})} placeholder="Quem recebeu a indicação?" isDarkMode={isDarkMode} />
+                <CustomSelect 
+                  options={displayScouts.map((s) => ({value: s.name, label: s.name}))} 
+                  value={marketFormData.scout} 
+                  onChange={v => setMarketFormData({...marketFormData, scout: v})} 
+                  placeholder="Quem recebeu a indicação?" 
+                  isDarkMode={isDarkMode} 
+                />
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Situação Contratual</label>
-                <CustomSelect options={[{value:'Livre / Sem contrato', label:'Livre / Sem contrato'}, {value:'Fim de contrato', label:'Fim de contrato'}, {value:'Sob contrato (Empréstimo)', label:'Sob contrato (Empréstimo)'}, {value:'Sob contrato (Transferência)', label:'Sob contrato (Transferência)'}]} value={marketFormData.contract} onChange={v => setMarketFormData({...marketFormData, contract: v})} placeholder="Contrato..." isDarkMode={isDarkMode} />
+                <CustomSelect 
+                  options={[
+                    {value:'Livre / Sem contrato', label:'Livre / Sem contrato'}, 
+                    {value:'Fim de contrato', label:'Fim de contrato'}, 
+                    {value:'Sob contrato (Empréstimo)', label:'Sob contrato (Empréstimo)'}, 
+                    {value:'Sob contrato (Transferência)', label:'Sob contrato (Transferência)'}
+                  ]} 
+                  value={marketFormData.contract} 
+                  onChange={v => setMarketFormData({...marketFormData, contract: v})} 
+                  placeholder="Contrato..." 
+                  isDarkMode={isDarkMode} 
+                />
+              </div>
+              <div>
+                <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Viabilidade Financeira</label>
+                <CustomSelect 
+                  options={[
+                    { value: '1 - Fora do Teto / Caro', label: '1 - Fora do Teto / Caro' },
+                    { value: '2 - Dentro do Teto', label: '2 - Dentro do Teto' },
+                    { value: '3 - Oportunidade / Acessível', label: '3 - Oportunidade / Acessível' }
+                  ]} 
+                  value={marketFormData.viability} 
+                  onChange={v => setMarketFormData({...marketFormData, viability: v})} 
+                  placeholder="Selecione enquadramento..." 
+                  isDarkMode={isDarkMode} 
+                />
               </div>
             </div>
 
             <div>
               <label className={`block ${themeTextMuted} text-xs font-bold mb-1.5`}>Notas do Agente / Contexto da Oferta</label>
-              <textarea rows={2} value={marketFormData.reason} onChange={e => setMarketFormData({...marketFormData, reason: e.target.value})} className={`w-full border rounded-xl p-3 text-sm resize-none focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} placeholder="Ex: Proposto pelo agente X com passe livre no Verão..." />
+              <textarea 
+                rows={2} 
+                value={marketFormData.reason} 
+                onChange={e => setMarketFormData({...marketFormData, reason: e.target.value})} 
+                className={`w-full border rounded-xl p-3 text-sm resize-none focus:border-pink-500 ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-white' : 'bg-white border-slate-300'}`} 
+                placeholder="Ex: Proposto pelo agente X com passe livre no Verão..." 
+              />
             </div>
           </div>
 
