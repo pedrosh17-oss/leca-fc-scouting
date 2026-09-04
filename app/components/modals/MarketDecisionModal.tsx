@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { X, Sliders, AlertTriangle, Trash2, ShieldCheck, Building2, Handshake } from 'lucide-react';
+import { X, Sliders, AlertTriangle, Trash2, ShieldCheck, Building2, Briefcase } from 'lucide-react';
 import CustomSelect from '../ui/CustomSelect';
 import { DecisionFormData } from '../../types';
 import { getTheme } from '../../constants/theme';
@@ -131,7 +131,7 @@ export default function MarketDecisionModal({
           {isNegotiationPhase && (
             <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-3">
               <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Handshake className="w-4 h-4" /> Gestão da Negociação
+                <Briefcase className="w-4 h-4" /> Gestão da Negociação
               </h4>
               <div>
                 <label className={`block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-xs font-bold mb-1`}>Notas de Negociação / Termos da Proposta</label>
