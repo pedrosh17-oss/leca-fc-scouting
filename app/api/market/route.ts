@@ -59,7 +59,6 @@ export async function POST(request: Request) {
 
     let targetPlayerId = playerId;
 
-    // PASSO 1: Criar atleta em 'Players' usando os nomes de campos e opções exatas do CSV
     if (!targetPlayerId && name) {
       const cleanName = name.trim();
       const searchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players?filterByFormula=LOWER({Player Name})='${encodeURIComponent(cleanName.toLowerCase())}'`;
@@ -83,7 +82,6 @@ export async function POST(request: Request) {
         if (club && club.trim()) playerFields['Current Team'] = club;
         if (position && position.trim()) playerFields['Position'] = position;
         
-        // Mapeamento do Pé conforme opções da BD ('D', 'E', 'Ambi')
         if (foot && foot.trim()) {
           if (foot === 'Direito') playerFields['Foot'] = 'D';
           else if (foot === 'Esquerdo') playerFields['Foot'] = 'E';
@@ -118,7 +116,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Não foi possível obter ou criar o ID do Jogador." }, { status: 400 });
     }
 
-    // PASSO 2: Criar a Oportunidade em 'Mercado_Oportunidades'
     const createMarketUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Mercado_Oportunidades`;
     const initialStatus = status || 'Em Avaliação';
 
@@ -166,7 +163,6 @@ export async function POST(request: Request) {
     const newMarket = await marketRes.json();
     const createdRecordId = newMarket.records[0]?.id;
 
-    // PASSO 3: Registar Log em 'Logs_Mercado'
     try {
       const nowFormatted = new Date().toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' });
       const logUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado`;
@@ -273,6 +269,7 @@ export async function PATCH(request: Request) {
   }
 }
 
+// DELETE: Apagar permanentemente a oportunidade E todos os seus logs associados
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -282,6 +279,26 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Record ID é obrigatório' }, { status: 400 });
     }
 
+    // 1. Procurar e apagar todos os logs associados na tabela Logs_Mercado
+    try {
+      const logSearchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado?filterByFormula=SEARCH('${recordId}', ARRAYJOIN({Oportunidade}))`;
+      const logSearchRes = await fetch(logSearchUrl, { headers, cache: 'no-store' });
+      if (logSearchRes.ok) {
+        const logData = await logSearchRes.json();
+        const logRecords = logData.records || [];
+        
+        for (const logRec of logRecords) {
+          await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado/${logRec.id}`, {
+            method: 'DELETE',
+            headers
+          });
+        }
+      }
+    } catch (logDeleteErr) {
+      console.warn("Aviso ao apagar logs associados:", logDeleteErr);
+    }
+
+    // 2. Apagar a oportunidade em Mercado_Oportunidades
     const deleteUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Mercado_Oportunidades/${recordId}`;
     const res = await fetch(deleteUrl, { method: 'DELETE', headers });
 
