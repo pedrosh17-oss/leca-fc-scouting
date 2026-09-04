@@ -1,19 +1,11 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Search, Building2, Plus } from 'lucide-react';
 import CustomSelect from '../ui/CustomSelect';
 import { Team, Player, Match } from '../../types';
 
 interface TeamsTabProps {
-  search: string;
-  setSearch: (s: string) => void;
-  teamFilterComp: string;
-  setTeamFilterComp: (c: string) => void;
-  teamFilterStatus: string;
-  setTeamFilterStatus: (s: string) => void;
-  uniqueTeamComps: string[];
-  uniqueTeamStatus: string[];
   filteredTeams: Team[];
   players: Player[];
   matches: Match[];
@@ -24,12 +16,20 @@ interface TeamsTabProps {
 }
 
 export default function TeamsTab({
-  search, setSearch, teamFilterComp, setTeamFilterComp, teamFilterStatus, setTeamFilterStatus,
-  uniqueTeamComps, uniqueTeamStatus, filteredTeams, players, matches, setSelectedTeam,
+  filteredTeams, players, matches, setSelectedTeam,
   canCreateMatches, setIsNewTeamOpen, isDarkMode
 }: TeamsTabProps) {
+  
+  // ESTADOS LOCAIS PARA EVITAR CONFLITO COM A ABA DE JOGADORES
+  const [search, setSearch] = useState('');
+  const [teamFilterComp, setTeamFilterComp] = useState('All');
+  const [teamFilterStatus, setTeamFilterStatus] = useState('All');
+
   const themeCard = isDarkMode ? 'bg-[#151c2c] border-slate-800' : 'bg-white border-slate-200 shadow-sm';
   const themeTextMuted = isDarkMode ? 'text-slate-400' : 'text-slate-500';
+
+  const uniqueTeamComps = useMemo(() => Array.from(new Set(filteredTeams.map(t => t.competition).filter(c => c && c !== 'N/D'))).sort(), [filteredTeams]);
+  const uniqueTeamStatus = useMemo(() => Array.from(new Set(filteredTeams.map(t => t.status).filter(s => s && s !== 'N/D'))).sort(), [filteredTeams]);
 
   const displayedTeams = useMemo(() => {
     return filteredTeams.filter(team => {
@@ -57,7 +57,7 @@ export default function TeamsTab({
         </div>
         <div className="flex flex-col sm:flex-row gap-3 z-20">
           <CustomSelect options={[{ value: 'All', label: 'Todas as Ligas' }, ...uniqueTeamComps.map(c => ({ value: c, label: c }))]} value={teamFilterComp} onChange={setTeamFilterComp} className="w-full sm:w-48" isDarkMode={isDarkMode} />
-          <CustomSelect options={[{ value: 'All', label: 'Todos Estatutos' }, ...uniqueTeamStatus.map(s => ({ value: s, label: s }))]} value={teamFilterStatus} onChange={setTeamFilterStatus} className="w-full sm:w-48" isDarkMode={isDarkMode} />
+          <CustomSelect options={[{ value: 'All', label: 'Todos os Estados' }, ...uniqueTeamStatus.map(s => ({ value: s, label: s }))]} value={teamFilterStatus} onChange={setTeamFilterStatus} className="w-full sm:w-48" isDarkMode={isDarkMode} />
           
           {canCreateMatches && (
             <button 

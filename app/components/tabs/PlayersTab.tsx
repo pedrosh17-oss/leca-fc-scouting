@@ -6,22 +6,6 @@ import CustomSelect from '../ui/CustomSelect';
 import { Player, Team } from '../../types';
 
 interface PlayersTabProps {
-  search: string;
-  setSearch: (s: string) => void;
-  playerPositionFilter: string;
-  setPlayerPositionFilter: (p: string) => void;
-  cleanPositionOptions: Array<{ value: string; label: string }>;
-  playerStatusFilter: string;
-  setPlayerStatusFilter: (s: string) => void;
-  uniquePlayerStatuses: string[];
-  birthYearFilter: string;
-  setBirthYearFilter: (y: string) => void;
-  uniqueBirthYears: string[];
-  minAgeFilter: number;
-  setMinAgeFilter: (n: number) => void;
-  maxAgeFilter: number;
-  setMaxAgeFilter: (n: number) => void;
-  displayedPlayers: Player[];
   filteredPlayers: Player[];
   teams?: Team[];
   visibleCount: number;
@@ -46,33 +30,32 @@ const TACTICAL_ORDER: Record<string, number> = {
 };
 
 export default function PlayersTab({
-  search, setSearch,
   filteredPlayers, teams = [],
-  minAgeFilter, setMinAgeFilter, maxAgeFilter, setMaxAgeFilter,
   visibleCount, setVisibleCount, setSelectedPlayer, setProfileTab, setSelectedSeasonIdx, isDarkMode
 }: PlayersTabProps) {
+  
+  // ESTADOS LOCAIS APENAS DESTA ABA (Impede o salto para as Equipas)
+  const [search, setSearch] = useState('');
   const [localPosFilter, setLocalPosFilter] = useState('All');
   const [localStatusFilter, setLocalStatusFilter] = useState('All');
   const [localYearFilter, setLocalYearFilter] = useState('All');
+  const [minAgeFilter, setMinAgeFilter] = useState<number>(15);
+  const [maxAgeFilter, setMaxAgeFilter] = useState<number>(40);
   const [showStatsBanner, setShowStatsBanner] = useState(false);
 
   const themeCard = isDarkMode ? 'bg-[#151c2c] border-slate-800' : 'bg-white border-slate-200 shadow-sm';
   const themeInnerCard = isDarkMode ? 'bg-[#0d131f] border-slate-800/80' : 'bg-slate-50 border-slate-200';
   const themeTextMuted = isDarkMode ? 'text-slate-400' : 'text-slate-500';
 
-  // 1. Extração Limpa de Estados (Limpa emojis que possam vir do Airtable)
+  // Opções 100% Exatas do Airtable (Sem Emojis Duplicados)
   const uniqueObservationStatuses = useMemo(() => {
     const statusSet = new Set<string>();
     filteredPlayers.forEach(p => {
-      if (!p.status || p.status === 'N/D') return;
-      // Remove emojis iniciais se existirem (ex: "🟡 Monitoring" -> "Monitoring")
-      const cleanStatus = p.status.replace(/^[\u2700-\u27BF\u1F000-\u1F6FF\u1F900-\u1F9FF\u2600-\u26FF]\s*/g, '').trim();
-      statusSet.add(cleanStatus);
+      if (p.status) statusSet.add(p.status.trim());
     });
     return [{ value: 'All', label: 'Todos os Estados' }, ...Array.from(statusSet).sort().map(s => ({ value: s, label: s }))];
   }, [filteredPlayers]);
 
-  // 2. Extração Real de Anos de Nascimento
   const uniqueYears = useMemo(() => {
     const yearSet = new Set<number>();
     filteredPlayers.forEach(p => {
@@ -93,7 +76,6 @@ export default function PlayersTab({
     return [{ value: 'All', label: 'Ano Nascimento' }, ...sortedYears.map(y => ({ value: String(y), label: String(y) }))];
   }, [filteredPlayers]);
 
-  // 3. Posições Únicas e Isoladas
   const cleanUniquePositions = useMemo(() => {
     const posSet = new Set<string>();
     filteredPlayers.forEach(p => {
@@ -109,7 +91,6 @@ export default function PlayersTab({
     return [{ value: 'All', label: 'Todas as Posições' }, ...sortedPositions.map(p => ({ value: p, label: p }))];
   }, [filteredPlayers]);
 
-  // 4. Filtragem
   const processedPlayers = useMemo(() => {
     let list = filteredPlayers.filter(p => {
       const matchSearch = (p.name || '').toLowerCase().includes(search.toLowerCase()) || (p.club || '').toLowerCase().includes(search.toLowerCase());
@@ -117,8 +98,7 @@ export default function PlayersTab({
       const pPositions = (p.position || '').toLowerCase();
       const matchPos = localPosFilter === 'All' || pPositions.includes(localPosFilter.toLowerCase());
       
-      const cleanPStatus = (p.status || '').replace(/^[\u2700-\u27BF\u1F000-\u1F6FF\u1F900-\u1F9FF\u2600-\u26FF]\s*/g, '').trim();
-      const matchStatus = localStatusFilter === 'All' || cleanPStatus === localStatusFilter;
+      const matchStatus = localStatusFilter === 'All' || p.status === localStatusFilter;
       
       let extractedYear = '';
       if (p.birthYear) extractedYear = String(p.birthYear);
@@ -144,7 +124,6 @@ export default function PlayersTab({
 
   const listToRender = processedPlayers.slice(0, visibleCount);
 
-  // Auxiliares de Estatísticas
   const positionStats = useMemo(() => {
     const counts: Record<string, number> = {};
     let totalCount = 0;
@@ -172,11 +151,6 @@ export default function PlayersTab({
     const total = totalCount || 1;
     return Object.entries(counts).map(([comp, count]) => ({ comp, count, pct: Math.round((count / total) * 100) })).sort((a, b) => b.count - a.count).slice(0, 8);
   }, [filteredPlayers, teams]);
-
-  const formatAge = (age: any) => {
-    if (!age || age === 'N/D' || typeof age === 'object') return '--';
-    return `${age} anos`;
-  };
 
   const minPercent = ((minAgeFilter - 15) / (40 - 15)) * 100;
   const maxPercent = ((maxAgeFilter - 15) / (40 - 15)) * 100;
@@ -234,23 +208,19 @@ export default function PlayersTab({
           </div>
         </div>
 
-        {/* BARRA ÚNICA ESTÁVEL DE IDADES */}
         <div className={`${themeCard} px-4 py-3 rounded-xl border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-medium`}>
           <div className="flex items-center gap-2 flex-shrink-0">
             <Filter className="w-4 h-4 text-blue-500" />
             <span className={`font-bold uppercase tracking-wider text-[11px] ${themeTextMuted}`}>Faixa Etária:</span>
             <span className="text-blue-500 font-bold font-mono ml-1">{minAgeFilter} - {maxAgeFilter} anos</span>
           </div>
-
           <div className="flex items-center gap-3 w-full sm:w-1/2 mt-2 sm:mt-0 relative group pt-2 pb-2">
             <span className={`${themeTextMuted} font-bold`}>15</span>
-            
             <div className="relative w-full h-1.5 bg-slate-700/60 rounded-full flex items-center">
               <div className="absolute h-full bg-blue-500 rounded-full pointer-events-none" style={{ left: `${minPercent}%`, width: `${maxPercent - minPercent}%` }} />
               <input type="range" min="15" max="40" value={minAgeFilter} onChange={(e) => setMinAgeFilter(Math.min(Number(e.target.value), maxAgeFilter - 1))} className="absolute w-full h-2 appearance-none bg-transparent outline-none pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-400 [&::-webkit-slider-thumb]:appearance-none cursor-pointer" />
               <input type="range" min="15" max="40" value={maxAgeFilter} onChange={(e) => setMaxAgeFilter(Math.max(Number(e.target.value), minAgeFilter + 1))} className="absolute w-full h-2 appearance-none bg-transparent outline-none pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-400 [&::-webkit-slider-thumb]:appearance-none cursor-pointer" />
             </div>
-
             <span className={`${themeTextMuted} font-bold`}>40</span>
           </div>
         </div>
@@ -271,7 +241,7 @@ export default function PlayersTab({
               </div>
             </div>
             <div className="flex flex-col items-end gap-1 flex-shrink-0">
-              <span className="text-xs font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">{formatAge(player.age)}</span>
+              <span className="text-xs font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">{player.age && player.age !== 'N/D' && typeof player.age !== 'object' ? `${player.age} anos` : '--'}</span>
               <span className={`text-[10px] ${themeTextMuted} font-semibold`}>{player.status || 'Ativo'}</span>
             </div>
           </div>
