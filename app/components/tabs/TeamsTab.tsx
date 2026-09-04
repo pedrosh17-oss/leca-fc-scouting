@@ -28,8 +28,19 @@ export default function TeamsTab({
   const themeCard = isDarkMode ? 'bg-[#151c2c] border-slate-800' : 'bg-white border-slate-200 shadow-sm';
   const themeTextMuted = isDarkMode ? 'text-slate-400' : 'text-slate-500';
 
-  const uniqueTeamComps = useMemo(() => Array.from(new Set(filteredTeams.map(t => t.competition).filter(c => c && c !== 'N/D'))).sort(), [filteredTeams]);
-  const uniqueTeamStatus = useMemo(() => Array.from(new Set(filteredTeams.map(t => t.status).filter(s => s && s !== 'N/D'))).sort(), [filteredTeams]);
+  const uniqueTeamComps = useMemo(() => {
+    const list = filteredTeams
+      .map(t => t.competition)
+      .filter((c): c is string => Boolean(c) && c !== 'N/D');
+    return Array.from(new Set(list)).sort();
+  }, [filteredTeams]);
+
+  const uniqueTeamStatus = useMemo(() => {
+    const list = filteredTeams
+      .map(t => t.status)
+      .filter((s): s is string => Boolean(s) && s !== 'N/D');
+    return Array.from(new Set(list)).sort();
+  }, [filteredTeams]);
 
   const displayedTeams = useMemo(() => {
     return filteredTeams.filter(team => {
