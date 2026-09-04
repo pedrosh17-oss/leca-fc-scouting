@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Trophy, Calendar, ChevronDown, ChevronUp, Plus, Shield, UserCheck, Edit3, Loader2, Zap, Activity, Crosshair, BrainCircuit, Search, ExternalLink } from 'lucide-react';
+import { Trophy, Calendar, ChevronDown, ChevronUp, Plus, Shield, UserCheck, Edit3, Loader2, Zap, Activity, Crosshair, BrainCircuit, Search } from 'lucide-react';
 import CustomSelect from '../ui/CustomSelect';
 import CustomMultiSelect from '../ui/CustomMultiSelect';
 import { Match, Player, Scout } from '../../types';
@@ -26,7 +26,7 @@ interface MatchesTabProps {
   setNewHighlightData: (data: any) => void;
   setEditingHighlight: (data: any) => void;
   setSelectedPlayer: (player: Player) => void;
-  setProfileTab: (tab: string) => void;
+  setProfileTab: (tab: 'timeline' | 'algo' | 'market' | 'reports') => void;
   setSelectedSeasonIdx: (idx: number) => void;
   navigateToMatch: (matchId: string) => void;
   setPreGameData: (data: any) => void;
