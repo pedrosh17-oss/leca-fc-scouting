@@ -3,8 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Users, Trophy, Shield, ArrowRight, Loader2, LogOut, CheckCircle2, Menu, X, 
-  LayoutDashboard, BarChart3, Briefcase, Building2, Sliders, Sun, Moon, 
-  Calendar, UserCheck, ExternalLink, Globe 
+  LayoutDashboard, BarChart3, Briefcase, Building2, Sliders, Sun, Moon 
 } from 'lucide-react';
 
 import { DEPT_PASSWORD } from './constants/options';
@@ -15,13 +14,12 @@ import { useScoutingData, getRoleForUser } from './hooks/useScoutingData';
 import { useExcelUploader } from './hooks/useExcelUploader';
 
 import CustomSelect from './components/ui/CustomSelect';
-import CustomMultiSelect from './components/ui/CustomMultiSelect';
 import MarketModal from './components/modals/MarketModal';
 import MarketDecisionModal from './components/modals/MarketDecisionModal';
 import PlayerProfileModal from './components/modals/PlayerProfileModal';
-import NewTeamModal from './components/modals/NewTeamModal';
-import NewPlayerModal from './components/modals/NewPlayerModal';
-import PillarDetailModal from './components/modals/PillarDetailModal';
+import TeamProfileModal from './components/modals/TeamProfileModal';
+import ScoutProfileModal from './components/modals/ScoutProfileModal';
+
 import DashboardTab from './components/tabs/DashboardTab';
 import MarketTab from './components/tabs/MarketTab';
 import PlayersTab from './components/tabs/PlayersTab';
@@ -72,7 +70,6 @@ export default function Home() {
   const [scoutMarketAssignments, setScoutMarketAssignments] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
-    // Garante que tentamos ler o valor guardado sem falhar
     try {
       const savedAssignments = localStorage.getItem('leca_scout_markets');
       if (savedAssignments) setScoutMarketAssignments(JSON.parse(savedAssignments));
@@ -83,8 +80,6 @@ export default function Home() {
 
   // Estados de Formulários e Modais
   const [isNewTeamOpen, setIsNewTeamOpen] = useState(false);
-  const [newTeamData, setNewTeamData] = useState({ name: '', competitionId: '' });
-  const [creatingTeam, setCreatingTeam] = useState(false);
   const [adminMarkets, setAdminMarkets] = useState<string[]>([]);
   const [newMarketInput, setNewMarketInput] = useState('');
   
@@ -94,7 +89,6 @@ export default function Home() {
   const [marketFormData, setMarketFormData] = useState<MarketFormData>(initialMarketForm);
   const [selectedMarketOppToEdit, setSelectedMarketOppToEdit] = useState<any>(null);
   const [decisionFormData, setDecisionFormData] = useState<DecisionFormData>({ status: 'Em Avaliação', vetoReason: '', vetoDate: new Date().toISOString().split('T')[0], presidentOpinion: '', notesDD: '' });
-  const [updatingDecision, setUpdatingDecision] = useState(false);
 
   // Destaques e Observações Recentes
   const getRecentHighlights = () => {
@@ -259,7 +253,6 @@ export default function Home() {
             {isDarkMode ? <Sun className="w-4 h-4"/> : <Moon className="w-4 h-4"/>}
           </button>
 
-          {/* BOTÃO DO MENU HAMBÚRGUER (EXCLUSIVO MOBILE) */}
           <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`md:hidden p-2.5 rounded-xl border transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-200 border-slate-300 text-slate-800'}`}>
             {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -327,7 +320,6 @@ export default function Home() {
         {activeTab === 'dashboard' && <DashboardTab players={players} matches={matches} teams={teams} displayScouts={scouts} canCreateMatches={true} authScoutId={authScoutId} preGameData={{} as any} setPreGameData={()=>{}} setIsMarketModalOpen={setIsMarketModalOpen} setIsRegisterOpen={()=>{}} setActiveTab={setActiveTab} getRecentHighlights={getRecentHighlights} navigateToMatch={navigateToMatch} isDarkMode={isDarkMode} />}
         {activeTab === 'market' && <MarketTab marketOpportunities={marketOpportunities} players={players} setIsMarketModalOpen={setIsMarketModalOpen} setSelectedMarketOppToEdit={setSelectedMarketOppToEdit} setDecisionFormData={setDecisionFormData} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} isDarkMode={isDarkMode} />}
         
-        {/* TABS REFATORADAS (PLAYERS E TEAMS AGORA TÊM ESTADOS INTERNOS PRÓPRIOS DE PESQUISA) */}
         {activeTab === 'players' && <PlayersTab filteredPlayers={players} teams={teams} visibleCount={visibleCount} setVisibleCount={setVisibleCount} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} setSelectedSeasonIdx={setSelectedSeasonIdx} isDarkMode={isDarkMode} />}
         {activeTab === 'teams' && <TeamsTab filteredTeams={teams} players={players} matches={matches} setSelectedTeam={setSelectedTeam} canCreateMatches={true} setIsNewTeamOpen={setIsNewTeamOpen} isDarkMode={isDarkMode} />}
         
@@ -337,245 +329,34 @@ export default function Home() {
         {activeTab === 'admin' && <AdminTab isAdmin={userRole === 'ADMIN'} uniqueAlgoPlayersCount={0} uploadingExcel={uploadingExcel} handleFileUpload={handleFileUpload} handleAddMarket={()=>{}} newMarketInput={newMarketInput} setNewMarketInput={setNewMarketInput} adminMarkets={adminMarkets} handleRemoveMarket={()=>{}} scouts={scouts} isDarkMode={isDarkMode} />}
       </div>
 
+      {/* COMPONENTES DE MODAIS ISOLADOS */}
       <MarketModal isOpen={isMarketModalOpen} onClose={() => setIsMarketModalOpen(false)} marketFormData={marketFormData} setMarketFormData={setMarketFormData} onSubmit={handleMarketSubmit} submittingMarket={submittingMarket} players={players} teams={teams} displayScouts={scouts} onSelectExistingPlayer={()=>{}} isDarkMode={isDarkMode} />
       
       <PlayerProfileModal selectedPlayer={selectedPlayer} onClose={() => setSelectedPlayer(null)} profileTab={profileTab} setProfileTab={setProfileTab} selectedSeasonIdx={selectedSeasonIdx} setSelectedSeasonIdx={setSelectedSeasonIdx} setSelectedPillarDetail={setSelectedPillarDetail} algorithmData={algorithmData} marketOpportunities={marketOpportunities} canSeeMarket={true} setMarketFormData={setMarketFormData} setIsMarketModalOpen={setIsMarketModalOpen} setSelectedMarketOppToEdit={setSelectedMarketOppToEdit} setDecisionFormData={setDecisionFormData} navigateToMatch={navigateToMatch} getPlayerTimeline={() => []} getPlayerAlgoEntries={getPlayerAlgoEntries} extractPlayerBaseName={extractPlayerBaseName} renderFormattedMarkdown={renderFormattedMarkdown} isDarkMode={isDarkMode} />
 
-      {/* --------------------- MODALS CENTRADOS RESTAURADOS --------------------- */}
+      <TeamProfileModal
+        selectedTeam={selectedTeam}
+        onClose={() => setSelectedTeam(null)}
+        players={players}
+        matches={matches}
+        setSelectedPlayer={setSelectedPlayer}
+        setProfileTab={setProfileTab}
+        navigateToMatch={navigateToMatch}
+        isDarkMode={isDarkMode}
+      />
 
-      {/* MODAL PERFIL EQUIPA (VERSÃO RESTAURADA) */}
-      {selectedTeam && (() => {
-        const teamPlayers = players.filter(p => (p.club || '').toLowerCase() === (selectedTeam.name || '').toLowerCase());
-        const teamMatches = matches.filter(m => (m.matchName || '').toLowerCase().includes((selectedTeam.name || '').toLowerCase()));
-
-        return (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className={`${getTheme(isDarkMode).card} border w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl shadow-2xl p-5 md:p-6 space-y-6 animate-in fade-in zoom-in-95`}>
-              
-              <div className={`flex justify-between items-start border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-4`}>
-                <div className="flex items-center gap-4">
-                  {selectedTeam.logo ? (
-                    <img src={selectedTeam.logo} alt={selectedTeam.name} className="w-14 h-14 md:w-16 md:h-16 object-contain p-1.5 bg-slate-900 rounded-xl border border-slate-800 flex-shrink-0" />
-                  ) : (
-                    <div className={`w-14 h-14 md:w-16 md:h-16 rounded-xl ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold flex-shrink-0`}>
-                      <Building2 className="w-7 h-7 text-slate-400" />
-                    </div>
-                  )}
-                  <div>
-                    <h2 className="text-xl md:text-2xl font-bold">{selectedTeam.name}</h2>
-                    <p className="text-xs text-blue-500 font-medium mt-1">
-                      {selectedTeam.competition && selectedTeam.competition !== 'N/D' ? selectedTeam.competition : ''}
-                      {selectedTeam.competition && selectedTeam.competition !== 'N/D' && selectedTeam.country ? <span className="text-slate-400"> • </span> : ''}
-                      {selectedTeam.country && <span className="text-slate-400">{selectedTeam.country}</span>}
-                    </p>
-                  </div>
-                </div>
-                <button onClick={() => setSelectedTeam(null)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-full text-slate-400 hover:text-white transition`}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className={`${getTheme(isDarkMode).card} p-4 rounded-xl border border-slate-700/50`}>
-                  <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} block mb-1 font-semibold`}>Jogos Observados</span>
-                  <span className="text-xl font-bold text-emerald-500">{teamMatches.length} Partidas</span>
-                </div>
-                <div className={`${getTheme(isDarkMode).card} p-4 rounded-xl border border-slate-700/50`}>
-                  <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} block mb-1 font-semibold`}>Estatuto de Observação</span>
-                  <span className="text-xl font-bold text-blue-500">{selectedTeam.status || 'Monitored'}</span>
-                </div>
-              </div>
-
-              <div>
-                <h3 className={`text-xs md:text-sm font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} uppercase tracking-wider mb-3`}>Atletas de Interesse na Base de Dados ({teamPlayers.length})</h3>
-                {teamPlayers.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {teamPlayers.map(p => (
-                      <div key={p.id} className={`${getTheme(isDarkMode).card} p-3.5 rounded-xl border border-slate-700/50 flex items-center justify-between`}>
-                        <div className="flex items-center gap-3 min-w-0">
-                          {p.photo ? (
-                            <img src={p.photo} alt={p.name} className="w-10 h-10 rounded-full object-cover border border-slate-700 bg-slate-800 flex-shrink-0" />
-                          ) : (
-                            <div className={`w-10 h-10 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold text-xs flex-shrink-0`}>
-                              {(p.name || 'J').charAt(0)}
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <h4 className="font-bold text-sm truncate">{p.name}</h4>
-                            <p className="text-xs text-blue-500 font-medium mt-0.5 truncate">{p.position}</p>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => {
-                            setSelectedTeam(null);
-                            setSelectedPlayer(p);
-                            setProfileTab('timeline');
-                          }}
-                          className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-500 border border-blue-500/30 text-xs font-bold rounded-lg transition flex-shrink-0 ml-2"
-                        >
-                          Ver Perfil
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} ${getTheme(isDarkMode).card} p-4 rounded-xl border border-slate-700/50 text-center`}>
-                    Ainda não existem atletas desta equipa registados na base de dados.
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <h3 className={`text-xs md:text-sm font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} uppercase tracking-wider mb-3`}>Histórico de Jogos Observados ({teamMatches.length})</h3>
-                {teamMatches.length > 0 ? (
-                  <div className="space-y-2.5">
-                    {teamMatches.map(m => (
-                      <div key={m.id} className={`${getTheme(isDarkMode).card} p-3.5 rounded-xl border border-slate-700/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2`}>
-                        <div>
-                          <h4 className="font-bold text-sm">{m.matchName}</h4>
-                          <div className={`flex items-center gap-2 text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} mt-1`}>
-                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {m.gameDate}</span>
-                            <span>•</span>
-                            <span className="text-blue-500 font-medium">{m.competition}</span>
-                            <span>•</span>
-                            <span className={`${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} px-1.5 py-0.5 rounded text-[10px]`}>{m.type}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                          <div className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 ${isDarkMode ? 'bg-slate-800/60 border-slate-700/50' : 'bg-slate-100 border-slate-300'}`}>
-                            <UserCheck className="w-3.5 h-3.5 text-blue-500"/> Scout: {m.scout}
-                          </div>
-                          <button 
-                            onClick={() => { setSelectedTeam(null); navigateToMatch(m.id); }}
-                            className="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-500 text-[10px] md:text-xs font-bold rounded-lg transition flex items-center gap-1.5"
-                          >
-                            Ir para Jogo <ExternalLink className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} ${getTheme(isDarkMode).card} p-4 rounded-xl border border-slate-700/50 text-center`}>
-                    Ainda não foram registados jogos observados desta equipa no Match Center.
-                  </div>
-                )}
-              </div>
-
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* MODAL DETALHADO DO SCOUT (VERSÃO RESTAURADA) */}
-      {selectedScout && (() => {
-        const scoutMatches = getScoutMatches(selectedScout.name);
-        const assignedMarkets = scoutMarketAssignments[selectedScout.id] || [];
-        const isAdmin = userRole === 'ADMIN';
-
-        return (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-            <div className={`${getTheme(isDarkMode).card} border w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl shadow-2xl p-5 md:p-6 space-y-6 animate-in fade-in zoom-in-95`}>
-              
-              <div className={`flex justify-between items-start border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-4`}>
-                <div className="flex items-center gap-4">
-                  {selectedScout.photo ? (
-                    <img src={selectedScout.photo} alt={selectedScout.name} className="w-16 h-16 rounded-full object-cover border-2 border-blue-500 shadow-md flex-shrink-0" />
-                  ) : (
-                    <div className={`w-16 h-16 rounded-full ${isDarkMode ? 'bg-slate-800 border-blue-500' : 'bg-slate-200 border-blue-500'} border-2 flex items-center justify-center font-bold text-2xl flex-shrink-0`}>
-                      {selectedScout.name.charAt(0)}
-                    </div>
-                  )}
-                  <div>
-                    <h2 className="text-xl md:text-2xl font-bold">{selectedScout.name}</h2>
-                    <p className="text-xs text-blue-500 font-bold mt-1">{getUserTitle(selectedScout.name)}</p>
-                  </div>
-                </div>
-                <button onClick={() => setSelectedScout(null)} className={`p-2 ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700' : 'bg-slate-200 hover:bg-slate-300'} rounded-full text-slate-400 hover:text-white transition`}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-center">
-                <div className={`${getTheme(isDarkMode).card} p-4 rounded-xl border border-slate-700/50`}>
-                  <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} block mb-1 font-semibold`}>Jogos Observados</span>
-                  <span className="text-2xl font-black text-emerald-500">{scoutMatches.length}</span>
-                </div>
-                <div className={`${getTheme(isDarkMode).card} p-4 rounded-xl border border-slate-700/50`}>
-                  <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} block mb-1 font-semibold`}>Live vs Stream</span>
-                  <span className="text-sm font-bold text-blue-500 mt-1 block">{selectedScout.liveMatches || 0} L / {selectedScout.streamMatches || 0} S</span>
-                </div>
-              </div>
-
-              <div className={`${getTheme(isDarkMode).card} p-4 rounded-xl border border-slate-700/50 space-y-3`}>
-                <div className="flex items-center justify-between">
-                  <h3 className={`text-xs font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} uppercase tracking-wider flex items-center gap-1.5`}>
-                    <Globe className="w-3.5 h-3.5 text-blue-500" /> Mercados Atribuídos ({assignedMarkets.length})
-                  </h3>
-                  {isAdmin && (
-                    <span className="text-[10px] text-purple-500 font-bold uppercase">Edição do Head of Scout</span>
-                  )}
-                </div>
-
-                {isAdmin ? (
-                  <CustomMultiSelect 
-                    options={getScoutMarketOptions()} 
-                    selectedIds={assignedMarkets} 
-                    onChange={(ids: string[]) => handleSaveScoutMarkets(selectedScout.id, ids)} 
-                    placeholder="Atribuir mercados e séries..." 
-                    isDarkMode={isDarkMode}
-                  />
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {assignedMarkets.length > 0 ? (
-                      assignedMarkets.map((m, idx) => (
-                        <span key={idx} className={`text-xs ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-200 border-slate-300 text-slate-800'} px-3 py-1 rounded-lg border font-medium`}>
-                          {m}
-                        </span>
-                      ))
-                    ) : (
-                      <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} italic`}>Nenhum campeonato atribuído a este observador.</span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <h3 className={`text-xs md:text-sm font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} uppercase tracking-wider mb-3`}>Histórico de Partidas Acompanhadas ({scoutMatches.length})</h3>
-                {scoutMatches.length > 0 ? (
-                  <div className="space-y-2.5">
-                    {scoutMatches.map(m => (
-                      <div key={m.id} className={`${getTheme(isDarkMode).card} p-3.5 rounded-xl border border-slate-700/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2`}>
-                        <div>
-                          <h4 className="font-bold text-sm">{m.matchName}</h4>
-                          <div className={`flex items-center gap-2 text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} mt-1`}>
-                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {m.gameDate}</span>
-                            <span>•</span>
-                            <span className="text-blue-500 font-medium">{m.competition}</span>
-                            <span>•</span>
-                            <span className={`${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} px-1.5 py-0.5 rounded text-[10px]`}>{m.type}</span>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => { setSelectedScout(null); navigateToMatch(m.id); }}
-                          className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-500 text-xs font-bold rounded-lg transition flex items-center gap-1.5 self-start sm:self-auto"
-                        >
-                          Ir para Jogo <ExternalLink className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} ${getTheme(isDarkMode).card} p-6 rounded-xl border border-slate-700/50 text-center`}>
-                    Ainda não existem jogos registados em nome deste observador no Match Center.
-                  </div>
-                )}
-              </div>
-
-            </div>
-          </div>
-        );
-      })()}
+      <ScoutProfileModal
+        selectedScout={selectedScout}
+        onClose={() => setSelectedScout(null)}
+        getScoutMatches={getScoutMatches}
+        scoutMarketAssignments={scoutMarketAssignments}
+        getUserTitle={getUserTitle}
+        isAdmin={userRole === 'ADMIN'}
+        getScoutMarketOptions={getScoutMarketOptions}
+        handleSaveScoutMarkets={handleSaveScoutMarkets}
+        navigateToMatch={navigateToMatch}
+        isDarkMode={isDarkMode}
+      />
 
     </main>
   );
