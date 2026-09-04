@@ -29,7 +29,6 @@ export async function GET(request: Request) {
 
     const data = await res.json();
 
-    // Se forem solicitados os logs da tabela Logs_Mercado
     let logs: any[] = [];
     if (includeLogs || opportunityId) {
       let logUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado`;
@@ -82,7 +81,6 @@ export async function POST(request: Request) {
 
     let targetPlayerId = playerId;
 
-    // 1. Se o jogador não tiver ID, verifica se já existe em 'Players' pelo nome
     if (!targetPlayerId && name) {
       const searchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players?filterByFormula=LOWER({Name})='${encodeURIComponent(name.toLowerCase().trim())}'`;
       const searchRes = await fetch(searchUrl, { headers, cache: 'no-store' });
@@ -94,7 +92,6 @@ export async function POST(request: Request) {
         }
       }
 
-      // Se continuar sem existir, cria primeiro a ficha do atleta em 'Players'
       if (!targetPlayerId) {
         const createPlayerUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Players`;
         const createPlayerRes = await fetch(createPlayerUrl, {
@@ -128,7 +125,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // 2. Criar o registo na tabela 'Mercado_Oportunidades'
     const createMarketUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Mercado_Oportunidades`;
     const initialStatus = status || 'Em Avaliação';
 
@@ -173,7 +169,6 @@ export async function POST(request: Request) {
     const newMarket = await marketRes.json();
     const createdRecordId = newMarket.records[0].id;
 
-    // 3. Registar o Log inicial na tabela 'Logs_Mercado'
     try {
       const nowFormatted = new Date().toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' });
       const logUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado`;
@@ -228,7 +223,6 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Record ID é obrigatório' }, { status: 400 });
     }
 
-    // 1. Atualizar a Oportunidade na tabela 'Mercado_Oportunidades'
     const updateUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Mercado_Oportunidades/${recordId}`;
     const fields: Record<string, any> = {};
 
@@ -251,7 +245,6 @@ export async function PATCH(request: Request) {
 
     const updated = await res.json();
 
-    // 2. Gravar entrada de Auditoria na tabela 'Logs_Mercado'
     try {
       const nowFormatted = new Date().toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' });
       const logUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado`;
@@ -282,6 +275,34 @@ export async function PATCH(request: Request) {
     }
 
     return NextResponse.json({ success: true, record: updated });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// DELETE: Apagar permanentemente a oportunidade no Airtable (Apenas Admin)
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const recordId = searchParams.get('recordId');
+
+    if (!recordId) {
+      return NextResponse.json({ error: 'Record ID é obrigatório' }, { status: 400 });
+    }
+
+    const deleteUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Mercado_Oportunidades/${recordId}`;
+    const res = await fetch(deleteUrl, {
+      method: 'DELETE',
+      headers,
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      return NextResponse.json({ error: err }, { status: res.status });
+    }
+
+    const data = await res.json();
+    return NextResponse.json({ success: true, deleted: data });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

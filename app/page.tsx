@@ -228,6 +228,23 @@ export default function Home() {
     }
   };
 
+  const handleDeleteOpportunity = async (recordId: string) => {
+    if (!confirm("Tens a certeza que queres eliminar permanentemente esta oportunidade do Airtable?")) return;
+    try {
+      const res = await fetch(`/api/market?recordId=${recordId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setSelectedMarketOppToEdit(null);
+        await loadData();
+        showToast("Oportunidade eliminada permanentemente!");
+      } else {
+        showToast("Erro ao eliminar oportunidade.");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Erro de ligação.");
+    }
+  };
+
   const navigateToMatch = (matchId: string) => {
     setSelectedTeam(null); setSelectedPlayer(null); setSelectedScout(null);
     setActiveTab('matches'); setExpandedMatchId(matchId);
@@ -358,7 +375,7 @@ export default function Home() {
 
       <div className="max-w-6xl mx-auto px-4 md:px-0 mt-4 md:mt-0">
         {activeTab === 'dashboard' && <DashboardTab players={players} matches={matches} teams={teams} displayScouts={scouts} canCreateMatches={true} authScoutId={authScoutId} preGameData={{} as any} setPreGameData={()=>{}} setIsMarketModalOpen={setIsMarketModalOpen} setIsRegisterOpen={()=>{}} setActiveTab={setActiveTab} getRecentHighlights={getRecentHighlights} navigateToMatch={navigateToMatch} isDarkMode={isDarkMode} />}
-        {activeTab === 'market' && <MarketTab marketOpportunities={marketOpportunities} players={players} setIsMarketModalOpen={setIsMarketModalOpen} setSelectedMarketOppToEdit={setSelectedMarketOppToEdit} setDecisionFormData={setDecisionFormData} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} isDarkMode={isDarkMode} />}
+        {activeTab === 'market' && <MarketTab marketOpportunities={marketOpportunities} players={players} setIsMarketModalOpen={setIsMarketModalOpen} setSelectedMarketOppToEdit={setSelectedMarketOppToEdit} setDecisionFormData={setDecisionFormData} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} userRole={userRole} isDarkMode={isDarkMode} />}
         
         {activeTab === 'players' && <PlayersTab filteredPlayers={players} teams={teams} visibleCount={visibleCount} setVisibleCount={setVisibleCount} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} setSelectedSeasonIdx={setSelectedSeasonIdx} isDarkMode={isDarkMode} />}
         {activeTab === 'teams' && <TeamsTab filteredTeams={teams} players={players} matches={matches} setSelectedTeam={setSelectedTeam} canCreateMatches={true} setIsNewTeamOpen={setIsNewTeamOpen} isDarkMode={isDarkMode} />}
@@ -377,8 +394,10 @@ export default function Home() {
         onClose={() => setSelectedMarketOppToEdit(null)} 
         decisionFormData={decisionFormData} 
         setDecisionFormData={setDecisionFormData} 
-        onSubmit={handleDecisionSubmit} 
+        onSubmit={handleDecisionSubmit}
+        onDelete={handleDeleteOpportunity}
         updatingDecision={updatingDecision} 
+        userRole={userRole}
         isDarkMode={isDarkMode} 
       />
       
