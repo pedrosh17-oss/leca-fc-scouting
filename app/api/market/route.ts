@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     if (includeLogs || opportunityId) {
       let logUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado`;
       if (opportunityId) {
-        logUrl += `?filterByFormula=FIND('${opportunityId}', {Oportunidade})`;
+        logUrl += `?filterByFormula=SEARCH('${opportunityId}', ARRAYJOIN({Oportunidade}))`;
       }
       const logRes = await fetch(logUrl, { headers, cache: 'no-store' });
       if (logRes.ok) {
@@ -267,6 +267,7 @@ export async function PATCH(request: Request) {
   }
 }
 
+// DELETE: Apagar permanentemente a oportunidade E todos os seus logs associados
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -276,14 +277,16 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Record ID é obrigatório' }, { status: 400 });
     }
 
-    // 1. Procurar e apagar todos os logs associados na tabela Logs_Mercado
+    // 1. Procurar e apagar todos os logs associados na tabela Logs_Mercado usando SEARCH e ARRAYJOIN
     try {
-      const logSearchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado?filterByFormula=FIND('${recordId}', {Oportunidade})`;
+      const logSearchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado?filterByFormula=SEARCH('${recordId}', ARRAYJOIN({Oportunidade}))`;
       const logSearchRes = await fetch(logSearchUrl, { headers, cache: 'no-store' });
+      
       if (logSearchRes.ok) {
         const logData = await logSearchRes.json();
         const logRecords = logData.records || [];
         
+        // Apaga log por log
         for (const logRec of logRecords) {
           await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Logs_Mercado/${logRec.id}`, {
             method: 'DELETE',
@@ -295,7 +298,7 @@ export async function DELETE(request: Request) {
       console.warn("Aviso ao apagar logs associados:", logDeleteErr);
     }
 
-    // 2. Apagar a oportunidade em Mercado_Oportunidades
+    // 2. Apagar a oportunidade principal em Mercado_Oportunidades
     const deleteUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Mercado_Oportunidades/${recordId}`;
     const res = await fetch(deleteUrl, { method: 'DELETE', headers });
 
