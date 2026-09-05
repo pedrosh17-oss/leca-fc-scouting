@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Users, Trophy, Shield, ArrowRight, Loader2, LogOut, CheckCircle2, Menu, X, 
-  LayoutDashboard, BarChart3, Briefcase, Building2, Sliders, Sun, Moon, UserPlus
+  LayoutDashboard, BarChart3, Briefcase, Building2, Sliders, Sun, Moon 
 } from 'lucide-react';
 
 import { DEPT_PASSWORD } from './constants/options';
@@ -22,6 +22,8 @@ import ScoutProfileModal from './components/modals/ScoutProfileModal';
 import NewTeamModal from './components/modals/NewTeamModal';
 import NewMatchModal from './components/modals/NewMatchModal';
 import NewPlayerModal from './components/modals/NewPlayerModal';
+import AddHighlightModal from './components/modals/AddHighlightModal';
+import EditHighlightModal from './components/modals/EditHighlightModal';
 
 import DashboardTab from './components/tabs/DashboardTab';
 import MarketTab from './components/tabs/MarketTab';
@@ -47,7 +49,7 @@ export default function Home() {
 
   const { uploadingExcel, handleFileUpload } = useExcelUploader(setAlgorithmData, showToast, extractPlayerBaseName, extractContextTag);
 
-  // Estados de Navegação e UI
+  // Estados da UI
   const [activeTab, setActiveTab] = useState<'dashboard'|'players'|'teams'|'matches'|'scouts'|'admin'|'stats'|'market'>('dashboard');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
@@ -602,17 +604,15 @@ export default function Home() {
       <div className="max-w-6xl mx-auto px-4 md:px-0 mt-4 md:mt-0">
         {activeTab === 'dashboard' && <DashboardTab players={players} matches={matches} teams={teams} displayScouts={scouts} canCreateMatches={true} authScoutId={authScoutId} preGameData={preGameData} setPreGameData={setPreGameData} setIsMarketModalOpen={setIsMarketModalOpen} setIsRegisterOpen={setIsRegisterOpen} setActiveTab={setActiveTab} getRecentHighlights={getRecentHighlights} navigateToMatch={navigateToMatch} isDarkMode={isDarkMode} />}
         {activeTab === 'market' && <MarketTab marketOpportunities={marketOpportunities} players={players} setIsMarketModalOpen={setIsMarketModalOpen} setSelectedMarketOppToEdit={setSelectedMarketOppToEdit} setDecisionFormData={setDecisionFormData} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} userRole={userRole} isDarkMode={isDarkMode} />}
-        
         {activeTab === 'players' && <PlayersTab filteredPlayers={players} teams={teams} visibleCount={visibleCount} setVisibleCount={setVisibleCount} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} setSelectedSeasonIdx={setSelectedSeasonIdx} isDarkMode={isDarkMode} />}
         {activeTab === 'teams' && <TeamsTab filteredTeams={teams} players={players} matches={matches} setSelectedTeam={setSelectedTeam} canCreateMatches={true} setIsNewTeamOpen={setIsNewTeamOpen} isDarkMode={isDarkMode} />}
-        
         {activeTab === 'stats' && <StatsTab comparePlayerKeyA={comparePlayerKeyA} setComparePlayerKeyA={setComparePlayerKeyA} comparePlayerKeyB={comparePlayerKeyB} setComparePlayerKeyB={setComparePlayerKeyB} comparePlayerKeyC={comparePlayerKeyC} setComparePlayerKeyC={setComparePlayerKeyC} algoOptions={algoOptions} algorithmData={algorithmData} extractContextTag={extractContextTag} isDarkMode={isDarkMode} />}
         {activeTab === 'matches' && <MatchesTab matches={matches} players={players} displayScouts={scouts} canCreateMatches={true} canEditMatches={true} expandedMatchId={expandedMatchId} toggleMatch={id => setExpandedMatchId(expandedMatchId === id ? null : id)} editingMatchId={editingMatchId} startEditMatchContext={startEditMatchContext} setExpandedMatchEdit={setExpandedMatchEdit} reportData={reportData} setReportData={setReportData} handleReportSubmit={handleReportSubmit} submittingReport={submittingReport} setIsAddHighlightOpen={setIsAddHighlightOpen} setNewHighlightData={setNewHighlightData} setEditingHighlight={setEditingHighlight} setSelectedPlayer={setSelectedPlayer} setProfileTab={setProfileTab} setSelectedSeasonIdx={setSelectedSeasonIdx} navigateToMatch={navigateToMatch} setPreGameData={setPreGameData} preGameData={preGameData} authScoutId={authScoutId} setIsRegisterOpen={setIsRegisterOpen} isDarkMode={isDarkMode} />}
         {activeTab === 'scouts' && <ScoutsTab displayScouts={scouts} scoutMarketAssignments={scoutMarketAssignments} setSelectedScout={setSelectedScout} getUserTitle={getUserTitle} getScoutMatches={getScoutMatches} matches={matches} isDarkMode={isDarkMode} />}
         {activeTab === 'admin' && <AdminTab isAdmin={userRole === 'ADMIN'} uniqueAlgoPlayersCount={0} uploadingExcel={uploadingExcel} handleFileUpload={handleFileUpload} handleAddMarket={()=>{}} newMarketInput={newMarketInput} setNewMarketInput={setNewMarketInput} adminMarkets={adminMarkets} handleRemoveMarket={()=>{}} scouts={scouts} isDarkMode={isDarkMode} />}
       </div>
 
-      {/* COMPONENTES DE MODAIS ISOLADOS */}
+      {/* COMPONENTES DE MODAIS ISOLADOS (MODULARIZADOS) */}
       <MarketModal isOpen={isMarketModalOpen} onClose={() => setIsMarketModalOpen(false)} marketFormData={marketFormData} setMarketFormData={setMarketFormData} onSubmit={handleMarketSubmit} submittingMarket={submittingMarket} players={players} teams={teams} displayScouts={scouts} isDarkMode={isDarkMode} />
       
       <MarketDecisionModal 
@@ -670,94 +670,25 @@ export default function Home() {
         isDarkMode={isDarkMode} 
       />
 
-      {/* MODAL ADICIONAR HIGHLIGHT */}
-      {isAddHighlightOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className={`${theme.card} border w-full max-w-lg rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200`}>
-            <div className={`flex justify-between items-center border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-3`}>
-              <div>
-                <h3 className="font-bold text-base md:text-sm">Adicionar Atleta ao Jogo</h3>
-                <p className={`text-[10px] md:text-xs ${theme.textMuted} mt-0.5 truncate max-w-[250px]`}>{isAddHighlightOpen.matchName}</p>
-              </div>
-              <button onClick={() => setIsAddHighlightOpen(null)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} text-slate-400 hover:text-white rounded-full`}><X className="w-4 h-4" /></button>
-            </div>
+      <AddHighlightModal
+        isOpen={isAddHighlightOpen}
+        onClose={() => setIsAddHighlightOpen(null)}
+        newHighlightData={newHighlightData}
+        setNewHighlightData={setNewHighlightData}
+        onSubmit={handleAddHighlightSubmit}
+        players={players}
+        openNewPlayerModalForMatch={openNewPlayerModalForMatch}
+        isDarkMode={isDarkMode}
+      />
 
-            <form onSubmit={handleAddHighlightSubmit} className="space-y-4 text-sm md:text-xs">
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label className={`${theme.textMuted} font-bold`}>Procurar na Base de Dados</label>
-                  <button type="button" onClick={() => openNewPlayerModalForMatch(isAddHighlightOpen.matchName)} className="text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/20 flex items-center gap-1 font-bold text-[10px] md:text-xs">
-                    <UserPlus className="w-3 h-3" /> Novo Atleta
-                  </button>
-                </div>
-                <CustomSelect
-                  options={players.map(p => ({ value: p.id, label: `${p.name} (${p.position})`, image: p.photo }))}
-                  value={newHighlightData.playerId} onChange={val => setNewHighlightData({ ...newHighlightData, playerId: val })}
-                  placeholder="Pesquisar atleta..." searchable={true} isDarkMode={isDarkMode}
-                />
-              </div>
-
-              <div>
-                <label className={`block ${theme.textMuted} font-bold mb-1.5`}>Avaliação</label>
-                <textarea 
-                  rows={4} required placeholder="Análise individual do atleta..."
-                  value={newHighlightData.notes} onChange={e => setNewHighlightData({ ...newHighlightData, notes: e.target.value })}
-                  className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-blue-500 font-sans resize-none shadow-inner ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'}`}
-                />
-              </div>
-
-              <div className={`flex gap-3 pt-4 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} mt-4`}>
-                <button type="button" onClick={() => setIsAddHighlightOpen(null)} className={`flex-1 px-4 py-2.5 ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} font-bold rounded-xl`}>Cancelar</button>
-                <button type="submit" className="flex-1 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl">Adicionar Destaque</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL EDITAR HIGHLIGHT INDIVIDUAL */}
-      {editingHighlight && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className={`${theme.card} border w-full max-w-lg rounded-2xl shadow-2xl p-5 md:p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200`}>
-            <div className={`flex justify-between items-start border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} pb-4`}>
-              <div className="flex items-center gap-3 min-w-0">
-                {editingHighlight.player.photo ? (
-                  <img src={editingHighlight.player.photo} alt={editingHighlight.player.name} className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover border border-slate-700 flex-shrink-0" />
-                ) : (
-                  <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center font-bold text-sm md:text-base flex-shrink-0`}>
-                    {(editingHighlight.player.name || 'J').charAt(0)}
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <h3 className="font-bold text-sm md:text-base truncate">Editar: {editingHighlight.player.name}</h3>
-                  <p className={`text-[10px] md:text-xs ${theme.textMuted} mt-0.5 truncate`}>{editingHighlight.matchName}</p>
-                </div>
-              </div>
-              <button onClick={() => setEditingHighlight(null)} className={`p-2 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-full text-slate-400 hover:text-white transition flex-shrink-0`}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveSingleHighlight} className="space-y-4 text-xs md:text-sm">
-              <div>
-                <label className={`block ${theme.textMuted} font-bold mb-2`}>Avaliação Individual</label>
-                <textarea 
-                  rows={6} required placeholder="Escreve a tua avaliação técnica/tática..."
-                  value={editingHighlight.notes} onChange={e => setEditingHighlight({ ...editingHighlight, notes: e.target.value })}
-                  className={`w-full border rounded-xl p-3.5 focus:outline-none focus:border-blue-500 font-sans leading-relaxed resize-none shadow-inner ${isDarkMode ? 'bg-[#0d131f] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'}`}
-                />
-              </div>
-
-              <div className={`flex justify-end gap-3 pt-2 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'} mt-4`}>
-                <button type="button" onClick={() => setEditingHighlight(null)} className={`flex-1 md:flex-none px-4 py-2.5 ${isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'} font-bold rounded-xl`}>Cancelar</button>
-                <button type="submit" disabled={savingHighlight} className="flex-1 md:flex-none px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
-                  {savingHighlight ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar Observação'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <EditHighlightModal
+        editingHighlight={editingHighlight}
+        onClose={() => setEditingHighlight(null)}
+        setEditingHighlight={setEditingHighlight}
+        onSubmit={handleSaveSingleHighlight}
+        savingHighlight={savingHighlight}
+        isDarkMode={isDarkMode}
+      />
 
     </main>
   );
